@@ -15,15 +15,17 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean --treeshake --external bun:sqlite",
-    "build:watch": "tsup src/index.ts --format esm --dts --watch --external bun:sqlite",
+    "build": "tsup src/index.ts --format esm --dts --clean --treeshake",
+    "build:watch": "tsup src/index.ts --format esm --dts --watch",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
+    "better-sqlite3": "^12.10.0",
     "drizzle-orm": "^0.33.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "drizzle-kit": "^0.24.2",
     "tsup": "^8.5.1"
   }

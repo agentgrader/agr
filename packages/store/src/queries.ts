@@ -1,5 +1,5 @@
-import { Database } from "bun:sqlite";
-import { drizzle } from "drizzle-orm/bun-sqlite";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import * as schema from "./schema";
@@ -16,7 +16,7 @@ export function initDb(dbPath: string = ".crucible/db.sqlite") {
   const db = drizzle(sqlite, { schema });
   
   // create tables on first run
-  sqlite.run(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS test_cases (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -29,7 +29,7 @@ export function initDb(dbPath: string = ".crucible/db.sqlite") {
     )
   `);
 
-  sqlite.run(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS agent_configs (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -42,7 +42,7 @@ export function initDb(dbPath: string = ".crucible/db.sqlite") {
     )
   `);
 
-  sqlite.run(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS runs (
       id TEXT PRIMARY KEY,
       test_case_id TEXT NOT NULL,
@@ -65,7 +65,7 @@ export function initDb(dbPath: string = ".crucible/db.sqlite") {
     )
   `);
 
-  sqlite.run(`
+  sqlite.exec(`
     CREATE TABLE IF NOT EXISTS traces (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       run_id TEXT NOT NULL,

@@ -6,7 +6,6 @@ export default defineConfig({
   dts: true,
   clean: true,
   treeshake: true,
-  external: ["bun:sqlite"],
   banner: {
     js: "#!/usr/bin/env node",
   },
