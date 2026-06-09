@@ -1,0 +1,191 @@
+import Docker from "dockerode";
+import { spawn } from "child_process";
+import { Writable, Readable } from "stream";
+import type { SandboxProvider, SandboxHandle } from "@crucible-agr/core";
+import { existsSync } from "fs";
+import { resolve } from "path";
+
+export class DockerSandboxHandle implements SandboxHandle {
+  private container: Docker.Container;
+
+  constructor(container: Docker.Container) {
+    this.container = container;
+  }
+
+  async exec(cmd: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    const exec = await this.container.exec({
+      Cmd: ["sh", "-c", cmd],
+      AttachStdout: true,
+      AttachStderr: true,
+      WorkingDir: "/app",
+    });
+
+    const stream = await exec.start({});
+    const stdoutBuffer: string[] = [];
+    const stderrBuffer: string[] = [];
+
+    const stdoutWritable = new Writable({
+      write(chunk, encoding, callback) {
+        stdoutBuffer.push(chunk.toString());
+        callback();
+      },
+    });
+
+    const stderrWritable = new Writable({
+      write(chunk, encoding, callback) {
+        stderrBuffer.push(chunk.toString());
+        callback();
+      },
+    });
+
+    this.container.modem.demuxStream(stream, stdoutWritable, stderrWritable);
+
+    let running = true;
+    let inspectData: any;
+    while (running) {
+      inspectData = await exec.inspect();
+      running = inspectData.Running;
+      if (running) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    }
+
+    return {
+      stdout: stdoutBuffer.join(""),
+      stderr: stderrBuffer.join(""),
+      exitCode: inspectData?.ExitCode ?? 0,
+    };
+  }
+
+  async writeFile(path: string, content: string): Promise<void> {
+    // make sure the directory exists before writing
+    await this.exec(`mkdir -p $(dirname "${path}")`);
+
+    const exec = await this.container.exec({
+      Cmd: ["sh", "-c", `cat > "${path}"`],
+      AttachStdin: true,
+      AttachStdout: false,
+      AttachStderr: false,
+      WorkingDir: "/app",
+    });
+
+    const stream = await exec.start({ hijack: true, stdin: true });
+    
+    await new Promise<void>((resolve, reject) => {
+      stream.write(content, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          stream.end();
+          resolve();
+        }
+      });
+    });
+
+    // small delay so the container actually flushes the write
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  async readFile(path: string): Promise<string> {
+    const res = await this.exec(`cat "${path}"`);
+    if (res.exitCode !== 0) {
+      throw new Error(`Failed to read file ${path}: ${res.stderr}`);
+    }
+    return res.stdout;
+  }
+
+  async gitDiff(): Promise<string> {
+    const res = await this.exec("git diff");
+    return res.stdout;
+  }
+
+  async destroy(): Promise<void> {
+    try {
+      await this.container.stop();
+    } catch (e) {}
+    try {
+      await this.container.remove({ force: true });
+    } catch (e) {}
+  }
+}
+
+export class DockerSandboxProvider implements SandboxProvider {
+  readonly name = "docker";
+  private docker: Docker;
+
+  constructor() {
+    this.docker = new Docker();
+  }
+
+  async create(opts: { image?: string; gitSnapshot?: string }): Promise<SandboxHandle> {
+    const image = opts.image || "node:20";
+
+    // pull if not cached locally
+    let imageExists = false;
+    try {
+      await this.docker.getImage(image).inspect();
+      imageExists = true;
+    } catch (e) {}
+
+    if (!imageExists) {
+      console.log(`Docker image "${image}" not found locally. Pulling...`);
+      const stream = await this.docker.pull(image);
+      await new Promise<void>((resolve, reject) => {
+        this.docker.modem.followProgress(stream, (err, res) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      console.log(`Docker image "${image}" successfully pulled.`);
+    }
+
+    // create and immediately start the container
+    const container = await this.docker.createContainer({
+      Image: image,
+      Cmd: ["tail", "-f", "/dev/null"],
+      Tty: true,
+      WorkingDir: "/app",
+    });
+
+    await container.start();
+    const handle = new DockerSandboxHandle(container);
+
+    // make sure /app exists even on bare images
+    await handle.exec("mkdir -p /app");
+
+    // copy fixture into /app if a path was given
+    if (opts.gitSnapshot) {
+      const localPath = resolve(opts.gitSnapshot);
+      if (existsSync(localPath)) {
+        // tar the local dir and stream it straight into the container
+        const tarProcess = spawn("tar", ["--no-xattrs", "-cf", "-", "-C", localPath, "."], {
+          env: {
+            ...process.env,
+            COPYFILE_DISABLE: "1",
+          },
+        });
+        
+        await new Promise<void>((resolve, reject) => {
+          container.putArchive(tarProcess.stdout, { path: "/app" }, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+
+        // wait for tar to finish before moving on
+        await new Promise<void>((resolve, reject) => {
+          tarProcess.on("close", (code) => {
+            if (code === 0) resolve();
+            else reject(new Error(`tar process exited with code ${code}`));
+          });
+          tarProcess.on("error", (err) => reject(err));
+        });
+      }
+    }
+
+    // init a git repo so we can diff what the agent changed later
+    await handle.exec("git init && git config user.email 'agent@crucible.local' && git config user.name 'Crucible Agent' && git add -A && git commit -m 'initial' || true");
+
+    return handle;
+  }
+}

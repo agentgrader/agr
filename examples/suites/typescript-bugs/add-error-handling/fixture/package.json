@@ -1,0 +1,12 @@
+{
+  "name": "fixture-error-handling",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx --test src/client.test.ts"
+  },
+  "dependencies": {
+    "tsx": "^4.19.1",
+    "typescript": "^5.6.2"
+  }
+}

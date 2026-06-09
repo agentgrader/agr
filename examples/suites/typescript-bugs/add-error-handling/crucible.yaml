@@ -1,0 +1,14 @@
+name: add-error-handling
+description: fetchWithRetry() crashes on network timeout - make it resilient
+fixture: ./fixture
+prompt: |
+  The function fetchWithRetry() in src/client.ts throws an unhandled error when the
+  network times out. Add proper error handling so it retries up to 3 times
+  (total of 4 attempts: 1 initial + 3 retries), then throws the error if all fail.
+  Do not change the signature of fetchWithRetry.
+success:
+  - run: npm install && npm test
+    expect: { exit_code: 0 }
+  - assert: steps <= 10
+  - assert: cost_usd <= 0.05
+timeout_seconds: 300

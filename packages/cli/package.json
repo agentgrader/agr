@@ -1,0 +1,32 @@
+{
+  "name": "@crucible-agr/cli",
+  "version": "0.1.0",
+  "description": "CLI for the Crucible agent benchmarking framework — run and bench coding agents",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "crucible": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "build:watch": "tsup --watch",
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@crucible-agr/agent-openrouter": "workspace:*",
+    "@crucible-agr/core": "workspace:*",
+    "@crucible-agr/sandbox-docker": "workspace:*",
+    "@crucible-agr/store": "workspace:*",
+    "cac": "^6.7.14",
+    "ink": "^4.4.1",
+    "react": "^18.2.0",
+    "yaml": "^2.5.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "tsup": "^8.5.1"
+  }
+}

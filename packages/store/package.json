@@ -1,0 +1,30 @@
+{
+  "name": "@crucible-agr/store",
+  "version": "0.1.0",
+  "description": "SQLite + Drizzle persistence layer for Crucible runs and traces",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --treeshake --external bun:sqlite",
+    "build:watch": "tsup src/index.ts --format esm --dts --watch --external bun:sqlite",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.33.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.24.2",
+    "tsup": "^8.5.1"
+  }
+}
