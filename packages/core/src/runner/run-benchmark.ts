@@ -4,7 +4,7 @@ import type { TestCase } from "../schema/test-case";
 import type { AgentConfig } from "../schema/agent-config";
 import type { AgentAdapter } from "../adapters/agent-adapter";
 import type { SandboxProvider } from "../adapters/sandbox-provider";
-import type { CrucibleDb } from "@crucible-agr/store";
+import type { AgrDb } from "@agentgrader/store";
 import { runSingle, type RunSingleResult } from "./run-single";
 import { randomUUID } from "crypto";
 
@@ -13,7 +13,7 @@ export interface BenchmarkInput {
   agentConfigs: AgentConfig[];
   adapter: AgentAdapter;
   sandboxProvider: SandboxProvider;
-  db?: CrucibleDb;
+  db?: AgrDb;
   concurrency?: number;
   onRunUpdate?: (
     run: RunSingleResult & {

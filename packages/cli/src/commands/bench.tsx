@@ -1,10 +1,10 @@
 import { resolve } from "path";
 import { render } from "ink";
 import React from "react";
-import { initDb, saveTestCase, saveAgentConfig } from "@crucible-agr/store";
-import { runBenchmark, type TestCase, type AgentConfig } from "@crucible-agr/core";
-import { DockerSandboxProvider } from "@crucible-agr/sandbox-docker";
-import { OpenRouterAgentAdapter } from "@crucible-agr/agent-openrouter";
+import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
+import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
+import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
+import { OpenRouterAgentAdapter } from "@agentgrader/agent-openrouter";
 import { Dashboard, type RunState } from "../ui/Dashboard";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { loadTestCase, testCaseToDbRow, findTestCaseYamlFiles } from "../lib/load-test-case";

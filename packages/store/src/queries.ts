@@ -5,9 +5,9 @@ import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
 
-export type CrucibleDb = ReturnType<typeof initDb>;
+export type AgrDb = ReturnType<typeof initDb>;
 
-export function initDb(dbPath = ".crucible/db.sqlite") {
+export function initDb(dbPath = ".agr/db.sqlite") {
   const dir = dirname(dbPath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
@@ -121,7 +121,7 @@ function ensureColumn(
 }
 
 // query helpers
-export async function saveTestCase(db: CrucibleDb, testCase: typeof schema.testCases.$inferInsert) {
+export async function saveTestCase(db: AgrDb, testCase: typeof schema.testCases.$inferInsert) {
   await db
     .insert(schema.testCases)
     .values(testCase)
@@ -148,7 +148,7 @@ export async function saveTestCase(db: CrucibleDb, testCase: typeof schema.testC
 }
 
 export async function saveAgentConfig(
-  db: CrucibleDb,
+  db: AgrDb,
   config: typeof schema.agentConfigs.$inferInsert,
 ) {
   await db
@@ -167,28 +167,28 @@ export async function saveAgentConfig(
     });
 }
 
-export async function createRun(db: CrucibleDb, run: typeof schema.runs.$inferInsert) {
+export async function createRun(db: AgrDb, run: typeof schema.runs.$inferInsert) {
   await db.insert(schema.runs).values(run);
 }
 
 export async function updateRun(
-  db: CrucibleDb,
+  db: AgrDb,
   runId: string,
   updates: Partial<Omit<typeof schema.runs.$inferInsert, "id">>,
 ) {
   await db.update(schema.runs).set(updates).where(eq(schema.runs.id, runId));
 }
 
-export async function addTrace(db: CrucibleDb, trace: typeof schema.traces.$inferInsert) {
+export async function addTrace(db: AgrDb, trace: typeof schema.traces.$inferInsert) {
   await db.insert(schema.traces).values(trace);
 }
 
-export async function getRun(db: CrucibleDb, runId: string) {
+export async function getRun(db: AgrDb, runId: string) {
   const result = await db.select().from(schema.runs).where(eq(schema.runs.id, runId)).limit(1);
   return result[0] || null;
 }
 
-export async function getTraces(db: CrucibleDb, runId: string) {
+export async function getTraces(db: AgrDb, runId: string) {
   return db
     .select()
     .from(schema.traces)
@@ -196,7 +196,7 @@ export async function getTraces(db: CrucibleDb, runId: string) {
     .orderBy(schema.traces.stepIndex);
 }
 
-export async function getRunsForTestCase(db: CrucibleDb, testCaseId: string) {
+export async function getRunsForTestCase(db: AgrDb, testCaseId: string) {
   return db
     .select()
     .from(schema.runs)
@@ -204,11 +204,11 @@ export async function getRunsForTestCase(db: CrucibleDb, testCaseId: string) {
     .orderBy(desc(schema.runs.createdAt));
 }
 
-export async function listRuns(db: CrucibleDb) {
+export async function listRuns(db: AgrDb) {
   return db.select().from(schema.runs).orderBy(desc(schema.runs.createdAt));
 }
 
-export async function getCachedBaseline(db: CrucibleDb, testCaseId: string, fixtureHash: string) {
+export async function getCachedBaseline(db: AgrDb, testCaseId: string, fixtureHash: string) {
   const id = `${testCaseId}:${fixtureHash}`;
   const result = await db
     .select()
@@ -219,7 +219,7 @@ export async function getCachedBaseline(db: CrucibleDb, testCaseId: string, fixt
 }
 
 export async function saveCachedBaseline(
-  db: CrucibleDb,
+  db: AgrDb,
   baseline: typeof schema.testCaseBaselines.$inferInsert,
 ) {
   await db

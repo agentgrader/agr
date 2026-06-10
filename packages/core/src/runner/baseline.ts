@@ -1,5 +1,5 @@
-import type { CrucibleDb } from "@crucible-agr/store";
-import { getCachedBaseline, saveCachedBaseline } from "@crucible-agr/store";
+import type { AgrDb } from "@agentgrader/store";
+import { getCachedBaseline, saveCachedBaseline } from "@agentgrader/store";
 import type { SandboxProvider } from "../adapters/sandbox-provider";
 import type { TestStatusMap } from "../adapters/test-result-parser";
 import { TapTestResultParser } from "../adapters/test-result-parser";
@@ -25,7 +25,7 @@ export interface BaselineResult {
 export async function getOrComputeBaseline(input: {
   testCase: TestCase;
   sandboxProvider: SandboxProvider;
-  db?: CrucibleDb;
+  db?: AgrDb;
 }): Promise<BaselineResult | undefined> {
   const { testCase, sandboxProvider, db } = input;
   if (!testCase.test_command) return undefined;

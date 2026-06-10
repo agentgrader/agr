@@ -1,9 +1,9 @@
-import { validateTestCase } from "@crucible-agr/core";
-import { DockerSandboxProvider } from "@crucible-agr/sandbox-docker";
+import { validateTestCase } from "@agentgrader/core";
+import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { loadTestCase } from "../lib/load-test-case";
 
 /**
- * `crucible validate <testCase>`
+ * `agr validate <testCase>`
  *
  * Runs the SWE-bench-style validation pipeline against a test case
  * definition: static field checks, then (if a `test_command` is

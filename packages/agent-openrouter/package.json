@@ -1,7 +1,7 @@
 {
-  "name": "@crucible-agr/agent-openrouter",
+  "name": "@agentgrader/agent-openrouter",
   "version": "0.1.0",
-  "description": "OpenRouter/AI SDK ReAct agent adapter for the Crucible framework",
+  "description": "OpenRouter/AI SDK ReAct agent adapter for the Agentgrader framework",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^1.1.0",
-    "@crucible-agr/core": "workspace:*",
+    "@agentgrader/core": "workspace:*",
     "ai": "^4.1.0",
     "zod": "^3.23.8"
   },
@@ -28,6 +28,6 @@
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@crucible-agr/core": "^0.1.0"
+    "@agentgrader/core": "^0.1.0"
   }
 }

@@ -1,7 +1,7 @@
 {
-  "name": "@crucible-agr/store",
+  "name": "@agentgrader/store",
   "version": "0.1.0",
-  "description": "SQLite + Drizzle persistence layer for Crucible runs and traces",
+  "description": "SQLite + Drizzle persistence layer for Agentgrader runs and traces",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
