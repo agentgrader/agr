@@ -12,3 +12,35 @@ success:
   - assert: steps <= 10
   - assert: cost_usd <= 0.05
 timeout_seconds: 300
+
+# SWE-bench based metadata (see docs/swe-bench-insights.md)
+tags:
+  - typescript
+  - error-handling
+  - retry-logic
+  - regression
+
+# TAP output from this command is parsed to check fail_to_pass/pass_to_pass
+test_command: "npx tsx --test --test-reporter=tap src/client.test.ts"
+
+# tests that are currently failing and must pass once the bug is fixed
+fail_to_pass:
+  - "should retry on failure and succeed"
+  - "should fail after 4 total attempts (1 initial + 3 retries)"
+
+# tests that already pass and must not regress
+pass_to_pass:
+  - "should succeed on first attempt"
+
+# the agent should only need to touch the implementation file
+expected_files:
+  - src/client.ts
+
+# tamper guard: editing the test file to "fix" the suite is not a valid solution
+forbid_modified:
+  - src/client.test.ts
+
+# gold patch used for diff-scope scoring and `crucible validate`
+solution: ./solution.patch
+
+created_at: "2024-01-15T00:00:00Z"

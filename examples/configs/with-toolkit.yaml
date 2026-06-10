@@ -1,0 +1,29 @@
+id: baseline-with-toolkit
+name: Baseline Agent (with toolkit)
+model: gpt-4o-mini
+max_steps: 15
+temperature: 0.2
+system_prompt: |
+  You are a professional software developer. Your goal is to solve the coding task inside the sandbox.
+  Use the executeCommand tool to run tests and verify your code changes.
+  Use readFile and writeFile to read and edit code files.
+  Call submit when you are confident all requirements are implemented and tests pass.
+
+# Toolkit directories (relative to this file) to inject into the sandbox.
+# Each toolkit may contain:
+#   - bin/                 custom CLI tools, copied onto PATH and chmod +x
+#   - .claude/skills/<name>/SKILL.md   Agent Skills docs, copied to /app and
+#                                       summarized in the system prompt
+toolkits:
+  - ../toolkits/code-search
+
+# Example MCP server wiring (uncomment and configure to enable). Tools from
+# each server are merged in, namespaced as "<server-name>_<tool-name>".
+# mcp_servers:
+#   filesystem:
+#     command: npx
+#     args: ["-y", "@modelcontextprotocol/server-filesystem", "/app"]
+#   remote-example:
+#     url: "https://example.com/mcp"
+#     headers:
+#       Authorization: "Bearer ${MCP_TOKEN}"

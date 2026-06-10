@@ -1,32 +1,13 @@
-import { readFileSync, readdirSync, statSync } from "fs";
-import { resolve, dirname } from "path";
-import { parse } from "yaml";
+import { resolve } from "path";
 import { render } from "ink";
 import React from "react";
 import { initDb, saveTestCase, saveAgentConfig } from "@crucible-agr/store";
-import { runBenchmark, TestCaseSchema, AgentConfigSchema, type TestCase, type AgentConfig } from "@crucible-agr/core";
+import { runBenchmark, type TestCase, type AgentConfig } from "@crucible-agr/core";
 import { DockerSandboxProvider } from "@crucible-agr/sandbox-docker";
 import { OpenRouterAgentAdapter } from "@crucible-agr/agent-openrouter";
 import { Dashboard, type RunState } from "../ui/Dashboard";
-
-function findTestCaseYamlFiles(dir: string): string[] {
-  const files: string[] = [];
-  try {
-    const entries = readdirSync(dir);
-    for (const entry of entries) {
-      const fullPath = resolve(dir, entry);
-      const stat = statSync(fullPath);
-      if (stat.isDirectory()) {
-        if (entry !== "fixture" && entry !== "node_modules" && !entry.startsWith(".")) {
-          files.push(...findTestCaseYamlFiles(fullPath));
-        }
-      } else if (entry === "crucible.yaml" || (entry.endsWith(".yaml") && !entry.includes("config"))) {
-        files.push(fullPath);
-      }
-    }
-  } catch (e) { }
-  return files;
-}
+import { loadAgentConfig } from "../lib/load-agent-config";
+import { loadTestCase, testCaseToDbRow, findTestCaseYamlFiles } from "../lib/load-test-case";
 
 export async function runBenchCommand(opts: { configs: string; suite: string; concurrency?: number }) {
   const suiteDir = resolve(opts.suite);
@@ -34,14 +15,7 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
   const concurrency = opts.concurrency || 2;
 
   // 1. load agent configs
-  const agentConfigs: AgentConfig[] = [];
-  for (const p of configPaths) {
-    const fileContent = readFileSync(p, "utf-8");
-    const raw = parse(fileContent);
-    const parsed = AgentConfigSchema.parse(raw);
-    const configId = parsed.id || parsed.name;
-    agentConfigs.push({ ...parsed, id: configId });
-  }
+  const agentConfigs: AgentConfig[] = configPaths.map((p) => loadAgentConfig(p));
 
   // 2. find and parse test case yamls
   const yamlFiles = findTestCaseYamlFiles(suiteDir);
@@ -52,17 +26,7 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
 
   const testCases: TestCase[] = [];
   for (const f of yamlFiles) {
-    const fileContent = readFileSync(f, "utf-8");
-    const raw = parse(fileContent);
-
-    // make fixture paths absolute relative to the yaml file
-    if (raw.fixture && !raw.fixture.startsWith("/") && !raw.fixture.startsWith("http")) {
-      raw.fixture = resolve(dirname(f), raw.fixture);
-    }
-
-    const parsed = TestCaseSchema.parse(raw);
-    const caseId = parsed.id || parsed.name;
-    testCases.push({ ...parsed, id: caseId });
+    testCases.push(loadTestCase(f));
   }
 
   // 3. open the sqlite db
@@ -70,16 +34,7 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
 
   // persist test case + config definitions so the db has context for each run
   for (const tc of testCases) {
-    await saveTestCase(db, {
-      id: tc.id || tc.name,
-      name: tc.name,
-      description: tc.description,
-      fixture: tc.fixture,
-      prompt: tc.prompt,
-      success: JSON.stringify(tc.success),
-      timeoutSeconds: tc.timeout_seconds,
-      createdAt: Math.floor(Date.now() / 1000),
-    });
+    await saveTestCase(db, testCaseToDbRow(tc));
   }
 
   for (const ac of agentConfigs) {
@@ -151,6 +106,50 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
     />
   );
 
+  printTagBreakdown(testCases, agentConfigs, runStates);
+
   // all done
   process.exit(0);
+}
+
+/**
+ * Prints a per-tag pass-rate breakdown across all runs, e.g. "regression: 4/6 (67%)".
+ * Useful for spotting whether a model is systematically weak on a category
+ * of tasks (off-by-one, async, etc.) - an idea borrowed from SWE-bench's
+ * per-repo / per-difficulty breakdowns.
+ */
+function printTagBreakdown(
+  testCases: TestCase[],
+  agentConfigs: AgentConfig[],
+  runStates: Record<string, RunState>
+) {
+  const tagStats: Record<string, { passed: number; total: number }> = {};
+
+  for (const tc of testCases) {
+    const tags = tc.tags ?? [];
+    if (tags.length === 0) continue;
+
+    for (const ac of agentConfigs) {
+      const key = `${tc.id || tc.name}_${ac.id || ac.name}`;
+      const run = runStates[key];
+      if (!run || run.status === "running") continue;
+
+      for (const tag of tags) {
+        const stats = (tagStats[tag] ??= { passed: 0, total: 0 });
+        stats.total++;
+        if (run.passed) stats.passed++;
+      }
+    }
+  }
+
+  const tags = Object.keys(tagStats).sort();
+  if (tags.length === 0) return;
+
+  console.log("\n================ TAG BREAKDOWN ================");
+  for (const tag of tags) {
+    const { passed, total } = tagStats[tag];
+    const pct = total > 0 ? ((passed / total) * 100).toFixed(0) : "0";
+    console.log(`${tag.padEnd(24)} ${passed}/${total} (${pct}%)`);
+  }
+  console.log("=================================================\n");
 }
