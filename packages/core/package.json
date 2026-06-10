@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Core schemas, contracts, and runner for the Agentgrader benchmarking framework",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --treeshake",
     "build:watch": "tsup src/index.ts --format esm --dts --watch",

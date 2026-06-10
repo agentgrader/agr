@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/store",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "SQLite + Drizzle persistence layer for Agentgrader runs and traces",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --treeshake",
     "build:watch": "tsup src/index.ts --format esm --dts --watch",

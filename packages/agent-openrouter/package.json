@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/agent-openrouter",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "OpenRouter/AI SDK ReAct agent adapter for the Agentgrader framework",
   "license": "MIT",
   "type": "module",
@@ -13,7 +13,9 @@
       "types": "./dist/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean --treeshake",
     "build:watch": "tsup src/index.ts --format esm --dts --watch"
@@ -28,6 +30,6 @@
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^0.1.0"
+    "@agentgrader/core": "^1.0.0"
   }
 }

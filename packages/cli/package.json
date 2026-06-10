@@ -1,6 +1,6 @@
 {
   "name": "agentgrader",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "CLI for the Agentgrader benchmarking framework — run and bench coding agents",
   "license": "MIT",
   "type": "module",
@@ -10,7 +10,9 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "build:watch": "tsup --watch",
