@@ -9,7 +9,7 @@ dist/
 **/.turbo/
 
 # Local database and traces
-.crucible/
+.agr/
 
 # Environment Variables
 .env

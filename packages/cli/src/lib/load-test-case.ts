@@ -1,10 +1,10 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { type TestCase, TestCaseSchema } from "@crucible-agr/core";
+import { type TestCase, TestCaseSchema } from "@agentgrader/core";
 import { parse } from "yaml";
 
 /**
- * Loads and parses a `crucible.yaml` test case file.
+ * Loads and parses an `agr.yaml` test case file.
  *
  * - Resolves `fixture` relative to the yaml file's directory.
  * - Resolves `solution` / `test_patch` (if they look like file paths rather
@@ -86,7 +86,7 @@ export function testCaseToDbRow(testCase: TestCase) {
   };
 }
 
-/** Recursively finds `crucible.yaml` (and other non-config `.yaml`) files under `dir`. */
+/** Recursively finds `agr.yaml` (and other non-config `.yaml`) files under `dir`. */
 export function findTestCaseYamlFiles(dir: string): string[] {
   const files: string[] = [];
   try {
@@ -99,7 +99,7 @@ export function findTestCaseYamlFiles(dir: string): string[] {
           files.push(...findTestCaseYamlFiles(fullPath));
         }
       } else if (
-        entry === "crucible.yaml" ||
+        entry === "agr.yaml" ||
         (entry.endsWith(".yaml") && !entry.includes("config"))
       ) {
         files.push(fullPath);

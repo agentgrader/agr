@@ -15,7 +15,7 @@ interface PullRequestInfo {
 }
 
 /**
- * `crucible import-pr <owner/repo> <pr-number> [--out <dir>]`
+ * `agr import-pr <owner/repo> <pr-number> [--out <dir>]`
  *
  * Scaffolds a new test case from a merged GitHub pull request, mirroring
  * SWE-bench's PR-scraping construction pipeline:
@@ -28,7 +28,7 @@ interface PullRequestInfo {
  *  - `created_at` is taken from the PR for contamination/date-cutoff checks.
  *  - `test_command`, `fail_to_pass`, and `pass_to_pass` are left as TODO
  *    placeholders - these require actually running the test suite (use
- *    `crucible validate` after filling in the fixture).
+ *    `agr validate` after filling in the fixture).
  *
  * Set `GITHUB_TOKEN` in the environment to avoid GitHub's low unauthenticated
  * rate limits.
@@ -41,7 +41,7 @@ export async function importPrCommand(repo: string, prNumber: string, opts: { ou
 
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "crucible-import-pr",
+    "User-Agent": "agentgrader-import-pr",
   };
   if (process.env.GITHUB_TOKEN) {
     headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
@@ -90,8 +90,8 @@ export async function importPrCommand(repo: string, prNumber: string, opts: { ou
     // TODO: fill these in after setting up ./fixture (checked out at
     // base.sha below) and running the test suite to discover real test names.
     test_command: "<TODO: e.g. tsx --test --test-reporter=tap src/**/*.test.ts>",
-    fail_to_pass: ["<TODO: fill in via `crucible validate`>"],
-    pass_to_pass: ["<TODO: fill in via `crucible validate`>"],
+    fail_to_pass: ["<TODO: fill in via `agr validate`>"],
+    pass_to_pass: ["<TODO: fill in via `agr validate`>"],
   };
 
   if (solutionDiff.trim()) yamlDoc.solution = "./solution.patch";
@@ -99,11 +99,11 @@ export async function importPrCommand(repo: string, prNumber: string, opts: { ou
   if (expectedFiles.length > 0) yamlDoc.expected_files = expectedFiles;
   if (forbidModified.length > 0) yamlDoc.forbid_modified = forbidModified;
 
-  writeFileSync(resolve(outDir, "crucible.yaml"), stringify(yamlDoc));
+  writeFileSync(resolve(outDir, "agr.yaml"), stringify(yamlDoc));
 
   console.log(`\nImported PR #${pr.number}: "${pr.title}"`);
   console.log(`Wrote scaffold to: ${outDir}`);
-  console.log("  - crucible.yaml");
+  console.log("  - agr.yaml");
   if (solutionDiff.trim())
     console.log(`  - solution.patch (${expectedFiles.length} file(s) changed)`);
   if (testDiff.trim())
@@ -111,9 +111,9 @@ export async function importPrCommand(repo: string, prNumber: string, opts: { ou
 
   console.log("\nNext steps:");
   console.log(`  1. Check out ${owner}/${repoName}@${pr.base.sha} into ${outDir}/fixture`);
-  console.log("  2. Fill in test_command, fail_to_pass, and pass_to_pass in crucible.yaml");
+  console.log("  2. Fill in test_command, fail_to_pass, and pass_to_pass in agr.yaml");
   console.log(
-    `  3. Run "crucible validate ${resolve(outDir, "crucible.yaml")}" to verify the test case`,
+    `  3. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
   );
 }
 

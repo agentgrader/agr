@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { type AgentConfig, AgentConfigSchema } from "@crucible-agr/core";
+import { type AgentConfig, AgentConfigSchema } from "@agentgrader/core";
 import { parse } from "yaml";
 
 /**

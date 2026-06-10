@@ -1,11 +1,12 @@
 {
-  "name": "@crucible-agr/cli",
+  "name": "agentgrader",
   "version": "0.1.0",
-  "description": "CLI for the Crucible agent benchmarking framework — run and bench coding agents",
+  "description": "CLI for the Agentgrader benchmarking framework — run and bench coding agents",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "crucible": "./dist/index.js"
+    "agr": "./dist/index.js",
+    "agentgrader": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,10 +17,10 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
-    "@crucible-agr/agent-openrouter": "workspace:*",
-    "@crucible-agr/core": "workspace:*",
-    "@crucible-agr/sandbox-docker": "workspace:*",
-    "@crucible-agr/store": "workspace:*",
+    "@agentgrader/agent-openrouter": "workspace:*",
+    "@agentgrader/core": "workspace:*",
+    "@agentgrader/sandbox-docker": "workspace:*",
+    "@agentgrader/store": "workspace:*",
     "cac": "^6.7.14",
     "ink": "^4.4.1",
     "react": "^18.2.0",

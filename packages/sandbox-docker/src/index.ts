@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
-import type { PatchApplyResult, SandboxHandle, SandboxProvider } from "@crucible-agr/core";
+import type { PatchApplyResult, SandboxHandle, SandboxProvider } from "@agentgrader/core";
 import Docker from "dockerode";
 
 export class DockerSandboxHandle implements SandboxHandle {
@@ -104,7 +104,7 @@ export class DockerSandboxHandle implements SandboxHandle {
       return { applied: true, repaired: false, output: "Empty patch - nothing to apply." };
     }
 
-    const patchPath = `/tmp/crucible-patch-${Date.now()}-${Math.random().toString(36).slice(2)}.diff`;
+    const patchPath = `/tmp/agr-patch-${Date.now()}-${Math.random().toString(36).slice(2)}.diff`;
     await this.writeFile(patchPath, diff.endsWith("\n") ? diff : `${diff}\n`);
 
     const attempts: { label: string; cmd: string; repaired: boolean }[] = [
@@ -244,7 +244,7 @@ export class DockerSandboxProvider implements SandboxProvider {
 
     // init a git repo so we can diff what the agent changed later
     await handle.exec(
-      "git init && git config user.email 'agent@crucible.local' && git config user.name 'Crucible Agent' && git add -A && git commit -m 'initial' || true",
+      "git init && git config user.email 'agent@agentgrader.local' && git config user.name 'Agentgrader' && git add -A && git commit -m 'initial' || true",
     );
 
     // inject toolkits (custom CLI tools + Agent Skills docs) after the

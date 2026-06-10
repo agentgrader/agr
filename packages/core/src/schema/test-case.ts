@@ -41,10 +41,10 @@ export const TestCaseSchema = z.object({
   // glob patterns of files the agent is expected to touch (for localization scoring)
   expected_files: z.array(z.string()).optional(),
 
-  // path (relative to the crucible.yaml) to a gold-standard patch/diff for this task
+  // path (relative to the agr.yaml) to a gold-standard patch/diff for this task
   solution: z.string().optional(),
 
-  // path (relative to the crucible.yaml) to a patch that adds/updates the test suite itself
+  // path (relative to the agr.yaml) to a patch that adds/updates the test suite itself
   test_patch: z.string().optional(),
 
   // original creation date of the underlying issue/PR (contamination/date-cutoff checks)

@@ -1,7 +1,7 @@
 {
-  "name": "@crucible-agr/core",
+  "name": "@agentgrader/core",
   "version": "0.1.0",
-  "description": "Core schemas, contracts, and runner for the Crucible agent benchmarking framework",
+  "description": "Core schemas, contracts, and runner for the Agentgrader benchmarking framework",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
-    "@crucible-agr/store": "workspace:*",
+    "@agentgrader/store": "workspace:*",
     "@mastra/core": "^1.41.0",
     "yaml": "^2.5.1",
     "zod": "^3.23.8"

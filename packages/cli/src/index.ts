@@ -4,7 +4,7 @@ import { importPrCommand } from "./commands/import-pr";
 import { runSingleCommand } from "./commands/run";
 import { validateCommand } from "./commands/validate";
 
-const cli = cac("crucible");
+const cli = cac("agr");
 
 cli
   .command("run <testCase>", "Run a single agent test case")

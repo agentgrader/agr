@@ -45,7 +45,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
       {/* Header */}
       <Box borderStyle="round" borderColor="cyan" paddingX={2} marginBottom={1} flexDirection="column">
         <Text color="cyan" bold>
-          🔥 CRUCIBLE BENCHMARK RUNNER 🔥
+          🔥 AGENTGRADER BENCHMARK 🔥
         </Text>
         <Text color="gray">
           Docker Sandboxes • Parallel Execution • Mastra Orchestration
