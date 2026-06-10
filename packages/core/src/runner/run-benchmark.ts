@@ -11,7 +11,8 @@ import { randomUUID } from "crypto";
 export interface BenchmarkInput {
   testCases: TestCase[];
   agentConfigs: AgentConfig[];
-  adapter: AgentAdapter;
+  adapter?: AgentAdapter;
+  adapters?: AgentAdapter[];
   sandboxProvider: SandboxProvider;
   db?: AgrDb;
   concurrency?: number;
@@ -19,6 +20,7 @@ export interface BenchmarkInput {
     run: RunSingleResult & {
       testCaseId: string;
       agentConfigId: string;
+      adapterName?: string;
       status: "running" | "completed" | "failed";
     }
   ) => void;
@@ -29,21 +31,29 @@ export interface BenchmarkResult {
 }
 
 export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResult> {
-  const { testCases, agentConfigs, adapter, sandboxProvider, db, concurrency = 2, onRunUpdate } = input;
+  const { testCases, agentConfigs, adapter, adapters, sandboxProvider, db, concurrency = 2, onRunUpdate } = input;
+
+  const actualAdapters = adapters || (adapter ? [adapter] : []);
+  if (actualAdapters.length === 0) {
+    throw new Error("You must provide either 'adapter' or 'adapters' to runBenchmark.");
+  }
 
   const generateCombinationsStep = createStep({
     id: "generateCombinations",
     inputSchema: z.any(),
     outputSchema: z.array(z.any()),
     execute: async ({ getInitData }) => {
-      const initData = getInitData<{ testCases: TestCase[]; agentConfigs: AgentConfig[] }>();
+      const initData = getInitData<{ testCases: TestCase[]; agentConfigs: AgentConfig[]; adapterNames: string[] }>();
       const combinations = [];
       for (const tc of initData.testCases) {
         for (const config of initData.agentConfigs) {
-          combinations.push({
-            testCase: tc,
-            agentConfig: config,
-          });
+          for (const adapterName of initData.adapterNames) {
+            combinations.push({
+              testCase: tc,
+              agentConfig: config,
+              adapterName,
+            });
+          }
         }
       }
       return combinations;
@@ -55,7 +65,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
     inputSchema: z.any(),
     outputSchema: z.any(),
     execute: async ({ inputData, requestContext }) => {
-      const { testCase, agentConfig } = inputData as { testCase: TestCase; agentConfig: AgentConfig };
+      const { testCase, agentConfig, adapterName } = inputData as { testCase: TestCase; agentConfig: AgentConfig; adapterName: string };
       
       // RequestContext can be a Mastra RequestContext wrapper, a Map, or a plain object
       const ctx = (requestContext as any)?.context || requestContext;
@@ -66,7 +76,14 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
         return undefined;
       };
 
-      const adapter = getVal("adapter");
+      const adaptersFromCtx = getVal("adapters") as AgentAdapter[];
+      const singleAdapter = getVal("adapter") as AgentAdapter | undefined;
+      
+      const adapterList = adaptersFromCtx || (singleAdapter ? [singleAdapter] : []);
+      const adapter = adapterList.find(a => a.name === adapterName);
+
+      if (!adapter) throw new Error(`Adapter ${adapterName} not found in execution context`);
+
       const sandboxProvider = getVal("sandboxProvider");
       const db = getVal("db");
       const onRunUpdate = getVal("onRunUpdate");
@@ -78,6 +95,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
           runId,
           testCaseId: testCase.id || testCase.name,
           agentConfigId: agentConfig.id || agentConfig.name,
+          adapterName: adapter.name,
           status: "running",
           passed: false,
           stepsCount: 0,
@@ -103,6 +121,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
             ...res,
             testCaseId: testCase.id || testCase.name,
             agentConfigId: agentConfig.id || agentConfig.name,
+            adapterName: adapter.name,
             status: res.error ? "failed" : "completed",
           });
         }
@@ -125,6 +144,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
             ...failedResult,
             testCaseId: testCase.id || testCase.name,
             agentConfigId: agentConfig.id || agentConfig.name,
+            adapterName: adapter.name,
             status: "failed",
           });
         }
@@ -146,6 +166,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
   const runState = {};
   const executionContext = new Map<string, any>([
     ["adapter", adapter],
+    ["adapters", actualAdapters],
     ["sandboxProvider", sandboxProvider],
     ["db", db],
     ["onRunUpdate", onRunUpdate],
@@ -153,7 +174,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
 
   const run = await workflow.createRun();
   const res = (await run.start({
-    inputData: { testCases, agentConfigs },
+    inputData: { testCases, agentConfigs, adapterNames: actualAdapters.map(a => a.name) },
     initialState: runState,
     requestContext: executionContext as any,
   })) as any;
