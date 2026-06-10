@@ -1,20 +1,20 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import Database from "better-sqlite3";
+import { desc, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema";
-import { eq, desc } from "drizzle-orm";
 
 export type CrucibleDb = ReturnType<typeof initDb>;
 
-export function initDb(dbPath: string = ".crucible/db.sqlite") {
+export function initDb(dbPath = ".crucible/db.sqlite") {
   const dir = dirname(dbPath);
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
   const sqlite = new Database(dbPath);
   const db = drizzle(sqlite, { schema });
-  
+
   // create tables on first run
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS test_cases (
@@ -81,7 +81,43 @@ export function initDb(dbPath: string = ".crucible/db.sqlite") {
     )
   `);
 
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS test_case_baselines (
+      id TEXT PRIMARY KEY,
+      test_case_id TEXT NOT NULL,
+      fixture_hash TEXT NOT NULL,
+      test_command TEXT NOT NULL,
+      status_map TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )
+  `);
+
+  // lightweight migrations: add SWE-bench-inspired columns to pre-existing
+  // databases that were created before these fields existed.
+  ensureColumn(sqlite, "test_cases", "tags", "TEXT");
+  ensureColumn(sqlite, "test_cases", "test_command", "TEXT");
+  ensureColumn(sqlite, "test_cases", "fail_to_pass", "TEXT");
+  ensureColumn(sqlite, "test_cases", "pass_to_pass", "TEXT");
+  ensureColumn(sqlite, "test_cases", "forbid_modified", "TEXT");
+  ensureColumn(sqlite, "test_cases", "expected_files", "TEXT");
+  ensureColumn(sqlite, "test_cases", "solution", "TEXT");
+  ensureColumn(sqlite, "test_cases", "test_patch", "TEXT");
+  ensureColumn(sqlite, "test_cases", "source_created_at", "TEXT");
+  ensureColumn(sqlite, "runs", "metrics", "TEXT");
+
   return db;
+}
+
+function ensureColumn(
+  sqlite: Database.Database,
+  table: string,
+  column: string,
+  definition: string,
+) {
+  const columns = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
+  if (!columns.some((c) => c.name === column)) {
+    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }
 
 // query helpers
@@ -98,11 +134,23 @@ export async function saveTestCase(db: CrucibleDb, testCase: typeof schema.testC
         prompt: testCase.prompt,
         success: testCase.success,
         timeoutSeconds: testCase.timeoutSeconds,
+        tags: testCase.tags,
+        testCommand: testCase.testCommand,
+        failToPass: testCase.failToPass,
+        passToPass: testCase.passToPass,
+        forbidModified: testCase.forbidModified,
+        expectedFiles: testCase.expectedFiles,
+        solution: testCase.solution,
+        testPatch: testCase.testPatch,
+        sourceCreatedAt: testCase.sourceCreatedAt,
       },
     });
 }
 
-export async function saveAgentConfig(db: CrucibleDb, config: typeof schema.agentConfigs.$inferInsert) {
+export async function saveAgentConfig(
+  db: CrucibleDb,
+  config: typeof schema.agentConfigs.$inferInsert,
+) {
   await db
     .insert(schema.agentConfigs)
     .values(config)
@@ -126,7 +174,7 @@ export async function createRun(db: CrucibleDb, run: typeof schema.runs.$inferIn
 export async function updateRun(
   db: CrucibleDb,
   runId: string,
-  updates: Partial<Omit<typeof schema.runs.$inferInsert, "id">>
+  updates: Partial<Omit<typeof schema.runs.$inferInsert, "id">>,
 ) {
   await db.update(schema.runs).set(updates).where(eq(schema.runs.id, runId));
 }
@@ -136,11 +184,7 @@ export async function addTrace(db: CrucibleDb, trace: typeof schema.traces.$infe
 }
 
 export async function getRun(db: CrucibleDb, runId: string) {
-  const result = await db
-    .select()
-    .from(schema.runs)
-    .where(eq(schema.runs.id, runId))
-    .limit(1);
+  const result = await db.select().from(schema.runs).where(eq(schema.runs.id, runId)).limit(1);
   return result[0] || null;
 }
 
@@ -161,8 +205,32 @@ export async function getRunsForTestCase(db: CrucibleDb, testCaseId: string) {
 }
 
 export async function listRuns(db: CrucibleDb) {
-  return db
+  return db.select().from(schema.runs).orderBy(desc(schema.runs.createdAt));
+}
+
+export async function getCachedBaseline(db: CrucibleDb, testCaseId: string, fixtureHash: string) {
+  const id = `${testCaseId}:${fixtureHash}`;
+  const result = await db
     .select()
-    .from(schema.runs)
-    .orderBy(desc(schema.runs.createdAt));
+    .from(schema.testCaseBaselines)
+    .where(eq(schema.testCaseBaselines.id, id))
+    .limit(1);
+  return result[0] || null;
+}
+
+export async function saveCachedBaseline(
+  db: CrucibleDb,
+  baseline: typeof schema.testCaseBaselines.$inferInsert,
+) {
+  await db
+    .insert(schema.testCaseBaselines)
+    .values(baseline)
+    .onConflictDoUpdate({
+      target: schema.testCaseBaselines.id,
+      set: {
+        statusMap: baseline.statusMap,
+        testCommand: baseline.testCommand,
+        createdAt: baseline.createdAt,
+      },
+    });
 }

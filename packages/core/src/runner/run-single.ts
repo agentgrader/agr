@@ -1,14 +1,19 @@
-import { createWorkflow, createStep } from "@mastra/core/workflows";
-import { z } from "zod";
-import type { TestCase } from "../schema/test-case";
-import type { AgentConfig } from "../schema/agent-config";
-import type { AgentAdapter } from "../adapters/agent-adapter";
-import type { SandboxProvider, SandboxHandle } from "../adapters/sandbox-provider";
 import type { CrucibleDb } from "@crucible-agr/store";
-import { createRun, updateRun, addTrace } from "@crucible-agr/store";
-import { CommandScorer } from "../scorers/command-scorer";
-import { AssertionScorer } from "../scorers/assertion-scorer";
+import { addTrace, createRun, updateRun } from "@crucible-agr/store";
+import { createStep, createWorkflow } from "@mastra/core/workflows";
+import { z } from "zod";
+import type { AgentAdapter, AgentResult } from "../adapters/agent-adapter";
+import type { SandboxHandle, SandboxProvider } from "../adapters/sandbox-provider";
+import type { AgentConfig } from "../schema/agent-config";
+import type { TestCase } from "../schema/test-case";
 import type { StepEvent, Trace } from "../schema/trace";
+import { AssertionScorer } from "../scorers/assertion-scorer";
+import { CommandScorer } from "../scorers/command-scorer";
+import { DiffScorer } from "../scorers/diff-scorer";
+import { LocalizationScorer } from "../scorers/localization-scorer";
+import { RegressionScorer } from "../scorers/regression-scorer";
+import { getOrComputeBaseline } from "./baseline";
+import { buildSkillsPromptAddendum, discoverSkillsForToolkits } from "./skills";
 
 export interface RunSingleInput {
   testCase: TestCase;
@@ -30,6 +35,7 @@ export interface RunSingleResult {
   durationMs: number;
   error?: string;
   finalDiff?: string;
+  metrics?: Record<string, any>;
 }
 
 export async function runSingle(input: RunSingleInput): Promise<RunSingleResult> {
@@ -45,6 +51,9 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
   let durationMs = 0;
   let errorMsg: string | undefined;
   let finalDiff = "";
+  let agentDiff = "";
+  let agentResult: AgentResult | undefined;
+  const metrics: Record<string, any> = {};
   const emittedSteps: StepEvent[] = [];
 
   // write the initial run row so the dashboard can track it
@@ -59,6 +68,23 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     });
   }
 
+  // compute (or load cached) baseline test status for FAIL_TO_PASS/PASS_TO_PASS
+  // comparisons
+  // run on a pristine copy of the fixture, independent of the
+  // sandbox the agent will work in.
+  let baseline: Awaited<ReturnType<typeof getOrComputeBaseline>>;
+  try {
+    baseline = await getOrComputeBaseline({ testCase, sandboxProvider, db });
+  } catch (err: any) {
+    console.error(`Failed to compute baseline: ${err.message}`);
+  }
+
+  // toolkits requested by either the agent config or the test case
+  // (e.g. custom CLI tools + Agent Skills docs), deduplicated
+  const toolkits = Array.from(
+    new Set([...(agentConfig.toolkits ?? []), ...(testCase.toolkits ?? [])]),
+  );
+
   // mastra workflow to sequence: setup → solve → score → cleanup
   const setupSandboxStep = createStep({
     id: "setupSandbox",
@@ -67,7 +93,9 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     execute: async () => {
       // spin up an isolated docker container with the fixture files
       sandbox = await sandboxProvider.create({
+        image: testCase.image,
         gitSnapshot: testCase.fixture,
+        toolkits,
       });
       return {};
     },
@@ -79,7 +107,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     outputSchema: z.object({}),
     execute: async () => {
       if (!sandbox) throw new Error("Sandbox not initialized");
-      
+
       const onStepCallback = (stepEvent: StepEvent) => {
         emittedSteps.push(stepEvent);
         stepsCount++;
@@ -104,12 +132,53 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         }
       };
 
+      // surface bundled toolkits' skills (name + description) to the agent,
+      // mirroring the "progressive disclosure" model: the full SKILL.md is
+      // read on demand via the agent's readFile tool.
+      let effectiveConfig = agentConfig;
+      if (toolkits.length > 0) {
+        try {
+          const skills = discoverSkillsForToolkits(toolkits);
+          const addendum = buildSkillsPromptAddendum(skills);
+          if (addendum) {
+            effectiveConfig = {
+              ...agentConfig,
+              system_prompt: agentConfig.system_prompt
+                ? `${agentConfig.system_prompt}\n\n${addendum}`
+                : addendum,
+            };
+          }
+        } catch (e: any) {
+          console.error(`Failed to build skills prompt addendum: ${e.message}`);
+        }
+      }
+
       const result = await adapter.solve({
         prompt: testCase.prompt,
         sandbox,
-        config: agentConfig,
+        config: effectiveConfig,
         onStep: onStepCallback,
       });
+
+      // capture the agent's own diff before we apply any test_patch
+      try {
+        agentDiff = await sandbox.gitDiff();
+      } catch (e: any) {
+        console.error(`Failed to capture agent diff: ${e.message}`);
+      }
+      agentResult = { ...result, finalDiff: agentDiff || result.finalDiff };
+
+      // apply the (gold) test patch, if configured, so the regression
+      // scorer can run against the up-to-date test suite. The agent never
+      // sees this patch, it's evaluation-only, mirroring SWE-bench.
+      if (testCase.test_patch) {
+        try {
+          const patchResult = await sandbox.applyPatch(testCase.test_patch);
+          metrics.testPatchApply = patchResult;
+        } catch (e: any) {
+          metrics.testPatchApply = { applied: false, repaired: false, output: e.message };
+        }
+      }
 
       return { result };
     },
@@ -125,13 +194,14 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     }),
     execute: async () => {
       if (!sandbox) throw new Error("Sandbox not initialized");
-      
+
       // run the test suite in the sandbox
       const cmdScorer = new CommandScorer();
       const cmdResult = await cmdScorer.score({
         testCase,
         sandbox,
       });
+      metrics.command = { passed: cmdResult.passed, detail: cmdResult.detail };
 
       if (!cmdResult.passed) {
         return { passed: false, detail: cmdResult.detail, score: 0 };
@@ -144,12 +214,58 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         testCase,
         trace,
       });
+      metrics.assertion = { passed: assertResult.passed, detail: assertResult.detail };
 
       if (!assertResult.passed) {
         return { passed: false, detail: assertResult.detail, score: 0 };
       }
 
-      return { passed: true, detail: "All tests passed", score: 100 };
+      let overallPassed = true;
+      let overallDetail = "All tests passed";
+
+      // FAIL_TO_PASS / PASS_TO_PASS regression check + tamper guard
+      const regressionScorer = new RegressionScorer();
+      const regressionResult = await regressionScorer.score({
+        testCase,
+        sandbox,
+        baseline: baseline?.statusMap,
+      });
+      metrics.regression = {
+        passed: regressionResult.passed,
+        score: regressionResult.score,
+        detail: regressionResult.detail,
+      };
+      if (!regressionResult.passed) {
+        overallPassed = false;
+        overallDetail = regressionResult.detail;
+      }
+
+      // diff scope + file localization (informational - don't fail the run)
+      if (agentResult) {
+        const diffScorer = new DiffScorer();
+        const diffResult = await diffScorer.score({ testCase, result: agentResult });
+        metrics.diff = { score: diffResult.score, detail: diffResult.detail };
+
+        const localizationScorer = new LocalizationScorer();
+        const localizationResult = await localizationScorer.score({
+          testCase,
+          result: agentResult,
+        });
+        metrics.localization = {
+          score: localizationResult.score,
+          detail: localizationResult.detail,
+        };
+      }
+
+      if (baseline) {
+        metrics.baseline = { cached: baseline.cached, fixtureHash: baseline.fixtureHash };
+      }
+
+      return {
+        passed: overallPassed,
+        detail: overallDetail,
+        score: overallPassed ? 100 : 0,
+      };
     },
   });
 
@@ -160,7 +276,10 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     execute: async () => {
       if (sandbox) {
         try {
-          finalDiff = await sandbox.gitDiff();
+          // prefer the diff captured right after solve (before any
+          // evaluation-only test_patch was applied); fall back to a fresh
+          // diff if that capture failed for some reason.
+          finalDiff = agentDiff || (await sandbox.gitDiff());
           await sandbox.destroy();
         } catch (e: any) {
           console.error(`Failed to clean up sandbox: ${e.message}`);
@@ -201,7 +320,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     if (sandbox) {
       try {
         await sandbox.destroy();
-      } catch (e) {}
+      } catch (e) { }
     }
   }
 
@@ -220,6 +339,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       durationMs,
       error: errorMsg,
       finalDiff,
+      metrics: Object.keys(metrics).length > 0 ? JSON.stringify(metrics) : undefined,
       completedAt: Math.floor(Date.now() / 1000),
     });
   }
@@ -235,5 +355,6 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     durationMs,
     error: errorMsg,
     finalDiff,
+    metrics,
   };
 }

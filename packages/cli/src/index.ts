@@ -1,6 +1,8 @@
 import { cac } from "cac";
-import { runSingleCommand } from "./commands/run";
 import { runBenchCommand } from "./commands/bench";
+import { importPrCommand } from "./commands/import-pr";
+import { runSingleCommand } from "./commands/run";
+import { validateCommand } from "./commands/validate";
 
 const cli = cac("crucible");
 
@@ -34,6 +36,35 @@ cli
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command(
+    "validate <testCase>",
+    "Validate a test case definition (fixture, fail_to_pass/pass_to_pass, gold patch)",
+  )
+  .action(async (testCase) => {
+    try {
+      await validateCommand(testCase);
+    } catch (err: any) {
+      console.error(`Error executing validate: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command(
+    "import-pr <repo> <prNumber>",
+    "Scaffold a test case from a GitHub pull request (e.g. owner/repo 1234)",
+  )
+  .option("--out <dir>", "Output directory for the scaffolded test case")
+  .action(async (repo, prNumber, options) => {
+    try {
+      await importPrCommand(repo, prNumber, options);
+    } catch (err: any) {
+      console.error(`Error executing import-pr: ${err.message}`);
       process.exit(1);
     }
   });

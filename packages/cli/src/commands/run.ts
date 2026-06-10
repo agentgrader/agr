@@ -1,24 +1,13 @@
-import { readFileSync } from "fs";
-import { resolve, dirname } from "path";
-import { parse } from "yaml";
-import { initDb, saveTestCase } from "@crucible-agr/store";
-import { runSingle, TestCaseSchema, type AgentConfig } from "@crucible-agr/core";
-import { DockerSandboxProvider } from "@crucible-agr/sandbox-docker";
+import { randomUUID } from "node:crypto";
 import { OpenRouterAgentAdapter } from "@crucible-agr/agent-openrouter";
-import { randomUUID } from "crypto";
+import { type AgentConfig, runSingle } from "@crucible-agr/core";
+import { DockerSandboxProvider } from "@crucible-agr/sandbox-docker";
+import { initDb, saveTestCase } from "@crucible-agr/store";
+import { loadAgentConfig } from "../lib/load-agent-config";
+import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
 
 export async function runSingleCommand(testCasePath: string, opts: { config?: string }) {
-  const path = resolve(testCasePath);
-  const fileContent = readFileSync(path, "utf-8");
-  const raw = parse(fileContent);
-
-  // resolve fixture path relative to the yaml file, not cwd
-  if (raw.fixture && !raw.fixture.startsWith("/") && !raw.fixture.startsWith("http")) {
-    raw.fixture = resolve(dirname(path), raw.fixture);
-  }
-
-  const testCase = TestCaseSchema.parse(raw);
-  testCase.id = testCase.id || testCase.name;
+  const testCase = loadTestCase(testCasePath);
 
   let agentConfig: AgentConfig = {
     id: "baseline",
@@ -28,11 +17,7 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
   };
 
   if (opts.config) {
-    const configPath = resolve(opts.config);
-    const configContent = readFileSync(configPath, "utf-8");
-    const parsedConfig = parse(configContent);
-    agentConfig = parsedConfig;
-    agentConfig.id = agentConfig.id || agentConfig.name;
+    agentConfig = loadAgentConfig(opts.config);
   }
 
   console.log(`Starting run for "${testCase.name}" using model "${agentConfig.model}"...`);
@@ -43,16 +28,7 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
   const db = initDb();
 
   // write definitions to db before the run starts
-  await saveTestCase(db, {
-    id: testCase.id,
-    name: testCase.name,
-    description: testCase.description,
-    fixture: testCase.fixture,
-    prompt: testCase.prompt,
-    success: JSON.stringify(testCase.success),
-    timeoutSeconds: testCase.timeout_seconds,
-    createdAt: Math.floor(Date.now() / 1000),
-  });
+  await saveTestCase(db, testCaseToDbRow(testCase));
 
   const runId = randomUUID();
   try {
@@ -72,6 +48,15 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
     console.log(`Duration:  ${(result.durationMs / 1000).toFixed(1)}s`);
     if (result.error) {
       console.log(`Error:     ${result.error}`);
+    }
+    if (result.metrics?.regression) {
+      console.log(`Regression: ${result.metrics.regression.detail}`);
+    }
+    if (result.metrics?.diff) {
+      console.log(`Diff scope: ${result.metrics.diff.detail.split("\n")[0]}`);
+    }
+    if (result.metrics?.localization) {
+      console.log(`Localization: ${result.metrics.localization.detail.split("\n")[0]}`);
     }
     console.log("=============================================\n");
   } catch (err: any) {
