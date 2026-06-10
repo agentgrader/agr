@@ -1,5 +1,5 @@
-import type { CrucibleDb } from "@crucible-agr/store";
-import { addTrace, createRun, updateRun } from "@crucible-agr/store";
+import type { AgrDb } from "@agentgrader/store";
+import { addTrace, createRun, updateRun } from "@agentgrader/store";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 import type { AgentAdapter, AgentResult } from "../adapters/agent-adapter";
@@ -20,7 +20,7 @@ export interface RunSingleInput {
   agentConfig: AgentConfig;
   adapter: AgentAdapter;
   sandboxProvider: SandboxProvider;
-  db?: CrucibleDb;
+  db?: AgrDb;
   runId: string;
 }
 

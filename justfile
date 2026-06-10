@@ -1,4 +1,4 @@
-# Crucible - Developer Task Runner
+# Agentgrader - Developer Task Runner
 set shell := ["bash", "-cu"]
 
 default: build
@@ -18,8 +18,8 @@ bench configs="examples/configs/baseline.yaml" suite="examples/suites/typescript
 	bun packages/cli/dist/index.js bench --configs {{configs}} --suite {{suite}} --concurrency {{concurrency}}
 
 # Run a single test case
-# Usage: just run examples/suites/typescript-bugs/add-error-handling/crucible.yaml
-# Usage: just run examples/suites/typescript-bugs/add-error-handling/crucible.yaml config=examples/configs/baseline.yaml
+# Usage: just run examples/suites/typescript-bugs/add-error-handling/agr.yaml
+# Usage: just run examples/suites/typescript-bugs/add-error-handling/agr.yaml config=examples/configs/baseline.yaml
 run testcase config="":
 	if [ -n "{{config}}" ]; then \
 	  bun packages/cli/dist/index.js run {{testcase}} --config {{config}}; \
@@ -30,7 +30,7 @@ run testcase config="":
 # Clean all Docker containers and build artifacts
 clean:
 	docker ps -aq --filter "ancestor=node:20" | xargs docker rm -f 2>/dev/null || true
-	rm -rf packages/*/dist packages/*/node_modules node_modules .turbo .crucible
+	rm -rf packages/*/dist packages/*/node_modules node_modules .turbo .agr
 
 # Lint codebase using Biome
 lint:

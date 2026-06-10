@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { OpenRouterAgentAdapter } from "@crucible-agr/agent-openrouter";
-import { type AgentConfig, runSingle } from "@crucible-agr/core";
-import { DockerSandboxProvider } from "@crucible-agr/sandbox-docker";
-import { initDb, saveTestCase } from "@crucible-agr/store";
+import { OpenRouterAgentAdapter } from "@agentgrader/agent-openrouter";
+import { type AgentConfig, runSingle } from "@agentgrader/core";
+import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
+import { initDb, saveTestCase } from "@agentgrader/store";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
 

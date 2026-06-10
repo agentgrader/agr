@@ -1,7 +1,7 @@
 import { experimental_createMCPClient, generateText, tool } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { AgentAdapter, AgentResult, McpServerConfig, StepEvent } from "@crucible-agr/core";
+import type { AgentAdapter, AgentResult, McpServerConfig, StepEvent } from "@agentgrader/core";
 import { z } from "zod";
 
 /** a connected mcp client, narrowed to the bits we use (so we can close it again). */
@@ -31,8 +31,8 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
       baseURL,
       apiKey,
       headers: {
-        "HTTP-Referer": "https://github.com/david/crucible",
-        "X-Title": "Crucible",
+        "HTTP-Referer": "https://github.com/agentgrader/agr",
+        "X-Title": "Agentgrader",
       },
     });
 

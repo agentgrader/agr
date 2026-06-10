@@ -40,7 +40,7 @@ expected_files:
 forbid_modified:
   - src/client.test.ts
 
-# gold patch used for diff-scope scoring and `crucible validate`
+# gold patch used for diff-scope scoring and `agr validate`
 solution: ./solution.patch
 
 created_at: "2024-01-15T00:00:00Z"
