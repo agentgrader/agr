@@ -13,9 +13,9 @@
     },
     "packages/agent-openrouter": {
       "name": "@agentgrader/agent-openrouter",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
-        "@agentgrader/core": "^1.0.0",
+        "@agentgrader/core": "^1.0.1",
         "@ai-sdk/openai": "^1.1.0",
         "ai": "^4.1.0",
         "zod": "^3.23.8",
@@ -24,12 +24,12 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.0.0",
+        "@agentgrader/core": "^1.0.1",
       },
     },
     "packages/cli": {
       "name": "agentgrader",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "bin": {
         "agr": "./dist/index.js",
         "agentgrader": "./dist/index.js",
@@ -51,9 +51,9 @@
     },
     "packages/core": {
       "name": "@agentgrader/core",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
-        "@agentgrader/store": "^1.0.0",
+        "@agentgrader/store": "^1.0.1",
         "@mastra/core": "^1.41.0",
         "yaml": "^2.5.1",
         "zod": "^3.23.8",
@@ -64,9 +64,9 @@
     },
     "packages/sandbox-docker": {
       "name": "@agentgrader/sandbox-docker",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
-        "@agentgrader/core": "^1.0.0",
+        "@agentgrader/core": "^1.0.1",
         "dockerode": "^4.0.2",
       },
       "devDependencies": {
@@ -74,12 +74,12 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.0.0",
+        "@agentgrader/core": "^1.0.1",
       },
     },
     "packages/store": {
       "name": "@agentgrader/store",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "better-sqlite3": "^12.10.0",
         "drizzle-orm": "^0.33.0",
