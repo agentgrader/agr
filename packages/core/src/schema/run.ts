@@ -15,6 +15,9 @@ export const RunSchema = z.object({
   durationMs: z.number().default(0),
   error: z.string().optional(),
   finalDiff: z.string().optional(),
+  // extended scoring metrics: regression (FAIL_TO_PASS/PASS_TO_PASS), diff stats,
+  // localization precision/recall, etc. Stored as JSON.
+  metrics: z.record(z.any()).optional(),
   createdAt: z.number(),
   completedAt: z.number().optional(),
 });

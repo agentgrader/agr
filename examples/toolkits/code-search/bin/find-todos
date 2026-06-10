@@ -1,0 +1,14 @@
+#!/bin/sh
+# find-todos - list TODO/FIXME/XXX comments in a project.
+#
+# Usage: find-todos [path]
+#   path  optional directory to search (defaults to the current directory)
+
+set -e
+
+target="${1:-.}"
+
+grep -rn -E "TODO|FIXME|XXX" "$target" \
+  --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git \
+  || echo "No TODO/FIXME/XXX comments found in $target"

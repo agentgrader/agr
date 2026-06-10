@@ -1,9 +1,9 @@
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { Readable, Writable } from "node:stream";
+import type { PatchApplyResult, SandboxHandle, SandboxProvider } from "@crucible-agr/core";
 import Docker from "dockerode";
-import { spawn } from "child_process";
-import { Writable, Readable } from "stream";
-import type { SandboxProvider, SandboxHandle } from "@crucible-agr/core";
-import { existsSync } from "fs";
-import { resolve } from "path";
 
 export class DockerSandboxHandle implements SandboxHandle {
   private container: Docker.Container;
@@ -70,7 +70,7 @@ export class DockerSandboxHandle implements SandboxHandle {
     });
 
     const stream = await exec.start({ hijack: true, stdin: true });
-    
+
     await new Promise<void>((resolve, reject) => {
       stream.write(content, (err) => {
         if (err) {
@@ -99,6 +99,42 @@ export class DockerSandboxHandle implements SandboxHandle {
     return res.stdout;
   }
 
+  async applyPatch(diff: string): Promise<PatchApplyResult> {
+    if (!diff || !diff.trim()) {
+      return { applied: true, repaired: false, output: "Empty patch - nothing to apply." };
+    }
+
+    const patchPath = `/tmp/crucible-patch-${Date.now()}-${Math.random().toString(36).slice(2)}.diff`;
+    await this.writeFile(patchPath, diff.endsWith("\n") ? diff : `${diff}\n`);
+
+    const attempts: { label: string; cmd: string; repaired: boolean }[] = [
+      { label: "git apply", cmd: `git apply --whitespace=nowarn "${patchPath}"`, repaired: false },
+      {
+        label: "git apply --3way",
+        cmd: `git apply --3way --whitespace=nowarn "${patchPath}"`,
+        repaired: true,
+      },
+      {
+        label: "patch --fuzz=3",
+        cmd: `patch -p1 --fuzz=3 --batch < "${patchPath}"`,
+        repaired: true,
+      },
+    ];
+
+    const log: string[] = [];
+    for (const attempt of attempts) {
+      const res = await this.exec(attempt.cmd);
+      log.push(`$ ${attempt.label}\n${res.stdout}${res.stderr}`.trim());
+      if (res.exitCode === 0) {
+        await this.exec(`rm -f "${patchPath}"`);
+        return { applied: true, repaired: attempt.repaired, output: log.join("\n\n") };
+      }
+    }
+
+    await this.exec(`rm -f "${patchPath}"`);
+    return { applied: false, repaired: false, output: log.join("\n\n") };
+  }
+
   async destroy(): Promise<void> {
     try {
       await this.container.stop();
@@ -109,6 +145,47 @@ export class DockerSandboxHandle implements SandboxHandle {
   }
 }
 
+/**
+ * Tars a local directory and streams it into the container at `containerPath`,
+ * optionally excluding top-level entries (e.g. a toolkit's `bin/` directory,
+ * which gets copied to `/usr/local/bin` separately).
+ */
+async function copyDirToContainer(
+  container: Docker.Container,
+  localPath: string,
+  containerPath: string,
+  excludes: string[] = [],
+): Promise<void> {
+  const args = ["--no-xattrs"];
+  for (const exclude of excludes) {
+    args.push("--exclude", exclude);
+  }
+  args.push("-cf", "-", "-C", localPath, ".");
+
+  const tarProcess = spawn("tar", args, {
+    env: {
+      ...process.env,
+      COPYFILE_DISABLE: "1",
+    },
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    container.putArchive(tarProcess.stdout, { path: containerPath }, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+
+  // wait for tar to finish before moving on
+  await new Promise<void>((resolve, reject) => {
+    tarProcess.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`tar process exited with code ${code}`));
+    });
+    tarProcess.on("error", (err) => reject(err));
+  });
+}
+
 export class DockerSandboxProvider implements SandboxProvider {
   readonly name = "docker";
   private docker: Docker;
@@ -117,7 +194,11 @@ export class DockerSandboxProvider implements SandboxProvider {
     this.docker = new Docker();
   }
 
-  async create(opts: { image?: string; gitSnapshot?: string }): Promise<SandboxHandle> {
+  async create(opts: {
+    image?: string;
+    gitSnapshot?: string;
+    toolkits?: string[];
+  }): Promise<SandboxHandle> {
     const image = opts.image || "node:20";
 
     // pull if not cached locally
@@ -157,34 +238,32 @@ export class DockerSandboxProvider implements SandboxProvider {
     if (opts.gitSnapshot) {
       const localPath = resolve(opts.gitSnapshot);
       if (existsSync(localPath)) {
-        // tar the local dir and stream it straight into the container
-        const tarProcess = spawn("tar", ["--no-xattrs", "-cf", "-", "-C", localPath, "."], {
-          env: {
-            ...process.env,
-            COPYFILE_DISABLE: "1",
-          },
-        });
-        
-        await new Promise<void>((resolve, reject) => {
-          container.putArchive(tarProcess.stdout, { path: "/app" }, (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
-
-        // wait for tar to finish before moving on
-        await new Promise<void>((resolve, reject) => {
-          tarProcess.on("close", (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`tar process exited with code ${code}`));
-          });
-          tarProcess.on("error", (err) => reject(err));
-        });
+        await copyDirToContainer(container, localPath, "/app");
       }
     }
 
     // init a git repo so we can diff what the agent changed later
-    await handle.exec("git init && git config user.email 'agent@crucible.local' && git config user.name 'Crucible Agent' && git add -A && git commit -m 'initial' || true");
+    await handle.exec(
+      "git init && git config user.email 'agent@crucible.local' && git config user.name 'Crucible Agent' && git add -A && git commit -m 'initial' || true",
+    );
+
+    // inject toolkits (custom CLI tools + Agent Skills docs) after the
+    // initial commit, so they're untracked and don't show up in gitDiff()
+    for (const toolkitOpt of opts.toolkits ?? []) {
+      const toolkitPath = resolve(toolkitOpt);
+      if (!existsSync(toolkitPath)) continue;
+
+      // copy everything except bin/ into /app (e.g. .claude/skills/...)
+      await copyDirToContainer(container, toolkitPath, "/app", ["bin"]);
+
+      // copy bin/ contents onto PATH and make them executable
+      const binPath = resolve(toolkitPath, "bin");
+      if (existsSync(binPath)) {
+        await handle.exec("mkdir -p /usr/local/bin");
+        await copyDirToContainer(container, binPath, "/usr/local/bin");
+        await handle.exec("chmod +x /usr/local/bin/* || true");
+      }
+    }
 
     return handle;
   }

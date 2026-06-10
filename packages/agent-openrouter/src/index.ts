@@ -1,7 +1,14 @@
-import { generateText, tool } from "ai";
+import { experimental_createMCPClient, generateText, tool } from "ai";
+import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { createOpenAI } from "@ai-sdk/openai";
-import type { AgentAdapter, AgentResult, StepEvent } from "@crucible-agr/core";
+import type { AgentAdapter, AgentResult, McpServerConfig, StepEvent } from "@crucible-agr/core";
 import { z } from "zod";
+
+/** a connected mcp client, narrowed to the bits we use (so we can close it again). */
+interface McpClientHandle {
+  tools(): Promise<Record<string, unknown>>;
+  close(): Promise<void>;
+}
 
 export class OpenRouterAgentAdapter implements AgentAdapter {
   readonly name = "openrouter";
@@ -13,11 +20,11 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
     onStep: (step: StepEvent) => void;
   }): Promise<AgentResult> {
     const { prompt, sandbox, config, onStep } = input;
-    
+
     // set up the openrouter client (or fall back to direct openai if no openrouter key)
     const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "mock-key";
-    const baseURL = process.env.OPENROUTER_API_KEY 
-      ? "https://openrouter.ai/api/v1" 
+    const baseURL = process.env.OPENROUTER_API_KEY
+      ? "https://openrouter.ai/api/v1"
       : undefined;
 
     const client = createOpenAI({
@@ -36,7 +43,7 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
     let stepIndex = 0;
 
     // tools the agent can call inside the sandbox
-    const tools = {
+    const localTools = {
       executeCommand: tool({
         description: "Execute a terminal bash command inside the sandbox container.",
         parameters: z.object({
@@ -91,6 +98,40 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
         },
       }),
     };
+
+    // connect to any configured MCP servers and merge their tools in,
+    // namespaced by server name to avoid collisions with local tools or
+    // tools from other servers
+    const mcpClients: McpClientHandle[] = [];
+    const mcpTools: Record<string, unknown> = {};
+    const mcpServers = (config.mcp_servers ?? {}) as Record<string, McpServerConfig>;
+
+    for (const [serverName, serverConfig] of Object.entries(mcpServers)) {
+      try {
+        const transport =
+          "command" in serverConfig
+            ? new Experimental_StdioMCPTransport({
+              command: serverConfig.command,
+              args: serverConfig.args,
+              env: serverConfig.env,
+            })
+            : // note: the installed AI SDK version only supports "sse" as a
+            // remote transport type, regardless of the configured `type`
+            { type: "sse" as const, url: serverConfig.url, headers: serverConfig.headers };
+
+        const client = (await experimental_createMCPClient({ transport })) as McpClientHandle;
+        mcpClients.push(client);
+
+        const serverTools = await client.tools();
+        for (const [toolName, toolDef] of Object.entries(serverTools)) {
+          mcpTools[`${serverName}_${toolName}`] = toolDef;
+        }
+      } catch (err: any) {
+        console.error(`Failed to connect to MCP server "${serverName}": ${err.message}`);
+      }
+    }
+
+    const tools = { ...localTools, ...mcpTools } as typeof localTools;
 
     // rough pricing per model — good enough for cost tracking
     const getPricing = (model: string) => {
@@ -165,6 +206,12 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
       });
     } catch (err: any) {
       console.error(`Error in generateText agent loop: ${err.message}`);
+    } finally {
+      for (const client of mcpClients) {
+        try {
+          await client.close();
+        } catch (e) { }
+      }
     }
 
     const finalDiff = await sandbox.gitDiff();

@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const testCases = sqliteTable("test_cases", {
   id: text("id").primaryKey(),
@@ -9,6 +9,17 @@ export const testCases = sqliteTable("test_cases", {
   success: text("success").notNull(), // json array of SuccessCriterion
   timeoutSeconds: integer("timeout_seconds").notNull(),
   createdAt: integer("created_at").notNull(),
+
+  // SWE-bench inspired fields (all optional, JSON-encoded where arrays)
+  tags: text("tags"), // json array of strings
+  testCommand: text("test_command"),
+  failToPass: text("fail_to_pass"), // json array of strings
+  passToPass: text("pass_to_pass"), // json array of strings
+  forbidModified: text("forbid_modified"), // json array of glob patterns
+  expectedFiles: text("expected_files"), // json array of glob patterns
+  solution: text("solution"), // path or raw diff for the gold patch
+  testPatch: text("test_patch"), // path or raw diff that adds/updates tests
+  sourceCreatedAt: text("source_created_at"), // original issue/PR creation date
 });
 
 export const agentConfigs = sqliteTable("agent_configs", {
@@ -41,8 +52,21 @@ export const runs = sqliteTable("runs", {
   durationMs: integer("duration_ms").notNull().default(0),
   error: text("error"),
   finalDiff: text("final_diff"),
+  metrics: text("metrics"), // json object: regression/diff/localization scores etc.
   createdAt: integer("created_at").notNull(),
   completedAt: integer("completed_at"),
+});
+
+// Caches the pre-patch (baseline) test status map for a given fixture +
+// test command, so `runSingle` doesn't have to re-run the full suite on a
+// pristine sandbox for every run of the same test case.
+export const testCaseBaselines = sqliteTable("test_case_baselines", {
+  id: text("id").primaryKey(), // `${testCaseId}:${fixtureHash}`
+  testCaseId: text("test_case_id").notNull(),
+  fixtureHash: text("fixture_hash").notNull(),
+  testCommand: text("test_command").notNull(),
+  statusMap: text("status_map").notNull(), // json TestStatusMap
+  createdAt: integer("created_at").notNull(),
 });
 
 export const traces = sqliteTable("traces", {
