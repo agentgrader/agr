@@ -1,6 +1,6 @@
 {
   "name": "agentgrader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CLI for the Agentgrader benchmarking framework — run and bench coding agents",
   "license": "MIT",
   "type": "module",
@@ -19,10 +19,10 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
-    "@agentgrader/agent-openrouter": "^1.0.0",
-    "@agentgrader/core": "^1.0.0",
-    "@agentgrader/sandbox-docker": "^1.0.0",
-    "@agentgrader/store": "^1.0.0",
+    "@agentgrader/agent-openrouter": "^1.0.1",
+    "@agentgrader/core": "^1.0.1",
+    "@agentgrader/sandbox-docker": "^1.0.1",
+    "@agentgrader/store": "^1.0.1",
     "cac": "^6.7.14",
     "ink": "^4.4.1",
     "react": "^18.2.0",

@@ -1,5 +1,13 @@
 # @agentgrader/core
 
+## 1.0.1
+
+### Patch Changes
+
+- Fix critical workspace dependency resolution issue on npm by replacing `workspace:*` with exact caret versions.
+- Updated dependencies
+  - @agentgrader/store@1.0.1
+
 ## 1.0.0
 
 ### Major Changes
