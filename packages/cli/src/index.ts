@@ -2,6 +2,7 @@ import { cac } from "cac";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
 import { runSingleCommand } from "./commands/run";
+import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
 
 const cli = cac("agr");
@@ -23,9 +24,13 @@ cli
   .option("--configs <configs>", "Comma-separated paths to AgentConfig YAML files")
   .option("--suite <suite>", "Path to test suite directory containing test cases")
   .option("--concurrency <concurrency>", "Number of parallel sandbox executions", { default: 2 })
+  .option(
+    "--matrix <matrix>",
+    "Path to an optimizer matrix YAML file - expands into agent configs and prints a Pareto summary afterwards (alternative to --configs)",
+  )
   .action(async (options) => {
-    if (!options.configs || !options.suite) {
-      console.error("Error: --configs and --suite are required for benchmarking.");
+    if (!options.suite || (!options.configs && !options.matrix)) {
+      console.error("Error: --suite and either --configs or --matrix are required for benchmarking.");
       process.exit(1);
     }
     try {
@@ -33,6 +38,7 @@ cli
         configs: options.configs,
         suite: options.suite,
         concurrency: Number(options.concurrency),
+        matrix: options.matrix,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
@@ -60,11 +66,28 @@ cli
     "Scaffold a test case from a GitHub pull request (e.g. owner/repo 1234)",
   )
   .option("--out <dir>", "Output directory for the scaffolded test case")
+  .option("--clone-fixture", "Clone the repo and check out the PR's base commit into ./fixture")
+  .option("--validate", "Run `agr validate` against the scaffolded test case afterwards")
   .action(async (repo, prNumber, options) => {
     try {
       await importPrCommand(repo, prNumber, options);
     } catch (err: any) {
       console.error(`Error executing import-pr: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("trace <runId>", "Show the step trace and metrics for a single run")
+  .option(
+    "--quality",
+    "Show only the quality-metrics breakdown (static-quality, llm-judge, diff, localization)",
+  )
+  .action(async (runId, options) => {
+    try {
+      await traceCommand(runId, options);
+    } catch (err: any) {
+      console.error(`Error executing trace: ${err.message}`);
       process.exit(1);
     }
   });

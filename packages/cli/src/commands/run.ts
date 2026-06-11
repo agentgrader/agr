@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
 import { type AgentConfig, runSingle } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
-import { initDb, saveTestCase } from "@agentgrader/store";
+import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
 
@@ -29,6 +29,14 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
 
   // write definitions to db before the run starts
   await saveTestCase(db, testCaseToDbRow(testCase));
+  await saveAgentConfig(db, {
+    id: agentConfig.id || agentConfig.name,
+    name: agentConfig.name,
+    model: agentConfig.model,
+    maxSteps: agentConfig.max_steps,
+    temperature: agentConfig.temperature,
+    createdAt: Math.floor(Date.now() / 1000),
+  });
 
   const runId = randomUUID();
   try {

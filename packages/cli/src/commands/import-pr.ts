@@ -1,6 +1,8 @@
+import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stringify } from "yaml";
+import { validateCommand } from "./validate";
 
 const TEST_FILE_PATTERN = /(^|\/)(tests?|specs?|__tests__)(\/|$)|\.(test|spec)\.[jt]sx?$/i;
 
@@ -15,7 +17,7 @@ interface PullRequestInfo {
 }
 
 /**
- * `agr import-pr <owner/repo> <pr-number> [--out <dir>]`
+ * `agr import-pr <owner/repo> <pr-number> [--out <dir>] [--clone-fixture] [--validate]`
  *
  * Scaffolds a new test case from a merged GitHub pull request, mirroring
  * SWE-bench's PR-scraping construction pipeline:
@@ -30,10 +32,22 @@ interface PullRequestInfo {
  *    placeholders - these require actually running the test suite (use
  *    `agr validate` after filling in the fixture).
  *
+ * With `--clone-fixture`, the repo is cloned and checked out at the PR's
+ * `base.sha` into `<outDir>/fixture`, so the test case is immediately
+ * runnable (modulo the `test_command`/`fail_to_pass`/`pass_to_pass` TODOs).
+ *
+ * With `--validate`, `agr validate` is run against the scaffolded
+ * `agr.yaml` once it's written (most useful combined with
+ * `--clone-fixture`, and after filling in the TODO fields).
+ *
  * Set `GITHUB_TOKEN` in the environment to avoid GitHub's low unauthenticated
  * rate limits.
  */
-export async function importPrCommand(repo: string, prNumber: string, opts: { out?: string }) {
+export async function importPrCommand(
+  repo: string,
+  prNumber: string,
+  opts: { out?: string; cloneFixture?: boolean; validate?: boolean },
+) {
   const [owner, repoName] = repo.split("/");
   if (!owner || !repoName) {
     throw new Error(`Invalid repo "${repo}" - expected format "owner/repo".`);
@@ -109,12 +123,34 @@ export async function importPrCommand(repo: string, prNumber: string, opts: { ou
   if (testDiff.trim())
     console.log(`  - test_patch.patch (${forbidModified.length} test file(s) changed)`);
 
+  if (opts.cloneFixture) {
+    const fixtureDir = resolve(outDir, "fixture");
+    console.log(`\nCloning ${owner}/${repoName} into ${fixtureDir}...`);
+    execFileSync("git", ["clone", `https://github.com/${owner}/${repoName}.git`, fixtureDir], {
+      stdio: "inherit",
+    });
+    console.log(`Checking out base commit ${pr.base.sha}...`);
+    execFileSync("git", ["checkout", pr.base.sha], { cwd: fixtureDir, stdio: "inherit" });
+  }
+
   console.log("\nNext steps:");
-  console.log(`  1. Check out ${owner}/${repoName}@${pr.base.sha} into ${outDir}/fixture`);
-  console.log("  2. Fill in test_command, fail_to_pass, and pass_to_pass in agr.yaml");
-  console.log(
-    `  3. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
-  );
+  if (!opts.cloneFixture) {
+    console.log(`  1. Check out ${owner}/${repoName}@${pr.base.sha} into ${outDir}/fixture`);
+    console.log("  2. Fill in test_command, fail_to_pass, and pass_to_pass in agr.yaml");
+    console.log(
+      `  3. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
+    );
+  } else {
+    console.log("  1. Fill in test_command, fail_to_pass, and pass_to_pass in agr.yaml");
+    console.log(
+      `  2. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
+    );
+  }
+
+  if (opts.validate) {
+    console.log("\nRunning validation...\n");
+    await validateCommand(resolve(outDir, "agr.yaml"));
+  }
 }
 
 function buildPrompt(pr: PullRequestInfo): string {
@@ -123,7 +159,7 @@ function buildPrompt(pr: PullRequestInfo): string {
 }
 
 /**
- * Splits a unified diff into "solution" (non-test files) and "test"
+ * splits a unified diff into "solution" (non-test files) and "test"
  * (test files) chunks based on common test path conventions, and collects
  * the touched file paths for `expected_files` / `forbid_modified`.
  */

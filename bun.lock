@@ -13,9 +13,9 @@
     },
     "packages/agent-openrouter": {
       "name": "@agentgrader/agent-openrouter",
-      "version": "1.0.1",
+      "version": "2.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.0.1",
+        "@agentgrader/core": "^1.1.0",
         "@ai-sdk/anthropic": "^3.0.82",
         "@ai-sdk/openai": "^1.1.0",
         "ai": "^4.1.0",
@@ -25,21 +25,23 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.0.1",
+        "@agentgrader/core": "^1.1.0",
       },
     },
     "packages/cli": {
       "name": "agentgrader",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "bin": {
         "agr": "./dist/index.js",
         "agentgrader": "./dist/index.js",
       },
       "dependencies": {
-        "@agentgrader/agent-openrouter": "workspace:*",
-        "@agentgrader/core": "workspace:*",
-        "@agentgrader/sandbox-docker": "workspace:*",
-        "@agentgrader/store": "workspace:*",
+        "@agentgrader/agent-openrouter": "^2.0.0",
+        "@agentgrader/core": "^1.1.0",
+        "@agentgrader/optimizer": "^0.1.0",
+        "@agentgrader/sandbox-docker": "^2.0.0",
+        "@agentgrader/scorer-static": "^0.1.0",
+        "@agentgrader/store": "^1.0.2",
         "cac": "^6.7.14",
         "ink": "^4.4.1",
         "react": "^18.2.0",
@@ -52,9 +54,9 @@
     },
     "packages/core": {
       "name": "@agentgrader/core",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "dependencies": {
-        "@agentgrader/store": "^1.0.1",
+        "@agentgrader/store": "^1.0.2",
         "@mastra/core": "^1.41.0",
         "yaml": "^2.5.1",
         "zod": "^3.23.8",
@@ -63,11 +65,25 @@
         "tsup": "^8.5.1",
       },
     },
+    "packages/optimizer": {
+      "name": "@agentgrader/optimizer",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentgrader/core": "^1.1.0",
+        "zod": "^3.23.8",
+      },
+      "devDependencies": {
+        "tsup": "^8.5.1",
+      },
+      "peerDependencies": {
+        "@agentgrader/core": "^1.1.0",
+      },
+    },
     "packages/sandbox-docker": {
       "name": "@agentgrader/sandbox-docker",
-      "version": "1.0.1",
+      "version": "2.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.0.1",
+        "@agentgrader/core": "^1.1.0",
         "dockerode": "^4.0.2",
       },
       "devDependencies": {
@@ -75,12 +91,42 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.0.1",
+        "@agentgrader/core": "^1.1.0",
+      },
+    },
+    "packages/scorer-llm-judge": {
+      "name": "@agentgrader/scorer-llm-judge",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentgrader/core": "^1.1.0",
+        "@ai-sdk/anthropic": "^3.0.82",
+        "@ai-sdk/openai": "^1.1.0",
+        "ai": "^4.1.0",
+        "zod": "^3.23.8",
+      },
+      "devDependencies": {
+        "tsup": "^8.5.1",
+      },
+      "peerDependencies": {
+        "@agentgrader/core": "^1.1.0",
+      },
+    },
+    "packages/scorer-static": {
+      "name": "@agentgrader/scorer-static",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentgrader/core": "^1.1.0",
+      },
+      "devDependencies": {
+        "tsup": "^8.5.1",
+      },
+      "peerDependencies": {
+        "@agentgrader/core": "^1.1.0",
       },
     },
     "packages/store": {
       "name": "@agentgrader/store",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "dependencies": {
         "better-sqlite3": "^12.10.0",
         "drizzle-orm": "^0.33.0",
@@ -99,7 +145,13 @@
 
     "@agentgrader/core": ["@agentgrader/core@workspace:packages/core"],
 
+    "@agentgrader/optimizer": ["@agentgrader/optimizer@workspace:packages/optimizer"],
+
     "@agentgrader/sandbox-docker": ["@agentgrader/sandbox-docker@workspace:packages/sandbox-docker"],
+
+    "@agentgrader/scorer-llm-judge": ["@agentgrader/scorer-llm-judge@workspace:packages/scorer-llm-judge"],
+
+    "@agentgrader/scorer-static": ["@agentgrader/scorer-static@workspace:packages/scorer-static"],
 
     "@agentgrader/store": ["@agentgrader/store@workspace:packages/store"],
 

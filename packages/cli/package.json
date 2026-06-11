@@ -21,7 +21,9 @@
   "dependencies": {
     "@agentgrader/agent-openrouter": "^2.0.0",
     "@agentgrader/core": "^1.1.0",
+    "@agentgrader/optimizer": "^0.1.0",
     "@agentgrader/sandbox-docker": "^2.0.0",
+    "@agentgrader/scorer-static": "^0.1.0",
     "@agentgrader/store": "^1.0.2",
     "cac": "^6.7.14",
     "ink": "^4.4.1",

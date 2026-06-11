@@ -53,6 +53,7 @@ export const runs = sqliteTable("runs", {
   error: text("error"),
   finalDiff: text("final_diff"),
   metrics: text("metrics"), // json object: regression/diff/localization scores etc.
+  matrixId: text("matrix_id"), // optimizer matrix run this config belongs to, if any
   createdAt: integer("created_at").notNull(),
   completedAt: integer("completed_at"),
 });

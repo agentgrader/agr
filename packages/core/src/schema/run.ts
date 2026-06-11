@@ -16,8 +16,12 @@ export const RunSchema = z.object({
   error: z.string().optional(),
   finalDiff: z.string().optional(),
   // extended scoring metrics: regression (FAIL_TO_PASS/PASS_TO_PASS), diff stats,
-  // localization precision/recall, etc. Stored as JSON.
+  // localization precision/recall, additive quality scorers (keyed by scorer
+  // name, ScorerResult-shaped), etc. Stored as JSON.
   metrics: z.record(z.any()).optional(),
+  // links this run back to the optimizer matrix run that generated its
+  // agentConfig, if any (see @agentgrader/optimizer).
+  matrixId: z.string().optional(),
   createdAt: z.number(),
   completedAt: z.number().optional(),
 });

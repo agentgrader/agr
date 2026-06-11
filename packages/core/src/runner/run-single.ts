@@ -3,6 +3,7 @@ import { addTrace, createRun, updateRun } from "@agentgrader/store";
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 import type { AgentAdapter, AgentResult } from "../adapters/agent-adapter";
+import type { Scorer } from "../adapters/scorer";
 import type { SandboxHandle, SandboxProvider } from "../adapters/sandbox-provider";
 import type { AgentConfig } from "../schema/agent-config";
 import type { TestCase } from "../schema/test-case";
@@ -22,6 +23,15 @@ export interface RunSingleInput {
   sandboxProvider: SandboxProvider;
   db?: AgrDb;
   runId: string;
+  /**
+   * additive, non-blocking scorers (e.g. staticqualityscorer,
+   * llmjudgescorer) run after the core pass/fail scoring. their results
+   * never affect `passed`/`score` - each scorer's `scorerresult` is merged
+   * into `metrics` under its own `name`.
+   */
+  extraScorers?: Scorer[];
+  /** links this run to an optimizer matrix run, if any */
+  matrixId?: string;
 }
 
 export interface RunSingleResult {
@@ -39,7 +49,7 @@ export interface RunSingleResult {
 }
 
 export async function runSingle(input: RunSingleInput): Promise<RunSingleResult> {
-  const { testCase, agentConfig, adapter, sandboxProvider, db, runId } = input;
+  const { testCase, agentConfig, adapter, sandboxProvider, db, runId, extraScorers, matrixId } = input;
   const startTime = Date.now();
   let sandbox: any = null;
   let passed = false;
@@ -64,6 +74,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       agentConfigId: agentConfig.id || agentConfig.name,
       sandboxProvider: sandboxProvider.name,
       status: "running",
+      matrixId,
       createdAt: Math.floor(startTime / 1000),
     });
   }
@@ -194,6 +205,25 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     }),
     execute: async () => {
       if (!sandbox) throw new Error("Sandbox not initialized");
+
+      // run additive, non-blocking quality scorers first so their results
+      // (diff size, lint, LLM judge, ...) are recorded regardless of
+      // whether the functional checks below pass or fail.
+      if (extraScorers && extraScorers.length > 0 && agentResult) {
+        const trace: Trace = { runId, steps: emittedSteps };
+        for (const scorer of extraScorers) {
+          try {
+            metrics[scorer.name] = await scorer.score({
+              testCase,
+              result: agentResult,
+              trace,
+              sandbox,
+            });
+          } catch (e: any) {
+            metrics[scorer.name] = { passed: true, detail: `Scorer error: ${e.message}` };
+          }
+        }
+      }
 
       // run the test suite in the sandbox
       const cmdScorer = new CommandScorer();
