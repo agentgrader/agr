@@ -1,6 +1,6 @@
 {
   "name": "agentgrader",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI for the Agentgrader benchmarking framework — run and bench coding agents",
   "license": "MIT",
   "type": "module",
@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@agentgrader/agent-openrouter": "^2.0.0",
-    "@agentgrader/core": "^1.1.0",
+    "@agentgrader/core": "^1.1.1",
     "@agentgrader/optimizer": "^0.1.0",
     "@agentgrader/sandbox-docker": "^2.0.0",
     "@agentgrader/scorer-static": "^0.1.0",

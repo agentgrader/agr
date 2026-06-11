@@ -1,5 +1,13 @@
 # agentgrader
 
+## 1.0.3
+
+### Patch Changes
+
+- 8c85583: Running a command with missing required arguments (e.g. `agr run` with no test case path) now prints a friendly error and the command's help instead of crashing with a raw `CACError` stack trace.
+- Updated dependencies [8c85583]
+  - @agentgrader/core@1.1.1
+
 ## 1.0.2
 
 ### Patch Changes
