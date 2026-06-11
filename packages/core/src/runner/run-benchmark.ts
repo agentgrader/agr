@@ -190,7 +190,7 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
     requestContext: executionContext as any,
   })) as any;
 
-  const rawRuns = res.results?.executeSingleRunStepResult || [];
+  const rawRuns = res.steps?.executeSingleRun?.output || [];
   return {
     runs: Array.isArray(rawRuns) ? rawRuns : [],
   };

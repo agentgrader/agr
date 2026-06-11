@@ -93,4 +93,14 @@ cli
   });
 
 cli.help();
-cli.parse();
+
+try {
+  cli.parse();
+} catch (err: any) {
+  if (err.name === "CACError") {
+    console.error(`\n❌ ${err.message}\n`);
+    cli.outputHelp();
+    process.exit(1);
+  }
+  throw err;
+}

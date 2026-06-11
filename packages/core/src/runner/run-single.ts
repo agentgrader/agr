@@ -339,10 +339,17 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       initialState: runState,
     })) as any;
 
-    const scoreResults = res.results?.score;
-    passed = scoreResults?.passed ?? false;
-    score = scoreResults?.score ?? 0;
-    errorMsg = scoreResults?.passed ? undefined : scoreResults?.detail;
+    const scoreStep = res.steps?.score;
+    if (res.status === "success" && scoreStep?.status === "success") {
+      const scoreOutput = scoreStep.output;
+      passed = scoreOutput?.passed ?? false;
+      score = scoreOutput?.score ?? 0;
+      errorMsg = scoreOutput?.passed ? undefined : scoreOutput?.detail;
+    } else {
+      passed = false;
+      score = 0;
+      errorMsg = res.error?.message ?? "Workflow did not complete successfully";
+    }
   } catch (err: any) {
     errorMsg = err.message || "Unknown execution error";
     passed = false;
