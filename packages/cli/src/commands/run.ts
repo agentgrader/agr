@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { OpenRouterAgentAdapter } from "@agentgrader/agent-openrouter";
+import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
 import { type AgentConfig, runSingle } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { initDb, saveTestCase } from "@agentgrader/store";
@@ -24,7 +24,7 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
 
   // spin up docker + openrouter
   const sandboxProvider = new DockerSandboxProvider();
-  const adapter = new OpenRouterAgentAdapter();
+  const adapter = new AiSdkAgentAdapter();
   const db = initDb();
 
   // write definitions to db before the run starts

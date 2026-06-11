@@ -1,6 +1,7 @@
 import { experimental_createMCPClient, generateText, tool } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { createOpenAI } from "@ai-sdk/openai";
+import { createAnthropic } from "@ai-sdk/anthropic";
 import type { AgentAdapter, AgentResult, McpServerConfig, StepEvent } from "@agentgrader/core";
 import { z } from "zod";
 
@@ -10,8 +11,8 @@ interface McpClientHandle {
   close(): Promise<void>;
 }
 
-export class OpenRouterAgentAdapter implements AgentAdapter {
-  readonly name = "openrouter";
+export class AiSdkAgentAdapter implements AgentAdapter {
+  readonly name = "ai-sdk";
 
   async solve(input: {
     prompt: string;
@@ -21,23 +22,32 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
   }): Promise<AgentResult> {
     const { prompt, sandbox, config, onStep } = input;
 
-    // set up the openrouter client (or fall back to direct openai if no openrouter key)
-    const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "mock-key";
-    const baseURL = process.env.OPENROUTER_API_KEY
-      ? "https://openrouter.ai/api/v1"
-      : undefined;
-
-    const client = createOpenAI({
-      baseURL,
-      apiKey,
-      headers: {
-        "HTTP-Referer": "https://github.com/agentgrader/agr",
-        "X-Title": "Agentgrader",
-      },
-    });
-
+    const provider = config.provider || "openrouter";
     const modelName = config.model || "gpt-4o-mini";
-    const model = client(modelName);
+    let model: any;
+
+    if (provider === "anthropic") {
+      const anthropic = createAnthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY || "mock-key",
+      });
+      model = anthropic(modelName);
+    } else if (provider === "openai") {
+      const openai = createOpenAI({
+        apiKey: process.env.OPENAI_API_KEY || "mock-key",
+      });
+      model = openai(modelName);
+    } else {
+      // Default to openrouter
+      const openrouter = createOpenAI({
+        baseURL: "https://openrouter.ai/api/v1",
+        apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "mock-key",
+        headers: {
+          "HTTP-Referer": "https://github.com/agentgrader/agr",
+          "X-Title": "Agentgrader",
+        },
+      });
+      model = openrouter(modelName);
+    }
 
     let submitted = false;
     let stepIndex = 0;
@@ -222,3 +232,5 @@ export class OpenRouterAgentAdapter implements AgentAdapter {
     };
   }
 }
+
+export { AiSdkAgentAdapter as OpenRouterAgentAdapter };

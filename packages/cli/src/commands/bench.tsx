@@ -4,7 +4,7 @@ import React from "react";
 import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
 import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
-import { OpenRouterAgentAdapter } from "@agentgrader/agent-openrouter";
+import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
 import { Dashboard, type RunState } from "../ui/Dashboard";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { loadTestCase, testCaseToDbRow, findTestCaseYamlFiles } from "../lib/load-test-case";
@@ -52,7 +52,7 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
 
   // 4. wire up providers
   const sandboxProvider = new DockerSandboxProvider();
-  const adapter = new OpenRouterAgentAdapter();
+  const adapter = new AiSdkAgentAdapter();
 
   // 5. render the live dashboard
   const runStates: Record<string, RunState> = {};
