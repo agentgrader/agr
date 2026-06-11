@@ -17,6 +17,12 @@ build:
 bench configs="examples/configs/baseline.yaml" suite="examples/suites/typescript-bugs" concurrency="2":
 	bun packages/cli/dist/index.js bench --configs {{configs}} --suite {{suite}} --concurrency {{concurrency}}
 
+# Run an optimizer matrix sweep (model/temperature/etc. comparison + Pareto summary)
+# Usage: just optimize
+# Usage: just optimize matrix=examples/matrices/model-comparison.yaml suite=examples/suites/typescript-bugs
+optimize matrix="examples/matrices/model-comparison.yaml" suite="examples/suites/typescript-bugs" concurrency="2":
+	bun packages/cli/dist/index.js bench --matrix {{matrix}} --suite {{suite}} --concurrency {{concurrency}}
+
 # Run a single test case
 # Usage: just run examples/suites/typescript-bugs/add-error-handling/agr.yaml
 # Usage: just run examples/suites/typescript-bugs/add-error-handling/agr.yaml config=examples/configs/baseline.yaml

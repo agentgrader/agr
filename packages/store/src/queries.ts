@@ -104,6 +104,7 @@ export function initDb(dbPath = ".agr/db.sqlite") {
   ensureColumn(sqlite, "test_cases", "test_patch", "TEXT");
   ensureColumn(sqlite, "test_cases", "source_created_at", "TEXT");
   ensureColumn(sqlite, "runs", "metrics", "TEXT");
+  ensureColumn(sqlite, "runs", "matrix_id", "TEXT");
 
   return db;
 }
@@ -206,6 +207,14 @@ export async function getRunsForTestCase(db: AgrDb, testCaseId: string) {
 
 export async function listRuns(db: AgrDb) {
   return db.select().from(schema.runs).orderBy(desc(schema.runs.createdAt));
+}
+
+export async function getRunsByMatrixId(db: AgrDb, matrixId: string) {
+  return db
+    .select()
+    .from(schema.runs)
+    .where(eq(schema.runs.matrixId, matrixId))
+    .orderBy(desc(schema.runs.createdAt));
 }
 
 export async function getCachedBaseline(db: AgrDb, testCaseId: string, fixtureHash: string) {

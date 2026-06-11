@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { TestCase } from "../schema/test-case";
 import type { AgentConfig } from "../schema/agent-config";
 import type { AgentAdapter } from "../adapters/agent-adapter";
+import type { Scorer } from "../adapters/scorer";
 import type { SandboxProvider } from "../adapters/sandbox-provider";
 import type { AgrDb } from "@agentgrader/store";
 import { runSingle, type RunSingleResult } from "./run-single";
@@ -16,6 +17,10 @@ export interface BenchmarkInput {
   sandboxProvider: SandboxProvider;
   db?: AgrDb;
   concurrency?: number;
+  /** additive, non-blocking quality scorers run for every test case x config combination */
+  extraScorers?: Scorer[];
+  /** links every run in this benchmark to an optimizer matrix run, if any */
+  matrixId?: string;
   onRunUpdate?: (
     run: RunSingleResult & {
       testCaseId: string;
@@ -31,7 +36,7 @@ export interface BenchmarkResult {
 }
 
 export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResult> {
-  const { testCases, agentConfigs, adapter, adapters, sandboxProvider, db, concurrency = 2, onRunUpdate } = input;
+  const { testCases, agentConfigs, adapter, adapters, sandboxProvider, db, concurrency = 2, extraScorers, matrixId, onRunUpdate } = input;
 
   const actualAdapters = adapters || (adapter ? [adapter] : []);
   if (actualAdapters.length === 0) {
@@ -87,6 +92,8 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
       const sandboxProvider = getVal("sandboxProvider");
       const db = getVal("db");
       const onRunUpdate = getVal("onRunUpdate");
+      const extraScorers = getVal("extraScorers") as Scorer[] | undefined;
+      const matrixId = getVal("matrixId") as string | undefined;
 
       const runId = randomUUID();
 
@@ -114,6 +121,8 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
           sandboxProvider,
           db,
           runId,
+          extraScorers,
+          matrixId,
         });
 
         if (onRunUpdate) {
@@ -170,6 +179,8 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
     ["sandboxProvider", sandboxProvider],
     ["db", db],
     ["onRunUpdate", onRunUpdate],
+    ["extraScorers", extraScorers],
+    ["matrixId", matrixId],
   ]);
 
   const run = await workflow.createRun();

@@ -1,21 +1,44 @@
+import { randomUUID } from "node:crypto";
 import { resolve } from "path";
 import { render } from "ink";
 import React from "react";
-import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
+import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, type AgrDb } from "@agentgrader/store";
 import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
+import { StaticQualityScorer } from "@agentgrader/scorer-static";
+import { expandMatrix, aggregateResults, paretoFront } from "@agentgrader/optimizer";
 import { Dashboard, type RunState } from "../ui/Dashboard";
 import { loadAgentConfig } from "../lib/load-agent-config";
+import { loadMatrix } from "../lib/load-matrix";
 import { loadTestCase, testCaseToDbRow, findTestCaseYamlFiles } from "../lib/load-test-case";
 
-export async function runBenchCommand(opts: { configs: string; suite: string; concurrency?: number }) {
+export async function runBenchCommand(opts: {
+  configs?: string;
+  suite: string;
+  concurrency?: number;
+  matrix?: string;
+}) {
   const suiteDir = resolve(opts.suite);
-  const configPaths = opts.configs.split(",").map((c) => resolve(c.trim()));
   const concurrency = opts.concurrency || 2;
 
-  // 1. load agent configs
-  const agentConfigs: AgentConfig[] = configPaths.map((p) => loadAgentConfig(p));
+  // 1. load agent configs. either expanded from a matrix (cartesian product
+  // of dimensions, for an optimizer sweep) or from explicit --configs paths
+  let agentConfigs: AgentConfig[];
+  let matrixId: string | undefined;
+  if (opts.matrix) {
+    const matrix = loadMatrix(opts.matrix);
+    agentConfigs = expandMatrix(matrix);
+    matrixId = randomUUID();
+    console.log(
+      `Matrix "${matrix.name}" expanded to ${agentConfigs.length} agent config(s) (matrixId: ${matrixId})`,
+    );
+  } else if (opts.configs) {
+    const configPaths = opts.configs.split(",").map((c) => resolve(c.trim()));
+    agentConfigs = configPaths.map((p) => loadAgentConfig(p));
+  } else {
+    throw new Error("Either --configs or --matrix must be provided.");
+  }
 
   // 2. find and parse test case yamls
   const yamlFiles = findTestCaseYamlFiles(suiteDir);
@@ -91,6 +114,8 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
       db,
       concurrency,
       onRunUpdate,
+      extraScorers: [new StaticQualityScorer()],
+      matrixId,
     });
   } catch (err) {
     console.error("Benchmark runner encountered an error:", err);
@@ -108,8 +133,43 @@ export async function runBenchCommand(opts: { configs: string; suite: string; co
 
   printTagBreakdown(testCases, agentConfigs, runStates);
 
+  if (matrixId) {
+    await printMatrixSummary(db, matrixId, agentConfigs);
+  }
+
   // all done
   process.exit(0);
+}
+
+/**
+ * Aggregates all runs from this matrix sweep by agent config and prints a
+ * solve-rate / cost / quality breakdown, marking the Pareto-optimal configs.
+ */
+async function printMatrixSummary(db: AgrDb, matrixId: string, agentConfigs: AgentConfig[]) {
+  const runs = await getRunsByMatrixId(db, matrixId);
+  const aggregates = aggregateResults(runs, agentConfigs);
+  if (aggregates.length === 0) return;
+
+  const front = paretoFront(aggregates);
+  const frontIds = new Set(front.map((a) => a.agentConfigId));
+  const includesQuality = front.some((a) => a.avgQuality?.linterViolations !== undefined);
+
+  console.log("\n================ MATRIX SUMMARY ================");
+  for (const agg of aggregates) {
+    const marker = frontIds.has(agg.agentConfigId) ? "*" : " ";
+    const solveRatePct = (agg.solveRate * 100).toFixed(0);
+    const lint =
+      agg.avgQuality?.linterViolations !== undefined
+        ? ` lint:${agg.avgQuality.linterViolations.toFixed(1)}`
+        : "";
+    console.log(
+      `${marker} ${agg.agentConfigName.padEnd(36)} solve:${solveRatePct.padStart(3)}% (${agg.passedRuns}/${agg.totalRuns}) cost:$${agg.avgCostUsd.toFixed(4)}${lint}`,
+    );
+  }
+  console.log(
+    `\n* = Pareto-optimal (solve rate, cost${includesQuality ? ", lint violations" : ""})`,
+  );
+  console.log("=================================================\n");
 }
 
 /**
