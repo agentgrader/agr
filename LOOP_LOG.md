@@ -221,3 +221,34 @@ SWE-bench task) via the standalone runner with `step_timeout_ms` in place.
 It should now either finish with a `RUN SUMMARY` or abort cleanly with a
 logged timeout + destroyed container. If it completes, check
 `find-usages`/`rename-symbol` adoption and whether `submit` is reached.
+
+## Iteration 6 (2026-06-12) - ANTHROPIC_API_KEY quota exhausted until 2026-07-01
+
+- JetBrains persona re-ran astropy-12907 with `step_timeout_ms` wired in.
+  The run failed immediately: `Error in generateText agent loop: You have
+  reached your specified API usage limits. You will regain access on
+  2026-07-01 at 00:00 UTC.` The error was caught correctly (no crash), but
+  another `tail -f /dev/null` sandbox container was left running (removed
+  manually) - same leaked-container symptom as iterations 4/5, now also
+  seen on an immediate API error, not just a hang.
+- **This pauses the run-and-observe loop for ~19 days** - no further
+  `agr run`/`generateText` calls with this key will succeed until
+  2026-07-01.
+- agr dev used this iteration to fix the recurring leaked-container problem
+  directly (29+ orphaned containers found across iterations 1-5):
+  - `DockerSandboxProvider` now labels every sandbox container
+    (`agentgrader.sandbox=true` + creation timestamp).
+  - New `agr cleanup` / `agr cleanup --yes` CLI command lists/removes them.
+  - Docs: new `agr cleanup` section in `docs/reference/cli.md`.
+  - Changeset `calm-pandas-cleanup.md` (`@agentgrader/sandbox-docker`,
+    `agentgrader`: minor each). Build-verified (8/8), manually tested
+    list+remove against a throwaway labeled container.
+  - Pre-existing 29 leftovers (pre-label) still need manual `docker rm -f`.
+
+**Next iteration suggestion:** until 2026-07-01, continue in static mode -
+no `agr run`. agr dev keeps improving the framework from the 6 iterations
+of accumulated findings (code review, docs, smaller tooling). After
+2026-07-01, JetBrains persona resumes: re-run astropy-12907 with
+`step_timeout_ms` + `agr cleanup` in place and confirm a clean `RUN
+SUMMARY` with no leaked container, then check `find-usages`/`rename-symbol`
+adoption.

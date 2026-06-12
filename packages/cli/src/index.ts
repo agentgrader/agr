@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { cac } from "cac";
+import { cleanupCommand } from "./commands/cleanup";
 import { compareCommand } from "./commands/compare";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
@@ -165,6 +166,20 @@ cli
       await compareCommand(runIdA, runIdB, options);
     } catch (err: any) {
       console.error(`Error executing compare: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("cleanup", "List (or remove) leftover sandbox containers from killed/hung runs")
+  .option("--yes", "Actually remove the listed containers (default: list only)")
+  .example("agr cleanup")
+  .example("agr cleanup --yes")
+  .action(async (options) => {
+    try {
+      await cleanupCommand(options);
+    } catch (err: any) {
+      console.error(`Error executing cleanup: ${err.message}`);
       process.exit(1);
     }
   });
