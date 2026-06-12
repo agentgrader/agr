@@ -181,6 +181,14 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       }
       agentResult = { ...result, finalDiff: agentDiff || result.finalDiff };
 
+      // surface agent-loop errors (e.g. a step_timeout_ms abort) so `agr
+      // trace` can distinguish "the agent itself errored before submit"
+      // from "the agent finished but its solution failed scoring" - both
+      // otherwise look identical (`finished: false`, no score detail).
+      if (agentResult.error) {
+        metrics.agentError = agentResult.error;
+      }
+
       // apply the (gold) test patch, if configured, so the regression
       // scorer can run against the up-to-date test suite. The agent never
       // sees this patch, it's evaluation-only, mirroring SWE-bench.

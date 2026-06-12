@@ -85,6 +85,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
 
     let submitted = false;
     let stepIndex = 0;
+    let loopError: string | undefined;
 
     // tools the agent can call inside the sandbox
     const localTools = {
@@ -310,6 +311,10 @@ export class AiSdkAgentAdapter implements AgentAdapter {
         },
       });
     } catch (err: any) {
+      loopError =
+        err.name === "AbortError" || err.name === "TimeoutError"
+          ? `Aborted: a provider request exceeded step_timeout_ms (${config.step_timeout_ms || 120_000}ms). Raise step_timeout_ms in agent.yaml if responses are legitimately slow.`
+          : err.message;
       console.error(`Error in generateText agent loop: ${err.message}`);
     } finally {
       for (const client of mcpClients) {
@@ -324,6 +329,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
     return {
       finished: submitted,
       finalDiff,
+      error: loopError,
     };
   }
 }

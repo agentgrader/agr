@@ -252,3 +252,29 @@ of accumulated findings (code review, docs, smaller tooling). After
 `step_timeout_ms` + `agr cleanup` in place and confirm a clean `RUN
 SUMMARY` with no leaked container, then check `find-usages`/`rename-symbol`
 adoption.
+
+---
+
+## Iteration 7 (2026-06-12)
+
+- User re-invoked the loop immediately after iteration 6's stop. The
+  ANTHROPIC_API_KEY quota blocker was still in effect at the start of this
+  iteration, so agr dev did one more static improvement building directly
+  on iteration 5's `step_timeout_ms`:
+  - `AgentResult` (`@agentgrader/core`) gained an optional `error` field.
+  - `@agentgrader/agent-openrouter` now captures the `generateText`
+    catch-block error into this field, with a special, actionable message
+    (referencing `step_timeout_ms`) when the cause was an abort/timeout.
+  - `runSingle` surfaces `agentResult.error` as `metrics.agentError`.
+  - `agr trace` prints an `agent error:` line when `metrics.agentError` is
+    set, distinguishing "the agent loop itself errored/aborted before
+    `submit`" from "the agent finished but scoring failed" - both
+    previously looked identical (`finished: false`, no detail).
+  - Changeset `quiet-herons-trace.md` (`@agentgrader/core`,
+    `@agentgrader/agent-openrouter`, `agentgrader`: minor each).
+    Build-verified (8/8). New troubleshooting section added to
+    `docs/guide/best-practices.md`.
+- Mid-iteration, the user raised the bestagenttrainer ANTHROPIC_API_KEY
+  spending limit from $1 to $8 and asked to continue fully - this may
+  unblock the run-and-observe loop earlier than 2026-07-01. JetBrains
+  persona will attempt one cheap haiku run next to check.
