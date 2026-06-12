@@ -1,5 +1,19 @@
 # @agentgrader/agent-openrouter
 
+## 2.0.2
+
+### Patch Changes
+
+- Fix `@ai-sdk/anthropic` dependency range (`^3.0.82`, an AI SDK 5 package) being incompatible with the installed `ai@^4.x` (AI SDK 4), which caused `provider: anthropic` to fail with "Unsupported model version. AI SDK 4 only supports models that implement specification version 'v1'." Pinned to `^1.2.12`, the AI SDK 4-compatible major version, matching `@ai-sdk/openai@^1.1.0`.
+- Updated dependencies
+  - @agentgrader/core@1.1.2
+
+## 2.0.1
+
+### Patch Changes
+
+- 99b8f7d: The `agr` CLI now loads `.env` from the current working directory via `dotenv/config`, so `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`/`OPENROUTER_API_KEY` set in a project's `.env` file are picked up. Additionally, `AiSdkAgentAdapter` now throws a clear error naming the missing environment variable instead of silently falling back to a `"mock-key"` and failing with a cryptic "Missing Authentication header" from the provider.
+
 ## 2.0.0
 
 ### Minor Changes
