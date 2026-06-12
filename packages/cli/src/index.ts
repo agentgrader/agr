@@ -138,6 +138,11 @@ cli
     "--quality",
     "Show only the quality-metrics breakdown (static-quality, llm-judge, diff, localization)",
   )
+  .option(
+    "--tools",
+    "Show only a tool-usage breakdown (call count per tool name) instead of the full trace",
+  )
+  .example("agr trace <runId> --tools")
   .action(async (runId, options) => {
     try {
       await traceCommand(runId, options);

@@ -1,15 +1,19 @@
 import { getRun, getTraces, initDb } from "@agentgrader/store";
 
 /**
- * `agr trace <runId> [--quality]`
+ * `agr trace <runId> [--quality] [--tools]`
  *
  * Prints the recorded step trace and metrics for a single run.
  *
  * With `--quality`, prints only the additive quality-scorer breakdown
  * (`metrics["static-quality"]`, `metrics["llm-judge"]`, plus the diff/
  * localization scorers) instead of the full step-by-step trace.
+ *
+ * With `--tools`, prints only a tool-usage breakdown: how many times each
+ * tool name appears across the run's `tool_call` steps. Useful for checking
+ * whether a custom toolkit/MCP tool was actually used, vs. only available.
  */
-export async function traceCommand(runId: string, opts: { quality?: boolean }) {
+export async function traceCommand(runId: string, opts: { quality?: boolean; tools?: boolean }) {
   const db = initDb();
   const run = await getRun(db, runId);
   if (!run) {
@@ -33,6 +37,12 @@ export async function traceCommand(runId: string, opts: { quality?: boolean }) {
   }
 
   const steps = await getTraces(db, runId);
+
+  if (opts.tools) {
+    printToolUsage(steps);
+    return;
+  }
+
   console.log(`\n${steps.length} step(s):`);
   for (const step of steps) {
     const label = step.tool ? `${step.kind}:${step.tool}` : step.kind;
@@ -44,6 +54,30 @@ export async function traceCommand(runId: string, opts: { quality?: boolean }) {
       console.log(`      ${preview.replace(/\n/g, "\n      ")}`);
     }
   }
+}
+
+function printToolUsage(steps: Awaited<ReturnType<typeof getTraces>>) {
+  const counts = new Map<string, number>();
+  let totalCalls = 0;
+  for (const step of steps) {
+    if (step.kind !== "tool_call") continue;
+    const name = step.tool ?? "(unknown)";
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+    totalCalls++;
+  }
+
+  console.log("\n================ TOOL USAGE ================");
+  if (counts.size === 0) {
+    console.log("  (no tool_call steps recorded for this run)");
+  } else {
+    const nameWidth = Math.max(...[...counts.keys()].map((n) => n.length));
+    for (const [name, count] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${name.padEnd(nameWidth)}  ${count}`);
+    }
+    console.log("");
+    console.log(`Total: ${totalCalls} tool call(s) across ${counts.size} distinct tool(s)`);
+  }
+  console.log("=============================================\n");
 }
 
 function printQualityBreakdown(metricsJson: string | null) {
