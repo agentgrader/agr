@@ -1,0 +1,5 @@
+name: typescript-bugs-bench
+suite: ./suites/typescript-bugs
+agents:
+  glob: "./configs/*.yaml"
+concurrency: 2

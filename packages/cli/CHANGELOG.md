@@ -1,5 +1,11 @@
 # agentgrader
 
+## 1.1.0
+
+### Minor Changes
+
+- Add `--configs-dir` and `--manifest` to `agr bench` for loading multiple agent config files from a directory or a bench manifest YAML with glob support.
+
 ## 1.0.7
 
 ### Patch Changes
