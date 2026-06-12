@@ -1,5 +1,11 @@
 # @agentgrader/core
 
+## 1.1.2
+
+### Patch Changes
+
+- `AgentConfigSchema` now accepts an optional `provider` field. Previously this field was silently stripped by Zod during validation, so setting `provider: anthropic` (or `openai`) in an agent config YAML had no effect and the adapter always fell back to the `openrouter` default.
+
 ## 1.1.1
 
 ### Patch Changes
