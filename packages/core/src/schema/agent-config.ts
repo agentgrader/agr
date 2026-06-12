@@ -9,7 +9,12 @@ export const AgentConfigSchema = z.object({
   max_steps: z.number().default(30),
   temperature: z.number().optional(),
   system_prompt: z.string().optional(),
-  tools: z.array(z.string()).optional(),
+  tools: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Optional allowlist of tool names (local: executeCommand, readFile, writeFile, submit; MCP: <mcpServerName>_<toolName>). submit is always included implicitly.",
+    ),
 
   // paths to toolkit directories (custom CLI tools + .claude/skills/) to
   // inject into the sandbox and surface to the agent via the system prompt

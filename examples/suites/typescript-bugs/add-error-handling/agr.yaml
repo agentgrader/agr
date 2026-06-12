@@ -44,3 +44,5 @@ forbid_modified:
 solution: ./solution.patch
 
 created_at: "2024-01-15T00:00:00Z"
+
+agent_config: ../../../configs/baseline.yaml

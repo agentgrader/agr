@@ -19,7 +19,12 @@ import {
   loadAgentConfigsFromPaths,
   resolveAgentConfigPathList,
 } from "../lib/resolve-agent-config-paths";
-import { loadTestCase, testCaseToDbRow, findTestCaseYamlFiles } from "../lib/load-test-case";
+import {
+  loadTestCase,
+  testCaseToDbRow,
+  findTestCaseYamlFiles,
+  resolveSharedAgentConfigFromTestCases,
+} from "../lib/load-test-case";
 
 export async function runBenchCommand(opts: {
   configs?: string;
@@ -31,7 +36,7 @@ export async function runBenchCommand(opts: {
 }) {
   let suiteDir: string;
   let concurrency = opts.concurrency ?? 2;
-  let agentConfigs: AgentConfig[];
+  let agentConfigs: AgentConfig[] = [];
   let matrixId: string | undefined;
 
   if (opts.manifest) {
@@ -65,7 +70,7 @@ export async function runBenchCommand(opts: {
       console.log(
         `Matrix "${matrix.name}" expanded to ${agentConfigs.length} agent config(s) (matrixId: ${matrixId})`,
       );
-    } else {
+    } else if (opts.configs || opts.configsDir) {
       const configPaths = resolveAgentConfigPathList({
         commaSeparated: opts.configs,
         dir: opts.configsDir,
@@ -77,9 +82,6 @@ export async function runBenchCommand(opts: {
     }
   }
 
-  if (agentConfigs.length === 0) {
-    throw new Error("No agent configs to benchmark.");
-  }
   const yamlFiles = findTestCaseYamlFiles(suiteDir);
   if (yamlFiles.length === 0) {
     console.error(`No test cases found in suite directory: ${suiteDir}`);
@@ -89,6 +91,17 @@ export async function runBenchCommand(opts: {
   const testCases: TestCase[] = [];
   for (const f of yamlFiles) {
     testCases.push(loadTestCase(f));
+  }
+
+  if (agentConfigs.length === 0) {
+    const sharedAgentConfig = resolveSharedAgentConfigFromTestCases(testCases);
+    const configPaths = resolveAgentConfigPathList({
+      explicitPaths: [sharedAgentConfig],
+    });
+    agentConfigs = loadAgentConfigsFromPaths(configPaths);
+    console.log(
+      `Using shared agent_config from agr.yaml: ${sharedAgentConfig} (${agentConfigs.length} config).`,
+    );
   }
 
   // 3. open the sqlite db

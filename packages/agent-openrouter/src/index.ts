@@ -175,7 +175,35 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       }
     }
 
-    const tools = { ...localTools, ...mcpTools } as typeof localTools;
+    const allTools = { ...localTools, ...mcpTools } as typeof localTools;
+    let tools = allTools;
+
+    if (config.tools?.length) {
+      const allowlist = new Set<string>(config.tools);
+      const localToolNames = Object.keys(localTools);
+      const availableNames = new Set(Object.keys(allTools));
+
+      for (const name of allowlist) {
+        if (!availableNames.has(name)) {
+          console.warn(
+            `Tool "${name}" listed in config.tools was not found among local tools (${localToolNames.join(", ")}) or connected MCP server tools - ignoring.`,
+          );
+        }
+      }
+
+      if (!allowlist.has("submit")) {
+        console.warn(
+          "tools allowlist did not include 'submit' - adding it automatically, as it is required to end a run.",
+        );
+      }
+
+      const effectiveAllowlist = new Set([...allowlist, "submit"]);
+      tools = Object.fromEntries(
+        Object.entries(allTools).filter(([key]) => effectiveAllowlist.has(key)),
+      ) as typeof localTools;
+
+      console.log(`Tool allowlist active: ${Object.keys(tools).join(", ")}`);
+    }
 
     // rough pricing per model — good enough for cost tracking
     const getPricing = (model: string) => {

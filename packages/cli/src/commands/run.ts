@@ -54,6 +54,11 @@ export async function runSingleCommand(
 
   if (opts.config) {
     agentConfig = loadAgentConfig(opts.config);
+  } else if (testCase.agent_config) {
+    agentConfig = loadAgentConfig(testCase.agent_config);
+    console.log(
+      `Using agent config from agr.yaml: ${testCase.agent_config} (model: ${agentConfig.model})`,
+    );
   }
 
   console.log(`Starting run for "${testCase.name}" using model "${agentConfig.model}"...`);

@@ -57,6 +57,8 @@ export const TestCaseSchema = z.object({
   // inject into the sandbox and surface to the agent via the system prompt,
   // in addition to any toolkits configured on the agent
   toolkits: z.array(z.string()).optional(),
+
+  agent_config: z.string().optional(),
 });
 
 export type TestCase = z.infer<typeof TestCaseSchema>;

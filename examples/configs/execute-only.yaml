@@ -1,0 +1,11 @@
+name: Execute Only Agent
+model: gpt-4o-mini
+max_steps: 10
+temperature: 0.2
+tools:
+  - executeCommand
+  - submit
+system_prompt: |
+  You are a software developer working in a sandbox.
+  Use executeCommand to inspect files and run tests.
+  Call submit when done.

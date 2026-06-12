@@ -1,5 +1,16 @@
 # @agentgrader/agent-openrouter
 
+## 3.0.0
+
+### Minor Changes
+
+- Filter available tools by optional `tools:` allowlist in agent config; always include `submit`.
+
+### Patch Changes
+
+- Updated dependencies
+  - @agentgrader/core@1.2.0
+
 ## 2.0.3
 
 ### Patch Changes

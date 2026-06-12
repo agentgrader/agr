@@ -1,5 +1,21 @@
 # agentgrader
 
+## 1.3.0
+
+### Minor Changes
+
+- Use `agent_config` from `agr.yaml` as default for `agr run`; bench fallback when all test cases share the same path.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies
+  - @agentgrader/core@1.2.0
+  - @agentgrader/agent-openrouter@3.0.0
+  - @agentgrader/optimizer@1.0.0
+  - @agentgrader/sandbox-docker@3.0.0
+  - @agentgrader/scorer-static@1.0.0
+
 ## 1.2.0
 
 ### Minor Changes
