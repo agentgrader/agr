@@ -1,4 +1,4 @@
-import { experimental_createMCPClient, generateText, tool } from "ai";
+import { experimental_createMCPClient, generateText, NoSuchToolError, tool } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
@@ -231,6 +231,34 @@ export class AiSdkAgentAdapter implements AgentAdapter {
         system: config.system_prompt || "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.",
         prompt,
         experimental_telemetry: { isEnabled: true },
+        // small models (e.g. haiku) sometimes call a toolkit/skill's CLI name
+        // (e.g. "view-structure") as if it were a tool, rather than running it
+        // via executeCommand. Without this, the AI SDK throws and aborts the
+        // entire run on the first such mistake. Repair by replaying the call
+        // as `executeCommand <toolName> <args...>` so the agent gets a real
+        // result and can keep going.
+        experimental_repairToolCall: async ({ toolCall, tools: availableTools, error }) => {
+          if (!NoSuchToolError.isInstance(error) || !("executeCommand" in availableTools)) {
+            return null;
+          }
+
+          let args: Record<string, unknown> = {};
+          try {
+            args = JSON.parse(toolCall.args);
+          } catch { }
+
+          const argString = Object.values(args)
+            .map((value) =>
+              typeof value === "string" ? `'${value.replace(/'/g, `'\\''`)}'` : JSON.stringify(value),
+            )
+            .join(" ");
+
+          return {
+            ...toolCall,
+            toolName: "executeCommand",
+            args: JSON.stringify({ command: `${toolCall.toolName} ${argString}`.trim() }),
+          };
+        },
         onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
           const promptTokens = usage?.promptTokens || 0;
           const completionTokens = usage?.completionTokens || 0;
