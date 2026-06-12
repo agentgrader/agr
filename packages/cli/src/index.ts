@@ -28,30 +28,63 @@ cli
   .command("bench", "Run a benchmark matrix of multiple test cases and configs")
   .option("--configs <configs>", "Comma-separated paths to AgentConfig YAML files")
   .option("--config <config>", "Alias for --configs (single config path)")
+  .option(
+    "--configs-dir <dir>",
+    "Directory of AgentConfig YAML files (all .yaml/.yml files in the folder)",
+  )
+  .option(
+    "--manifest <manifest>",
+    "Path to a bench manifest YAML (suite + agent paths/glob in one file)",
+  )
   .option("--suite <suite>", "Path to test suite directory containing test cases")
   .option("--concurrency <concurrency>", "Number of parallel sandbox executions", { default: 2 })
   .option(
     "--matrix <matrix>",
     "Path to an optimizer matrix YAML file - expands into agent configs and prints a Pareto summary afterwards (alternative to --configs)",
   )
+  .example("agr bench --manifest bench.yaml")
+  .example("agr bench --suite tasks --configs-dir ./agents")
   .example("agr bench --suite tasks --configs agent.yaml,agent-openrouter.yaml")
   .example("agr bench --suite tasks --matrix optimizer-matrix.yaml")
   .action(async (options) => {
     if (!options.configs && options.config) {
       options.configs = options.config;
     }
-    if (!options.suite || (!options.configs && !options.matrix)) {
+
+    const agentSourceCount = [
+      options.configs,
+      options.configsDir,
+      options.matrix,
+      options.manifest,
+    ].filter(Boolean).length;
+
+    if (options.manifest) {
+      if (agentSourceCount > 1) {
+        console.error(
+          "Error: --manifest cannot be combined with --configs, --configs-dir, or --matrix.",
+        );
+        process.exit(1);
+      }
+    } else if (!options.suite || agentSourceCount === 0) {
       console.error(
-        "Error: --suite and either --configs, --config, or --matrix are required for benchmarking.",
+        "Error: provide --manifest, or --suite with one of --configs, --config, --configs-dir, or --matrix.",
+      );
+      process.exit(1);
+    } else if (agentSourceCount > 1) {
+      console.error(
+        "Error: use only one agent source: --configs, --configs-dir, or --matrix.",
       );
       process.exit(1);
     }
+
     try {
       await runBenchCommand({
         configs: options.configs,
+        configsDir: options.configsDir,
         suite: options.suite,
         concurrency: Number(options.concurrency),
         matrix: options.matrix,
+        manifest: options.manifest,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);

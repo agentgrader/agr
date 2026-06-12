@@ -30,7 +30,7 @@
     },
     "packages/cli": {
       "name": "agentgrader",
-      "version": "1.0.7",
+      "version": "1.1.0",
       "bin": {
         "agr": "./dist/index.js",
         "agentgrader": "./dist/index.js",
