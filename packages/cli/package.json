@@ -5,8 +5,8 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "agr": "./dist/index.js",
-    "agentgrader": "./dist/index.js"
+    "agr": "dist/index.js",
+    "agentgrader": "dist/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
