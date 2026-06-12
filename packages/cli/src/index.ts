@@ -83,7 +83,10 @@ cli
     "Scaffold a test case from a GitHub pull request (e.g. owner/repo 1234)",
   )
   .option("--out <dir>", "Output directory for the scaffolded test case")
-  .option("--clone-fixture", "Clone the repo and check out the PR's base commit into ./fixture")
+  .option(
+    "--clone-fixture",
+    "Clone the repo and check out the PR's base commit into ./fixture (required for language/test-command auto-detection)",
+  )
   .option("--validate", "Run `agr validate` against the scaffolded test case afterwards")
   .example("agr import-pr astropy/astropy 12907 --clone-fixture --validate")
   .action(async (repo, prNumber, options) => {

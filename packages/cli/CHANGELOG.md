@@ -1,5 +1,15 @@
 # agentgrader
 
+## 1.0.7
+
+### Patch Changes
+
+- Truncate long config names in bench dashboard; improve import-pr test-runner detection and clone-fixture messaging; add validate --strict tip when execution checks are skipped.
+- Updated dependencies
+- Updated dependencies
+  - @agentgrader/agent-openrouter@2.0.3
+  - @agentgrader/optimizer@0.1.1
+
 ## 1.0.6
 
 ### Patch Changes

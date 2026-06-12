@@ -11,6 +11,24 @@ interface McpClientHandle {
   close(): Promise<void>;
 }
 
+function resolveProvider(config: { provider?: string; model?: string }): string {
+  if (config.provider) return config.provider;
+
+  const modelName = config.model || "";
+  const hasOpenRouterKey = Boolean(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY);
+
+  if (!hasOpenRouterKey) {
+    if (/^claude-/i.test(modelName) && process.env.ANTHROPIC_API_KEY) {
+      return "anthropic";
+    }
+    if (/^(gpt-|o[0-9])/i.test(modelName) && process.env.OPENAI_API_KEY) {
+      return "openai";
+    }
+  }
+
+  return "openrouter";
+}
+
 export class AiSdkAgentAdapter implements AgentAdapter {
   readonly name = "ai-sdk";
 
@@ -22,7 +40,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
   }): Promise<AgentResult> {
     const { prompt, sandbox, config, onStep } = input;
 
-    const provider = config.provider || "openrouter";
+    const provider = resolveProvider(config);
     const modelName = config.model || "gpt-4o-mini";
     let model: any;
 
