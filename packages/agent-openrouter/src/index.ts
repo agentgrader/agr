@@ -227,6 +227,11 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       await generateText({
         model,
         maxSteps: config.max_steps || 30,
+        // without this, a single hung provider request leaves the whole run
+        // (and its sandbox container) stuck forever with no error and no
+        // result - the outer try/catch below never fires because the
+        // request itself never settles.
+        abortSignal: AbortSignal.timeout(config.step_timeout_ms || 120_000),
         tools,
         system: config.system_prompt || "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.",
         prompt,

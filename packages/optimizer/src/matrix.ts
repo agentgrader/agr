@@ -13,6 +13,7 @@ const MatrixBaseSchema = z.object({
   model: z.string().optional(),
   provider: z.string().optional(),
   max_steps: z.number().optional(),
+  step_timeout_ms: z.number().optional(),
   temperature: z.number().optional(),
   system_prompt: z.string().optional(),
   tools: z.array(z.string()).optional(),
@@ -35,6 +36,7 @@ export const MatrixDimensionsSchema = z
     temperature: z.array(z.number()).optional(),
     system_prompt: z.array(z.string()).optional(),
     max_steps: z.array(z.number()).optional(),
+    step_timeout_ms: z.array(z.number()).optional(),
     toolkits: z.array(z.array(z.string())).optional(),
   })
   .refine((dims) => Object.values(dims).some((v) => Array.isArray(v) && v.length > 0), {
@@ -53,6 +55,7 @@ type MatrixDimensions = z.infer<typeof MatrixDimensionsSchema>;
 
 const DEFAULT_MODEL = "anthropic/claude-sonnet-4-6";
 const DEFAULT_MAX_STEPS = 30;
+const DEFAULT_STEP_TIMEOUT_MS = 120_000;
 
 /**
  * Expands a `Matrix` into the cartesian product of its `dimensions`,
@@ -89,6 +92,10 @@ export function expandMatrix(matrix: Matrix): AgentConfig[] {
       name: id,
       model: (combo.model as string | undefined) ?? base.model ?? DEFAULT_MODEL,
       max_steps: (combo.max_steps as number | undefined) ?? base.max_steps ?? DEFAULT_MAX_STEPS,
+      step_timeout_ms:
+        (combo.step_timeout_ms as number | undefined) ??
+        base.step_timeout_ms ??
+        DEFAULT_STEP_TIMEOUT_MS,
     };
 
     const temperature = (combo.temperature as number | undefined) ?? base.temperature;
