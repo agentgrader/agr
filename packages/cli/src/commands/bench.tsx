@@ -9,41 +9,80 @@ import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
 import { StaticQualityScorer } from "@agentgrader/scorer-static";
 import { expandMatrix, aggregateResults, paretoFront } from "@agentgrader/optimizer";
 import { Dashboard, type RunState } from "../ui/Dashboard";
-import { loadAgentConfig } from "../lib/load-agent-config";
+import {
+  loadBenchManifest,
+  resolveManifestAgentConfigPaths,
+  resolveManifestSuiteDir,
+} from "../lib/load-bench-manifest";
 import { loadMatrix } from "../lib/load-matrix";
+import {
+  loadAgentConfigsFromPaths,
+  resolveAgentConfigPathList,
+} from "../lib/resolve-agent-config-paths";
 import { loadTestCase, testCaseToDbRow, findTestCaseYamlFiles } from "../lib/load-test-case";
 
 export async function runBenchCommand(opts: {
   configs?: string;
-  suite: string;
+  configsDir?: string;
+  suite?: string;
   concurrency?: number;
   matrix?: string;
+  manifest?: string;
 }) {
-  const suiteDir = resolve(opts.suite);
-  const concurrency = opts.concurrency || 2;
-
-  // 1. load agent configs. either expanded from a matrix (cartesian product
-  // of dimensions, for an optimizer sweep) or from explicit --configs paths
+  let suiteDir: string;
+  let concurrency = opts.concurrency ?? 2;
   let agentConfigs: AgentConfig[];
   let matrixId: string | undefined;
-  if (opts.matrix) {
-    const matrix = loadMatrix(opts.matrix);
-    agentConfigs = expandMatrix(matrix);
-    matrixId = randomUUID();
+
+  if (opts.manifest) {
+    const manifestPath = resolve(opts.manifest);
+    const manifest = loadBenchManifest(manifestPath);
+    suiteDir = resolveManifestSuiteDir(manifest, manifestPath);
+    if (manifest.concurrency !== undefined && opts.concurrency === undefined) {
+      concurrency = manifest.concurrency;
+    }
+    if (opts.matrix) {
+      throw new Error("Use either --manifest or --matrix, not both.");
+    }
+    const configPaths = resolveManifestAgentConfigPaths(manifest, manifestPath);
+    agentConfigs = loadAgentConfigsFromPaths(configPaths);
     console.log(
-      `Matrix "${matrix.name}" expanded to ${agentConfigs.length} agent config(s) (matrixId: ${matrixId})`,
+      `Bench manifest "${manifest.name ?? manifestPath}" loaded ${agentConfigs.length} agent config(s) from ${configPaths.length} file(s).`,
     );
-  } else if (opts.configs) {
-    const configPaths = opts.configs.split(",").map((c) => resolve(c.trim()));
-    agentConfigs = configPaths.map((p) => loadAgentConfig(p));
   } else {
-    throw new Error("Either --configs or --matrix must be provided.");
+    if (!opts.suite) {
+      throw new Error("--suite is required unless --manifest is provided.");
+    }
+    suiteDir = resolve(opts.suite);
+
+    if (opts.matrix) {
+      if (opts.configs || opts.configsDir) {
+        throw new Error("Use either --matrix or --configs/--configs-dir, not both.");
+      }
+      const matrix = loadMatrix(opts.matrix);
+      agentConfigs = expandMatrix(matrix);
+      matrixId = randomUUID();
+      console.log(
+        `Matrix "${matrix.name}" expanded to ${agentConfigs.length} agent config(s) (matrixId: ${matrixId})`,
+      );
+    } else {
+      const configPaths = resolveAgentConfigPathList({
+        commaSeparated: opts.configs,
+        dir: opts.configsDir,
+      });
+      agentConfigs = loadAgentConfigsFromPaths(configPaths);
+      if (opts.configsDir) {
+        console.log(`Loaded ${agentConfigs.length} agent config(s) from ${opts.configsDir}.`);
+      }
+    }
   }
 
-  // 2. find and parse test case yamls
+  if (agentConfigs.length === 0) {
+    throw new Error("No agent configs to benchmark.");
+  }
   const yamlFiles = findTestCaseYamlFiles(suiteDir);
   if (yamlFiles.length === 0) {
-    console.error(`No test cases found in suite directory: ${opts.suite}`);
+    console.error(`No test cases found in suite directory: ${suiteDir}`);
     process.exit(1);
   }
 

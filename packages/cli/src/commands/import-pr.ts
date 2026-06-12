@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stringify } from "yaml";
 import { validateCommand } from "./validate";
@@ -18,6 +18,8 @@ interface PullRequestInfo {
 
 type ProjectKind = "python" | "node" | "go" | "unknown";
 
+type TestCommandHint = "python" | "jest" | "ava" | "vitest" | "node-unknown" | "go" | "none";
+
 /**
  * `agr import-pr <owner/repo> <pr-number> [--out <dir>] [--clone-fixture] [--validate]`
  *
@@ -33,6 +35,10 @@ type ProjectKind = "python" | "node" | "go" | "unknown";
  *  - `test_command`, `fail_to_pass`, and `pass_to_pass` must be filled in
  *    manually (or by an agent) after running the test suite; `agr validate`
  *    only checks the resulting definition, it does not populate these fields.
+ *
+ * Language/test-command auto-detection (Python/Node/Go defaults) only runs
+ * when `--clone-fixture` is set, since it requires inspecting the checked-out
+ * repo. Without `--clone-fixture`, all test fields remain TODO placeholders.
  *
  * With `--clone-fixture`, the repo is cloned and checked out at the PR's
  * `base.sha` into `<outDir>/fixture`, and `success` / `test_command` are
@@ -94,8 +100,9 @@ export async function importPrCommand(
     writeFileSync(resolve(outDir, "test_patch.patch"), testDiff);
   }
 
+  const fixtureDir = resolve(outDir, "fixture");
+
   if (opts.cloneFixture) {
-    const fixtureDir = resolve(outDir, "fixture");
     console.log(`\nCloning ${owner}/${repoName} into ${fixtureDir}...`);
     execFileSync("git", ["clone", `https://github.com/${owner}/${repoName}.git`, fixtureDir], {
       stdio: "inherit",
@@ -104,10 +111,12 @@ export async function importPrCommand(
     execFileSync("git", ["checkout", pr.base.sha], { cwd: fixtureDir, stdio: "inherit" });
   }
 
-  const projectKind = opts.cloneFixture
-    ? detectProjectKind(resolve(outDir, "fixture"))
-    : "unknown";
-  const { success, test_command } = projectTestDefaults(projectKind, opts.cloneFixture ?? false);
+  const projectKind = opts.cloneFixture ? detectProjectKind(fixtureDir) : "unknown";
+  const { success, test_command, testCommandHint } = projectTestDefaults(
+    projectKind,
+    opts.cloneFixture ?? false,
+    fixtureDir,
+  );
 
   const yamlDoc: Record<string, any> = {
     name: slug,
@@ -128,7 +137,7 @@ export async function importPrCommand(
   if (expectedFiles.length > 0) yamlDoc.expected_files = expectedFiles;
   if (forbidModified.length > 0) yamlDoc.forbid_modified = forbidModified;
 
-  writeFileSync(resolve(outDir, "agr.yaml"), buildAgrYaml(yamlDoc, projectKind));
+  writeFileSync(resolve(outDir, "agr.yaml"), buildAgrYaml(yamlDoc, testCommandHint));
 
   console.log(`\nImported PR #${pr.number}: "${pr.title}"`);
   console.log(`Wrote scaffold to: ${outDir}`);
@@ -144,6 +153,9 @@ export async function importPrCommand(
     console.log("  2. Fill in test_command, fail_to_pass, and pass_to_pass in agr.yaml");
     console.log(
       `  3. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
+    );
+    console.log(
+      "\nNote: test_command/success defaults were NOT auto-detected because --clone-fixture was not set. Re-run with --clone-fixture to get language-specific defaults, or fill these fields manually.",
     );
   } else {
     console.log("  1. Fill in fail_to_pass and pass_to_pass in agr.yaml");
@@ -171,16 +183,26 @@ function detectProjectKind(fixtureDir: string): ProjectKind {
   return "unknown";
 }
 
+/**
+ * TODO: fail_to_pass/pass_to_pass auto-discovery (pytest-TAP name extraction) is not
+ * implemented yet — fill those lists manually after running the test suite.
+ */
 function projectTestDefaults(
   kind: ProjectKind,
   cloned: boolean,
-): { success: Array<{ run: string; expect: { exit_code: number } }>; test_command: string } {
+  fixtureDir: string,
+): {
+  success: Array<{ run: string; expect: { exit_code: number } }>;
+  test_command: string;
+  testCommandHint: TestCommandHint;
+} {
   if (!cloned) {
     return {
       success: [
         { run: "<TODO: install dependencies and run the test suite>", expect: { exit_code: 0 } },
       ],
       test_command: "<TODO: shell command that runs tests with TAP output>",
+      testCommandHint: "none",
     };
   }
 
@@ -189,16 +211,15 @@ function projectTestDefaults(
       return {
         success: [{ run: "pip install -e . && pytest", expect: { exit_code: 0 } }],
         test_command: "pytest --tap-stream",
+        testCommandHint: "python",
       };
     case "node":
-      return {
-        success: [{ run: "npm install && npm test", expect: { exit_code: 0 } }],
-        test_command: "tsx --test --test-reporter=tap src/**/*.test.ts",
-      };
+      return detectNodeTestRunner(fixtureDir);
     case "go":
       return {
         success: [{ run: "go test ./...", expect: { exit_code: 0 } }],
         test_command: "<TODO: configure a TAP-producing test command for go>",
+        testCommandHint: "go",
       };
     default:
       return {
@@ -206,21 +227,65 @@ function projectTestDefaults(
           { run: "<TODO: install dependencies and run the test suite>", expect: { exit_code: 0 } },
         ],
         test_command: "<TODO: shell command that runs tests with TAP output>",
+        testCommandHint: "none",
       };
   }
 }
 
-function buildAgrYaml(doc: Record<string, any>, projectKind: ProjectKind): string {
+function detectNodeTestRunner(fixtureDir: string): {
+  success: Array<{ run: string; expect: { exit_code: number } }>;
+  test_command: string;
+  testCommandHint: TestCommandHint;
+} {
+  const success = [{ run: "npm install && npm test", expect: { exit_code: 0 } }];
+  const fallback = {
+    success,
+    test_command: "tsx --test --test-reporter=tap src/**/*.test.ts",
+    testCommandHint: "node-unknown" as const,
+  };
+
+  try {
+    const pkgPath = resolve(fixtureDir, "package.json");
+    if (!existsSync(pkgPath)) return fallback;
+
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as {
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    };
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+    if (deps.ava) {
+      return { success, test_command: "npx ava --tap", testCommandHint: "ava" };
+    }
+    if (deps.vitest) {
+      return { success, test_command: "npx vitest run --reporter=tap", testCommandHint: "vitest" };
+    }
+    if (deps.jest) {
+      return { success, test_command: "npx jest --ci", testCommandHint: "jest" };
+    }
+
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function buildAgrYaml(doc: Record<string, any>, testCommandHint: TestCommandHint): string {
   let yaml = stringify(doc);
   const testListComment =
     "# TODO: run the test suite (see test_command above) and add real test names here.\n# agr validate checks pre/post-patch status once these fields are filled in.";
   yaml = yaml.replace(/^fail_to_pass:/m, `${testListComment}\nfail_to_pass:`);
 
-  if (projectKind === "python") {
-    yaml = yaml.replace(
-      /^test_command: (.+)$/m,
-      "# Requires pytest-tap for TAP output (pip install pytest-tap).\n$&",
-    );
+  const testCommandComments: Partial<Record<TestCommandHint, string>> = {
+    python: "# Requires pytest-tap for TAP output (pip install pytest-tap).",
+    jest: "# jest does not output TAP by default; consider jest-tap-reporter",
+    "node-unknown":
+      "# test_command could not be auto-detected reliably - verify this matches the project's actual test setup",
+  };
+
+  const comment = testCommandComments[testCommandHint];
+  if (comment) {
+    yaml = yaml.replace(/^test_command: (.+)$/m, `${comment}\n$&`);
   }
 
   return yaml;
@@ -231,11 +296,6 @@ function buildPrompt(pr: PullRequestInfo): string {
   return body ? `${pr.title}\n\n${body}` : pr.title;
 }
 
-/**
- * splits a unified diff into "solution" (non-test files) and "test"
- * (test files) chunks based on common test path conventions, and collects
- * the touched file paths for `expected_files` / `forbid_modified`.
- */
 function splitDiff(diff: string): {
   solutionDiff: string;
   testDiff: string;

@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/agent-openrouter",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "OpenRouter/AI SDK ReAct agent adapter for the Agentgrader framework",
   "license": "MIT",
   "type": "module",

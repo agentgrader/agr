@@ -1,5 +1,21 @@
 # agentgrader
 
+## 1.1.0
+
+### Minor Changes
+
+- Add `--configs-dir` and `--manifest` to `agr bench` for loading multiple agent config files from a directory or a bench manifest YAML with glob support.
+
+## 1.0.7
+
+### Patch Changes
+
+- Truncate long config names in bench dashboard; improve import-pr test-runner detection and clone-fixture messaging; add validate --strict tip when execution checks are skipped.
+- Updated dependencies
+- Updated dependencies
+  - @agentgrader/agent-openrouter@2.0.3
+  - @agentgrader/optimizer@0.1.1
+
 ## 1.0.6
 
 ### Patch Changes

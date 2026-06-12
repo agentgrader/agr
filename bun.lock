@@ -13,7 +13,7 @@
     },
     "packages/agent-openrouter": {
       "name": "@agentgrader/agent-openrouter",
-      "version": "2.0.2",
+      "version": "2.0.3",
       "dependencies": {
         "@agentgrader/core": "^1.1.2",
         "@ai-sdk/anthropic": "^1.2.12",
@@ -30,7 +30,7 @@
     },
     "packages/cli": {
       "name": "agentgrader",
-      "version": "1.0.6",
+      "version": "1.1.0",
       "bin": {
         "agr": "./dist/index.js",
         "agentgrader": "./dist/index.js",
@@ -69,7 +69,7 @@
     },
     "packages/optimizer": {
       "name": "@agentgrader/optimizer",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@agentgrader/core": "^1.1.0",
         "zod": "^3.23.8",
