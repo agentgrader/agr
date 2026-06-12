@@ -1,5 +1,13 @@
 # @agentgrader/core
 
+## 1.1.3
+
+### Patch Changes
+
+- Add onStep callback to runSingle for live CLI streaming; rename skipped execution-checks validation entry for clearer reporting.
+- Updated dependencies
+  - @agentgrader/store@1.0.3
+
 ## 1.1.2
 
 ### Patch Changes

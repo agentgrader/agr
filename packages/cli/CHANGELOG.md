@@ -1,5 +1,16 @@
 # agentgrader
 
+## 1.0.6
+
+### Patch Changes
+
+- Bump @agentgrader/store dependency to ^1.0.3 for getRunsByMatrixId export.
+- Add --verbose to agr run; CLI help examples; --config alias for bench; improve import-pr scaffolding and validate UX (--strict, skip warnings); clearer run summary for skipped scorers.
+- Updated dependencies
+- Updated dependencies
+  - @agentgrader/core@1.1.3
+  - @agentgrader/store@1.0.3
+
 ## 1.0.5
 
 ### Patch Changes

@@ -1,12 +1,48 @@
 import { randomUUID } from "node:crypto";
 import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
-import { type AgentConfig, runSingle } from "@agentgrader/core";
+import { type AgentConfig, type StepEvent, runSingle } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
 
-export async function runSingleCommand(testCasePath: string, opts: { config?: string }) {
+const VERBOSE_CONTENT_MAX = 200;
+
+function truncateForVerbose(value: string, max = VERBOSE_CONTENT_MAX): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}...`;
+}
+
+function formatVerboseStep(step: StepEvent): string {
+  const prefix = `[step ${step.index}] ${step.kind}`;
+  if (step.kind === "tool_call" && step.tool) {
+    const args = step.content ? truncateForVerbose(step.content) : "";
+    return `${prefix}: ${step.tool}(${args})`;
+  }
+  if (step.kind === "tool_result" && step.tool) {
+    const result = step.content ? truncateForVerbose(step.content) : "";
+    return `${prefix}: ${step.tool} -> ${result}`;
+  }
+  if (step.kind === "message" && step.content) {
+    return `${prefix}: ${truncateForVerbose(step.content)}`;
+  }
+  if (step.content) {
+    return `${prefix}: ${truncateForVerbose(step.content)}`;
+  }
+  return prefix;
+}
+
+function formatMetricDetail(label: string, detail: string): string {
+  if (/^No .+ configured; skipping/.test(detail)) {
+    return `⚠️ ${label}: ${detail}`;
+  }
+  return `${label}: ${detail}`;
+}
+
+export async function runSingleCommand(
+  testCasePath: string,
+  opts: { config?: string; verbose?: boolean },
+) {
   const testCase = loadTestCase(testCasePath);
 
   let agentConfig: AgentConfig = {
@@ -22,12 +58,10 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
 
   console.log(`Starting run for "${testCase.name}" using model "${agentConfig.model}"...`);
 
-  // spin up docker + openrouter
   const sandboxProvider = new DockerSandboxProvider();
   const adapter = new AiSdkAgentAdapter();
   const db = initDb();
 
-  // write definitions to db before the run starts
   await saveTestCase(db, testCaseToDbRow(testCase));
   await saveAgentConfig(db, {
     id: agentConfig.id || agentConfig.name,
@@ -47,6 +81,11 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
       sandboxProvider,
       db,
       runId,
+      onStep: opts.verbose
+        ? (step) => {
+            console.log(formatVerboseStep(step));
+          }
+        : undefined,
     });
 
     console.log("\n================ RUN SUMMARY ================");
@@ -58,13 +97,15 @@ export async function runSingleCommand(testCasePath: string, opts: { config?: st
       console.log(`Error:     ${result.error}`);
     }
     if (result.metrics?.regression) {
-      console.log(`Regression: ${result.metrics.regression.detail}`);
+      console.log(formatMetricDetail("Regression", result.metrics.regression.detail));
     }
     if (result.metrics?.diff) {
       console.log(`Diff scope: ${result.metrics.diff.detail.split("\n")[0]}`);
     }
     if (result.metrics?.localization) {
-      console.log(`Localization: ${result.metrics.localization.detail.split("\n")[0]}`);
+      console.log(
+        formatMetricDetail("Localization", result.metrics.localization.detail.split("\n")[0]),
+      );
     }
     console.log("=============================================\n");
   } catch (err: any) {

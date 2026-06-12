@@ -1,6 +1,19 @@
-import { validateTestCase } from "@agentgrader/core";
+import { type ValidationCheck, validateTestCase } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { loadTestCase } from "../lib/load-test-case";
+
+function isSkippedCheck(check: ValidationCheck): boolean {
+  return (
+    check.name.toLowerCase().includes("(skipped") ||
+    check.detail.toLowerCase().includes("skipping")
+  );
+}
+
+function checkIcon(check: ValidationCheck): string {
+  if (!check.passed) return "❌";
+  if (isSkippedCheck(check)) return "⚠️";
+  return "✅";
+}
 
 /**
  * `agr validate <testCase>`
@@ -12,15 +25,32 @@ import { loadTestCase } from "../lib/load-test-case";
  * is provided - a post-patch run verifying the gold patch actually fixes
  * FAIL_TO_PASS without breaking PASS_TO_PASS.
  */
-export async function validateCommand(testCasePath: string) {
+export async function validateCommand(testCasePath: string, opts?: { strict?: boolean }) {
   const testCase = loadTestCase(testCasePath);
+
+  if (opts?.strict) {
+    const missing: string[] = [];
+    if (!testCase.test_command) missing.push("test_command");
+    if (!testCase.fail_to_pass?.length) missing.push("fail_to_pass");
+    if (!testCase.pass_to_pass?.length) missing.push("pass_to_pass");
+    if (missing.length > 0) {
+      console.error(
+        `Strict validation requires: ${missing.join(", ")}. Fill these fields before running in CI.`,
+      );
+      process.exit(1);
+    }
+  }
+
   console.log(`Validating "${testCase.name}" (${testCasePath})...\n`);
 
   const sandboxProvider = new DockerSandboxProvider();
   const report = await validateTestCase({ testCase, sandboxProvider });
 
+  const hadExecutionSkip = report.checks.some((c) =>
+    c.name.includes("execution-checks (skipped"),
+  );
   for (const check of report.checks) {
-    const icon = check.passed ? "✅" : "❌";
+    const icon = checkIcon(check);
     console.log(`${icon} ${check.name}`);
     if (check.detail && check.detail !== "ok") {
       const indented = check.detail
@@ -29,6 +59,13 @@ export async function validateCommand(testCasePath: string) {
         .join("\n");
       console.log(indented);
     }
+  }
+
+  if (hadExecutionSkip) {
+    console.log("");
+    console.log(
+      "Note: this was a static-only validation (no test_command configured) - Docker/patch execution checks were skipped.",
+    );
   }
 
   console.log("");
