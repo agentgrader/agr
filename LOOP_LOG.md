@@ -87,3 +87,41 @@ SWE-bench task (now fixed) with the rewritten `agent-jetbrains.yaml` and
 checks `agr trace <runId> --tools` again - did the more directive system
 prompt move adoption off 0%? Also worth trying astropy-14182 (also fixed)
 for a second data point.
+
+---
+
+## Iteration 3 (2026-06-12)
+
+**JetBrains persona** (bestagenttrainer):
+- Re-ran astropy-12907 with the fixed `agr.yaml` + sharpened
+  `agent-jetbrains.yaml` from iteration 2.
+- **Run crashed after 6 steps ($0.0093)**: the model called `view-structure`
+  as if it were a first-class tool (following the new directive prompt),
+  the AI SDK threw `NoSuchToolError`, and a top-level `catch` just logged
+  and aborted - the whole run died from one bad tool-call name, before the
+  setuptools fix could even be exercised.
+- Wrote up #1 (one hallucinated tool name kills the entire run - a
+  framework robustness bug affecting any toolkit/skill user on smaller
+  models, made *more* likely by iteration 2's "be directive" tip) as the
+  highest-leverage fix.
+
+**agr dev persona** (crucible):
+- Added `experimental_repairToolCall` to the `generateText` call in
+  `packages/agent-openrouter/src/index.ts`: when the model calls an
+  unregistered tool name and `executeCommand` exists, the call is replayed
+  as `executeCommand("<toolName> <args...>")` instead of throwing
+  `NoSuchToolError` and aborting. For `view-structure(file)` this becomes
+  `executeCommand("view-structure <file>")` - the actually-correct
+  invocation, since these are `bin/` scripts on `PATH`.
+- Added changeset `.changeset/silly-walruses-repair.md`
+  (`@agentgrader/agent-openrouter`: minor). Build + typecheck verified.
+- Could not test end-to-end in `bestagenttrainer` (same publish blocker as
+  `--tools`); documented the expected behavior and next-run plan in
+  `JETBRAINS_FEEDBACK.md`.
+
+**Next iteration suggestion:** once `@agentgrader/agent-openrouter` is
+published (or testable some other way), re-run astropy-12907 with
+`agent-jetbrains.yaml` again - confirm the repair lets the run survive past
+step 6, check whether the setuptools fix resolves the pip install failure,
+and check `agr trace --tools` for find-usages/view-structure/rename-symbol
+adoption now that calling them "works" via the repair path.
