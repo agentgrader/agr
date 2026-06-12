@@ -8,6 +8,12 @@ export const AgentConfigSchema = z.object({
   provider: z.string().optional(),
   max_steps: z.number().default(30),
   temperature: z.number().optional(),
+  step_timeout_ms: z
+    .number()
+    .default(120_000)
+    .describe(
+      "Abort the agent's generateText call if a single provider request hangs longer than this. Without a timeout, a stalled API request leaves the run (and its sandbox container) hanging indefinitely with no error, no result, and no cleanup.",
+    ),
   system_prompt: z.string().optional(),
   tools: z
     .array(z.string())

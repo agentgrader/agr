@@ -181,3 +181,43 @@ process reaped mid-flight without at least a partial summary. Check
 whether the agent reaches a `submit` this time, whether the
 `setuptools<60` fixture fix resolves `pip install -e`, and whether
 `find-usages`/`rename-symbol` (not just `view-structure`) get adopted too.
+
+## Iteration 5 (2026-06-12)
+
+- JetBrains persona re-ran astropy-12907 with `agent-jetbrains.yaml`
+  (`max_steps: 30`), wrapped in `timeout 240`. **Identical stop at step
+  55** as iteration 4's `max_steps: 20` run - ruling out `max_steps` as the
+  cause. The sandbox container (`d4defcce5b8e`) was left running
+  `tail -f /dev/null`, same as 29 other leftover containers from earlier
+  iterations.
+- Diagnosis: a single `generateText` call to the provider can hang
+  indefinitely with no response and no error. Since `runSingle`'s
+  `cleanup` step (and the outer try/catch) only run once that awaited call
+  settles, the hang blocks scoring/cleanup forever regardless of
+  `max_steps` - explaining both the missing `RUN SUMMARY` and the orphaned
+  container.
+- agr dev response:
+  - Added `step_timeout_ms` (default `120000`) to
+    `AgentConfigSchema` (`@agentgrader/core`), wired into
+    `@agentgrader/agent-openrouter`'s `generateText` via
+    `abortSignal: AbortSignal.timeout(...)`. A hang now aborts, logs, and
+    falls through to scoring/cleanup instead of blocking forever. Also
+    added `step_timeout_ms` to `@agentgrader/optimizer`'s matrix
+    base/dimensions schema.
+  - Docs: new best-practices troubleshooting section ("A run stops
+    mid-trace with no RUN SUMMARY, and a sandbox container is left
+    running") and a `step_timeout_ms` entry in
+    `docs/reference/agent-config-yaml.md`.
+  - Set `step_timeout_ms: 90000` in `agent-jetbrains.yaml`.
+  - Changeset `swift-otters-timeout.md` (`@agentgrader/core`,
+    `@agentgrader/agent-openrouter`, `@agentgrader/optimizer`: minor each).
+    Build-verified (`bun run build`, 8/8 tasks pass).
+  - Did not bulk-remove the 29 leftover containers (blocked by the
+    session's auto-mode classifier as too broad to run unattended);
+    documented manual cleanup for the user.
+
+**Next iteration suggestion:** re-run astropy-12907 (or a cheaper
+SWE-bench task) via the standalone runner with `step_timeout_ms` in place.
+It should now either finish with a `RUN SUMMARY` or abort cleanly with a
+logged timeout + destroyed container. If it completes, check
+`find-usages`/`rename-symbol` adoption and whether `submit` is reached.
