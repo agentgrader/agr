@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
@@ -146,9 +146,16 @@ export class DockerSandboxHandle implements SandboxHandle {
 }
 
 /**
- * Tars a local directory and streams it into the container at `containerPath`,
+ * Tars a local directory and copies it into the container at `containerPath`,
  * optionally excluding top-level entries (e.g. a toolkit's `bin/` directory,
  * which gets copied to `/usr/local/bin` separately).
+ *
+ * The tarball is built into an in-memory buffer (rather than piping a
+ * `tar` child process's stdout directly into `putArchive`'s request
+ * stream) because, when this runs inside a Mastra workflow step, the
+ * piped-stream variant's `putArchive` callback never fires - the request
+ * silently hangs forever with no error, which made every test case with a
+ * fixture appear to "complete" instantly with no agent activity at all.
  */
 async function copyDirToContainer(
   container: Docker.Container,
@@ -162,27 +169,22 @@ async function copyDirToContainer(
   }
   args.push("-cf", "-", "-C", localPath, ".");
 
-  const tarProcess = spawn("tar", args, {
-    env: {
-      ...process.env,
-      COPYFILE_DISABLE: "1",
-    },
+  const tarBuffer = await new Promise<Buffer>((resolve, reject) => {
+    execFile("tar", args, {
+      env: { ...process.env, COPYFILE_DISABLE: "1" },
+      maxBuffer: 1024 * 1024 * 1024,
+      encoding: "buffer",
+    }, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout);
+    });
   });
 
   await new Promise<void>((resolve, reject) => {
-    container.putArchive(tarProcess.stdout, { path: containerPath }, (err) => {
+    container.putArchive(tarBuffer, { path: containerPath }, (err) => {
       if (err) reject(err);
       else resolve();
     });
-  });
-
-  // wait for tar to finish before moving on
-  await new Promise<void>((resolve, reject) => {
-    tarProcess.on("close", (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`tar process exited with code ${code}`));
-    });
-    tarProcess.on("error", (err) => reject(err));
   });
 }
 
