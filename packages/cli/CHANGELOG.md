@@ -1,5 +1,11 @@
 # agentgrader
 
+## 1.2.0
+
+### Minor Changes
+
+- Add `agr compare <runIdA> <runIdB>` to compare step traces of two runs side by side, with `--full` and `--only-diff` options.
+
 ## 1.1.0
 
 ### Minor Changes

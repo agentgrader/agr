@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { cac } from "cac";
+import { compareCommand } from "./commands/compare";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
 import { runSingleCommand } from "./commands/run";
@@ -142,6 +143,23 @@ cli
       await traceCommand(runId, options);
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("compare <runIdA> <runIdB>", "Compare the step traces of two runs side by side")
+  .option("--full", "Print full step content without truncation")
+  .option(
+    "--only-diff",
+    "Show only divergent steps plus one step of context before and after each",
+  )
+  .example("agr compare <runIdA> <runIdB> --only-diff")
+  .action(async (runIdA, runIdB, options) => {
+    try {
+      await compareCommand(runIdA, runIdB, options);
+    } catch (err: any) {
+      console.error(`Error executing compare: ${err.message}`);
       process.exit(1);
     }
   });
