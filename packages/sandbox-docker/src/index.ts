@@ -197,12 +197,47 @@ async function copyDirToContainer(
   });
 }
 
+export interface OrphanedSandbox {
+  id: string;
+  image: string;
+  status: string;
+  createdAt?: number;
+}
+
 export class DockerSandboxProvider implements SandboxProvider {
   readonly name = "docker";
   private docker: Docker;
 
   constructor() {
     this.docker = new Docker();
+  }
+
+  /**
+   * Lists sandbox containers created by this provider (identified by the
+   * `agentgrader.sandbox` label), regardless of which run created them.
+   * Useful for finding sandboxes left behind by a run that was killed
+   * before its `cleanup` step could call `destroy()`.
+   */
+  async listSandboxes(): Promise<OrphanedSandbox[]> {
+    const containers = await this.docker.listContainers({
+      all: true,
+      filters: { label: ["agentgrader.sandbox=true"] },
+    });
+
+    return containers.map((c) => ({
+      id: c.Id,
+      image: c.Image,
+      status: c.Status,
+      createdAt: c.Labels?.["agentgrader.createdAt"]
+        ? Number(c.Labels["agentgrader.createdAt"])
+        : undefined,
+    }));
+  }
+
+  /** Force-stops and removes a sandbox container by id. */
+  async removeSandbox(id: string): Promise<void> {
+    const container = this.docker.getContainer(id);
+    await container.remove({ force: true });
   }
 
   async create(opts: {
@@ -239,12 +274,19 @@ export class DockerSandboxProvider implements SandboxProvider {
       console.log(`Docker image "${image}" successfully pulled.`);
     }
 
-    // create and immediately start the container
+    // create and immediately start the container. Labeled so leftover
+    // sandboxes (e.g. from a run whose process was killed before `cleanup`
+    // could call destroy()) can be found and removed later via
+    // `agr cleanup` instead of accumulating silently.
     const container = await this.docker.createContainer({
       Image: image,
       Cmd: ["tail", "-f", "/dev/null"],
       Tty: true,
       WorkingDir: "/app",
+      Labels: {
+        "agentgrader.sandbox": "true",
+        "agentgrader.createdAt": String(Date.now()),
+      },
     });
 
     await container.start();
