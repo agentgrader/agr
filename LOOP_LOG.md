@@ -278,3 +278,17 @@ adoption.
   spending limit from $1 to $8 and asked to continue fully - this may
   unblock the run-and-observe loop earlier than 2026-07-01. JetBrains
   persona will attempt one cheap haiku run next to check.
+
+**Update**: mid-iteration the user raised the bestagenttrainer
+ANTHROPIC_API_KEY spending limit ($1 -> $8), unblocking real runs early. A
+fresh run against `astropy-pr-14182` showed: (a) the agent now uses
+`view-structure` per the prescribed jetbrains-tools workflow (first
+observed adoption in this loop), `find-usages`/`rename-symbol` still
+unused; (b) a NEW silent-failure mode where the entire `bun
+run-with-local-fix.ts` process vanished mid-run with no `RUN SUMMARY`, no
+error, and another untagged leaked container (removed manually). Root cause
+traced to the script's `main()` having no `.catch()` - fixed in
+bestagenttrainer, and documented generally in
+`docs/guide/best-practices.md` ("Testing unpublished crucible changes
+locally") since any custom `runSingle` script has the same gap. Full
+write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 7.
