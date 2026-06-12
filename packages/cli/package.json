@@ -1,6 +1,6 @@
 {
   "name": "agentgrader",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "CLI for the Agentgrader benchmarking framework — run and bench coding agents",
   "license": "MIT",
   "type": "module",
