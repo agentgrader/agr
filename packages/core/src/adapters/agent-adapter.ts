@@ -5,6 +5,14 @@ import type { SandboxHandle } from "./sandbox-provider";
 export interface AgentResult {
   finished: boolean;       // did it call submit(), or did it hit maxSteps?
   finalDiff: string;       // git diff of everything it touched
+  /**
+   * set when the agent loop itself errored or was aborted (e.g. a
+   * `step_timeout_ms` timeout) before reaching `submit`. Distinguishes
+   * "the agent tried and its solution failed scoring" from "the agent
+   * never got a chance to produce a solution" - both look like
+   * `finished: false` otherwise.
+   */
+  error?: string;
 }
 
 export interface AgentAdapter {

@@ -31,6 +31,11 @@ export async function traceCommand(runId: string, opts: { quality?: boolean; too
   console.log(`  duration:     ${run.durationMs}ms`);
   if (run.error) console.log(`  error:        ${run.error}`);
 
+  const agentError = run.metrics ? safeParseJson(run.metrics)?.agentError : undefined;
+  if (agentError && agentError !== run.error) {
+    console.log(`  agent error:  ${agentError}`);
+  }
+
   if (opts.quality) {
     printQualityBreakdown(run.metrics);
     return;
