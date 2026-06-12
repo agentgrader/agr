@@ -43,3 +43,47 @@ Cost discipline: `agr run` only with `claude-haiku-4-5-20251001` /
 checks `agr trace <runId> --tools` to see if tool adoption improves with
 task complexity; if still 0, focus #2 (system-prompt framing for
 skills-based tools).
+
+---
+
+## Iteration 2 (2026-06-12)
+
+**JetBrains persona** (bestagenttrainer):
+- Ran `agr run tasks/swe-bench/astropy__astropy-12907/agr.yaml --config
+  agent-jetbrains.yaml` (real SWE-bench task, separability fix). 52 steps,
+  $0.2625, 322s. FAILED, but for an unrelated reason (see below). Tool
+  calls: executeCommand 11, readFile 6, writeFile 1,
+  find-usages/view-structure/rename-symbol 0 - confirms iteration 1's
+  finding with a second, harder task.
+- Wrote iteration 2 findings to `JETBRAINS_FEEDBACK.md`: (1) IDE-like
+  toolkit still 0% adopted even on a real task, (2) the run failed because
+  `pip install -e ".[test]"` breaks on `python:3.11` for this 2022-era
+  astropy repo (`ModuleNotFoundError: setuptools.dep_util`, setuptools>=60
+  removed an API `extension_helpers` still imports) - an environment trap
+  unrelated to agent quality, (3) `--tools` not yet testable end-to-end
+  since `agentgrader` npm package isn't republished with it yet.
+
+**agr dev persona** (crucible):
+- Added a docs troubleshooting entry for the `setuptools.dep_util` /
+  `pip install -e` failure on old Python fixtures, with the
+  `pip install "setuptools<60" wheel` fix (`docs/guide/best-practices.md`,
+  pushed `cb4272a`).
+- Added a new best-practices section "Getting agents to actually use a
+  custom `toolkits` skill" - directive system-prompt phrasing, "when to use
+  this" skill descriptions, testing on tasks that reward the tool, and using
+  `agr trace --tools` to measure adoption rate over multiple runs (same
+  commit).
+- Applied the setuptools pin directly to both `bestagenttrainer` astropy
+  fixtures' `agr.yaml` (`success.run`) so they're runnable again.
+- Rewrote `agent-jetbrains.yaml`'s `system_prompt` with the new directive
+  workflow (step-numbered: find-usages before grep/readFile,
+  view-structure before reading a whole file, rename-symbol for renames) -
+  a live test of the new best-practices tip for the next iteration.
+- No crucible package code changes this iteration (docs-only); no new
+  changeset needed.
+
+**Next iteration suggestion:** JetBrains persona re-runs the astropy-12907
+SWE-bench task (now fixed) with the rewritten `agent-jetbrains.yaml` and
+checks `agr trace <runId> --tools` again - did the more directive system
+prompt move adoption off 0%? Also worth trying astropy-14182 (also fixed)
+for a second data point.
