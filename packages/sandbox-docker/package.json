@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/sandbox-docker",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Docker-based SandboxProvider implementation for the Agentgrader framework",
   "license": "MIT",
   "type": "module",

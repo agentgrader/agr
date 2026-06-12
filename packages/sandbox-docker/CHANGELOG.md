@@ -1,5 +1,11 @@
 # @agentgrader/sandbox-docker
 
+## 2.0.2
+
+### Patch Changes
+
+- `DockerSandboxProvider.create()` now pings the Docker daemon first and throws a clear "Could not connect to Docker... Make sure Docker is installed and running." error if it's unreachable, instead of a raw `ENOENT`/`ECONNREFUSED` from a failed image pull.
+
 ## 2.0.1
 
 ### Patch Changes

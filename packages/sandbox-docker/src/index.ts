@@ -203,6 +203,14 @@ export class DockerSandboxProvider implements SandboxProvider {
   }): Promise<SandboxHandle> {
     const image = opts.image || "node:20";
 
+    try {
+      await this.docker.ping();
+    } catch (e: any) {
+      throw new Error(
+        `Could not connect to Docker (${e.message}). Make sure Docker is installed and running.`,
+      );
+    }
+
     // pull if not cached locally
     let imageExists = false;
     try {
