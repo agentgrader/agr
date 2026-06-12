@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/optimizer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Architecture optimizer for the Agentgrader framework: agent-config matrix expansion, result aggregation, and Pareto-front analysis",
   "license": "MIT",
   "type": "module",

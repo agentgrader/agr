@@ -1,5 +1,11 @@
 # @agentgrader/agent-openrouter
 
+## 2.0.3
+
+### Patch Changes
+
+- Infer anthropic/openai provider from model name when OpenRouter keys are missing but the matching API key is set.
+
 ## 2.0.2
 
 ### Patch Changes
