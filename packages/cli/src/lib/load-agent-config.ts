@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { type AgentConfig, AgentConfigSchema } from "@agentgrader/core";
 import { parse } from "yaml";
+import { ZodError } from "zod";
+import { formatZodError } from "./format-zod-error";
 
 /**
  * Loads and parses an agent config YAML file.
@@ -17,7 +19,15 @@ export function loadAgentConfig(yamlPath: string): AgentConfig {
   const raw = parse(fileContent);
   const dir = dirname(path);
 
-  const config = AgentConfigSchema.parse(raw);
+  let config: AgentConfig;
+  try {
+    config = AgentConfigSchema.parse(raw);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      throw new Error(formatZodError(err, `agent config "${path}"`));
+    }
+    throw err;
+  }
   config.id = config.id || config.name;
 
   if (config.toolkits) {

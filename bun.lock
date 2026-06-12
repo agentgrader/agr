@@ -30,7 +30,7 @@
     },
     "packages/cli": {
       "name": "agentgrader",
-      "version": "1.0.4",
+      "version": "1.0.5",
       "bin": {
         "agr": "./dist/index.js",
         "agentgrader": "./dist/index.js",
@@ -47,6 +47,7 @@
         "ink": "^4.4.1",
         "react": "^18.2.0",
         "yaml": "^2.5.1",
+        "zod": "^3.23.8",
       },
       "devDependencies": {
         "@types/react": "^18.2.0",
@@ -82,7 +83,7 @@
     },
     "packages/sandbox-docker": {
       "name": "@agentgrader/sandbox-docker",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "dependencies": {
         "@agentgrader/core": "^1.1.0",
         "dockerode": "^4.0.2",

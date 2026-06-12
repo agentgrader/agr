@@ -1,5 +1,13 @@
 # agentgrader
 
+## 1.0.5
+
+### Patch Changes
+
+- `agr run`/`agr validate`/`agr bench` now print a readable, one-issue-per-line summary when an `agr.yaml` test case or agent config YAML fails schema validation, instead of dumping the raw Zod error as JSON.
+- Updated dependencies
+  - @agentgrader/sandbox-docker@2.0.2
+
 ## 1.0.4
 
 ### Patch Changes

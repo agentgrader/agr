@@ -2,6 +2,8 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import { type TestCase, TestCaseSchema } from "@agentgrader/core";
 import { parse } from "yaml";
+import { ZodError } from "zod";
+import { formatZodError } from "./format-zod-error";
 
 /**
  * Loads and parses an `agr.yaml` test case file.
@@ -26,7 +28,15 @@ export function loadTestCase(yamlPath: string): TestCase {
     raw.fixture = resolve(dir, raw.fixture);
   }
 
-  const testCase = TestCaseSchema.parse(raw);
+  let testCase: TestCase;
+  try {
+    testCase = TestCaseSchema.parse(raw);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      throw new Error(formatZodError(err, `test case "${path}"`));
+    }
+    throw err;
+  }
   testCase.id = testCase.id || testCase.name;
 
   if (testCase.toolkits) {
