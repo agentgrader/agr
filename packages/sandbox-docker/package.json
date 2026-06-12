@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/sandbox-docker",
-  "version": "2.0.2",
+  "version": "3.0.0",
   "description": "Docker-based SandboxProvider implementation for the Agentgrader framework",
   "license": "MIT",
   "type": "module",
@@ -21,7 +21,7 @@
     "build:watch": "tsup src/index.ts --format esm --dts --watch"
   },
   "dependencies": {
-    "@agentgrader/core": "^1.1.0",
+    "@agentgrader/core": "^1.2.0",
     "dockerode": "^4.0.2"
   },
   "devDependencies": {
@@ -29,6 +29,6 @@
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^1.1.0"
+    "@agentgrader/core": "^1.2.0"
   }
 }

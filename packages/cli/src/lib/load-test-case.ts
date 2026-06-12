@@ -45,6 +45,12 @@ export function loadTestCase(yamlPath: string): TestCase {
     );
   }
 
+  if (testCase.agent_config) {
+    testCase.agent_config = isAbsolute(testCase.agent_config)
+      ? testCase.agent_config
+      : resolve(dir, testCase.agent_config);
+  }
+
   if (testCase.solution && looksLikeFilePath(testCase.solution)) {
     testCase.solution = readPatchFile(dir, testCase.solution);
   }
@@ -53,6 +59,30 @@ export function loadTestCase(yamlPath: string): TestCase {
   }
 
   return testCase;
+}
+
+export function resolveSharedAgentConfigFromTestCases(testCases: TestCase[]): string {
+  if (testCases.length === 0) {
+    throw new Error("No test cases loaded.");
+  }
+
+  const paths = new Set<string>();
+  for (const tc of testCases) {
+    if (!tc.agent_config) {
+      throw new Error(
+        "Either --configs, --configs-dir, --matrix, or --manifest must be provided, or every test case in the suite must define the same agent_config in agr.yaml.",
+      );
+    }
+    paths.add(tc.agent_config);
+  }
+
+  if (paths.size > 1) {
+    throw new Error(
+      `Multiple agent_config values found across test cases (${[...paths].join(", ")}). Use --configs, --configs-dir, or --matrix to specify agent configs explicitly.`,
+    );
+  }
+
+  return [...paths][0];
 }
 
 /** Heuristic: inline diffs contain newlines and/or start with diff markers. */

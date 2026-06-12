@@ -66,9 +66,9 @@ cli
         );
         process.exit(1);
       }
-    } else if (!options.suite || agentSourceCount === 0) {
+    } else if (!options.suite) {
       console.error(
-        "Error: provide --manifest, or --suite with one of --configs, --config, --configs-dir, or --matrix.",
+        "Error: provide --manifest, or --suite with one of --configs, --config, --configs-dir, --matrix, or a shared agent_config in every agr.yaml.",
       );
       process.exit(1);
     } else if (agentSourceCount > 1) {

@@ -1,5 +1,11 @@
 # @agentgrader/core
 
+## 1.2.0
+
+### Minor Changes
+
+- Add optional `agent_config` field to test case schema for default agent YAML path in `agr.yaml`.
+
 ## 1.1.3
 
 ### Patch Changes
