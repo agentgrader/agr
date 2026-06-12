@@ -4,9 +4,14 @@ import type { AgentConfig } from "@agentgrader/core";
 /**
  * Shared config applied to every combination produced by `expandMatrix`,
  * before per-dimension overrides are layered on top.
+ *
+ * Set `provider` here when every expanded config should use the same API
+ * gateway (e.g. `anthropic` with native `claude-*` model names, or `openai`
+ * with `gpt-*` names). Per-combo overrides come from `dimensions.provider`.
  */
 const MatrixBaseSchema = z.object({
   model: z.string().optional(),
+  provider: z.string().optional(),
   max_steps: z.number().optional(),
   temperature: z.number().optional(),
   system_prompt: z.string().optional(),
@@ -17,10 +22,16 @@ const MatrixBaseSchema = z.object({
 /**
  * Each populated array becomes one axis of the cartesian product. Axes left
  * `undefined` are not varied - their value (if any) comes from `base`.
+ *
+ * `provider` varies the API gateway per combo (`openrouter`, `openai`,
+ * `anthropic`). Pair native model names with the matching provider in `base`
+ * or vary `model` and `provider` together only when the cartesian product is
+ * intentional (e.g. a single provider value in `dimensions.provider`).
  */
 export const MatrixDimensionsSchema = z
   .object({
     model: z.array(z.string()).optional(),
+    provider: z.array(z.string()).optional(),
     temperature: z.array(z.number()).optional(),
     system_prompt: z.array(z.string()).optional(),
     max_steps: z.array(z.number()).optional(),
@@ -85,6 +96,9 @@ export function expandMatrix(matrix: Matrix): AgentConfig[] {
 
     const systemPrompt = (combo.system_prompt as string | undefined) ?? base.system_prompt;
     if (systemPrompt !== undefined) config.system_prompt = systemPrompt;
+
+    const provider = (combo.provider as string | undefined) ?? base.provider;
+    if (provider !== undefined) config.provider = provider;
 
     const toolkits = (combo.toolkits as string[] | undefined) ?? base.toolkits;
     if (toolkits !== undefined) config.toolkits = toolkits;

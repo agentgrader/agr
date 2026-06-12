@@ -66,6 +66,11 @@ export async function validateCommand(testCasePath: string, opts?: { strict?: bo
     console.log(
       "Note: this was a static-only validation (no test_command configured) - Docker/patch execution checks were skipped.",
     );
+    if (report.ok && !opts?.strict) {
+      console.log(
+        "Tip: run with --strict to enforce test_command, fail_to_pass, and pass_to_pass as a CI gate.",
+      );
+    }
   }
 
   console.log("");

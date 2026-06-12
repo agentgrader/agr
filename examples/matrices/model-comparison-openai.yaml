@@ -1,6 +1,6 @@
-name: model-comparison
+name: model-comparison-openai
 base:
-  provider: anthropic
+  provider: openai
   max_steps: 15
   temperature: 0.2
   system_prompt: |
@@ -10,8 +10,8 @@ base:
     Call submit when you are confident all requirements are implemented and tests pass.
 dimensions:
   model:
-    - claude-haiku-4-5-20251001
-    - claude-sonnet-4-6
+    - gpt-4o-mini
+    - gpt-4o
   temperature:
     - 0.2
     - 0.7

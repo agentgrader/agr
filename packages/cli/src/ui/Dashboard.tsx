@@ -22,8 +22,15 @@ export interface DashboardProps {
   isFinished: boolean;
 }
 
+const CONFIG_COL_WIDTH = 24;
+const CONFIG_LABEL_MAX = 20;
+
+function truncateLabel(name: string, max = CONFIG_LABEL_MAX): string {
+  if (name.length <= max) return name;
+  return `${name.slice(0, max - 1)}…`;
+}
+
 export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, isFinished }) => {
-  // Compute totals
   let totalCost = 0;
   let totalSteps = 0;
   let passedCount = 0;
@@ -42,7 +49,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
 
   return (
     <Box flexDirection="column" padding={1}>
-      {/* Header */}
       <Box borderStyle="round" borderColor="cyan" paddingX={2} marginBottom={1} flexDirection="column">
         <Text color="cyan" bold>
           🔥 AGENTGRADER BENCHMARK 🔥
@@ -52,7 +58,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
         </Text>
       </Box>
 
-      {/* Progress Tally */}
       <Box marginBottom={1}>
         <Text bold>Progress: </Text>
         <Text color="yellow">
@@ -68,7 +73,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
         <Text color="magenta">${totalCost.toFixed(4)}</Text>
       </Box>
 
-      {/* Live Active Runs List */}
       {!isFinished && (
         <Box flexDirection="column" marginBottom={1}>
           <Text bold underline color="yellow">
@@ -81,7 +85,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
                 <Text color="yellow">●</Text>
                 <Text bold> {r.testCaseId}</Text>
                 <Text color="gray"> with </Text>
-                <Text color="blue">{r.agentConfigId}</Text>
+                <Text color="blue" wrap="truncate-end">
+                  {truncateLabel(r.agentConfigId)}
+                </Text>
                 <Text color="gray"> (Steps: {r.stepsCount}, Cost: ${r.costUsd.toFixed(4)})</Text>
               </Box>
             ))}
@@ -93,25 +99,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
         </Box>
       )}
 
-      {/* Results Matrix Table */}
       <Box flexDirection="column" borderStyle="single" borderColor="gray" padding={1}>
-        {/* Table Header */}
         <Box flexDirection="row" marginBottom={1}>
           <Box width={25}>
-            <Text bold color="cyan">Test Case</Text>
+            <Text bold color="cyan">
+              Test Case
+            </Text>
           </Box>
           {configs.map((cfg) => (
-            <Box key={cfg} width={20}>
-              <Text bold color="blue">{cfg}</Text>
+            <Box key={cfg} width={CONFIG_COL_WIDTH}>
+              <Text bold color="blue" wrap="truncate-end">
+                {truncateLabel(cfg)}
+              </Text>
             </Box>
           ))}
         </Box>
 
-        {/* Table Rows */}
         {testCases.map((tc) => (
           <Box key={tc} flexDirection="row">
             <Box width={25}>
-              <Text>{tc}</Text>
+              <Text wrap="truncate-end">{tc}</Text>
             </Box>
             {configs.map((cfg) => {
               const key = `${tc}_${cfg}`;
@@ -119,7 +126,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
 
               if (!run) {
                 return (
-                  <Box key={cfg} width={20}>
+                  <Box key={cfg} width={CONFIG_COL_WIDTH}>
                     <Text color="gray">queued</Text>
                   </Box>
                 );
@@ -127,7 +134,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
 
               if (run.status === "running") {
                 return (
-                  <Box key={cfg} width={20}>
+                  <Box key={cfg} width={CONFIG_COL_WIDTH}>
                     <Text color="yellow">running...</Text>
                   </Box>
                 );
@@ -136,16 +143,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
               if (run.status === "failed" || !run.passed) {
                 const seconds = (run.durationMs / 1000).toFixed(1);
                 return (
-                  <Box key={cfg} width={20}>
-                    <Text color="red">✗ {seconds}s (${run.costUsd.toFixed(3)})</Text>
+                  <Box key={cfg} width={CONFIG_COL_WIDTH}>
+                    <Text color="red" wrap="truncate-end">
+                      ✗ {seconds}s (${run.costUsd.toFixed(3)})
+                    </Text>
                   </Box>
                 );
               }
 
               const seconds = (run.durationMs / 1000).toFixed(1);
               return (
-                <Box key={cfg} width={20}>
-                  <Text color="green">✓ {seconds}s (${run.costUsd.toFixed(3)})</Text>
+                <Box key={cfg} width={CONFIG_COL_WIDTH}>
+                  <Text color="green" wrap="truncate-end">
+                    ✓ {seconds}s (${run.costUsd.toFixed(3)})
+                  </Text>
                 </Box>
               );
             })}
@@ -153,14 +164,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
         ))}
       </Box>
 
-      {/* Footer / Summary */}
       {isFinished && (
         <Box marginTop={1} flexDirection="column" borderStyle="double" borderColor="green" padding={1}>
           <Text color="green" bold>
             Benchmark finished successfully!
           </Text>
           <Text>Total runs executed: {totalRuns}</Text>
-          <Text>Successful solves: {passedCount} ({((passedCount / totalRuns) * 100).toFixed(0)}%)</Text>
+          <Text>
+            Successful solves: {passedCount} ({((passedCount / totalRuns) * 100).toFixed(0)}%)
+          </Text>
           <Text>Total model API cost: ${totalCost.toFixed(4)}</Text>
           <Text>Average steps per run: {(totalSteps / totalRuns).toFixed(1)}</Text>
         </Box>
