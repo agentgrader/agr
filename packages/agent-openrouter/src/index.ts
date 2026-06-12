@@ -27,20 +27,36 @@ export class AiSdkAgentAdapter implements AgentAdapter {
     let model: any;
 
     if (provider === "anthropic") {
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error(
+          "ANTHROPIC_API_KEY is not set. Set it in your environment or .env file to use provider: anthropic.",
+        );
+      }
       const anthropic = createAnthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY || "mock-key",
+        apiKey: process.env.ANTHROPIC_API_KEY,
       });
       model = anthropic(modelName);
     } else if (provider === "openai") {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error(
+          "OPENAI_API_KEY is not set. Set it in your environment or .env file to use provider: openai.",
+        );
+      }
       const openai = createOpenAI({
-        apiKey: process.env.OPENAI_API_KEY || "mock-key",
+        apiKey: process.env.OPENAI_API_KEY,
       });
       model = openai(modelName);
     } else {
       // Default to openrouter
+      const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+      if (!apiKey) {
+        throw new Error(
+          "OPENROUTER_API_KEY (or OPENAI_API_KEY) is not set. Set it in your environment or .env file to use provider: openrouter.",
+        );
+      }
       const openrouter = createOpenAI({
         baseURL: "https://openrouter.ai/api/v1",
-        apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "mock-key",
+        apiKey,
         headers: {
           "HTTP-Referer": "https://github.com/agentgrader/agr",
           "X-Title": "Agentgrader",

@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { cac } from "cac";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
