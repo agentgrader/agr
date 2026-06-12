@@ -44,7 +44,7 @@ export async function validateTestCase(input: {
 
   if (!testCase.test_command) {
     checks.push({
-      name: "execution-checks",
+      name: "execution-checks (skipped - no test_command)",
       passed: true,
       detail: "No test_command configured; skipping pre/post-patch execution checks.",
     });

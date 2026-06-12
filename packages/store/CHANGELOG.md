@@ -1,5 +1,11 @@
 # @agentgrader/store
 
+## 1.0.3
+
+### Patch Changes
+
+- Add missing getRunsByMatrixId / matrix_id column export, which was added after 1.0.2 was published but never released.
+
 ## 1.0.2
 
 ### Patch Changes

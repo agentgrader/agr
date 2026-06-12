@@ -32,6 +32,7 @@ export interface RunSingleInput {
   extraScorers?: Scorer[];
   /** links this run to an optimizer matrix run, if any */
   matrixId?: string;
+  onStep?: (step: StepEvent) => void;
 }
 
 export interface RunSingleResult {
@@ -125,6 +126,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         tokensIn += stepEvent.tokensIn || 0;
         tokensOut += stepEvent.tokensOut || 0;
         costUsd += stepEvent.costUsd || 0;
+        input.onStep?.(stepEvent);
 
         if (db) {
           addTrace(db, {

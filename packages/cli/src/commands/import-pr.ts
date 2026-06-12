@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { stringify } from "yaml";
 import { validateCommand } from "./validate";
@@ -16,6 +16,8 @@ interface PullRequestInfo {
   head: { sha: string; ref: string };
 }
 
+type ProjectKind = "python" | "node" | "go" | "unknown";
+
 /**
  * `agr import-pr <owner/repo> <pr-number> [--out <dir>] [--clone-fixture] [--validate]`
  *
@@ -28,17 +30,17 @@ interface PullRequestInfo {
  *  - `expected_files` / `forbid_modified` are pre-filled from those file
  *    lists for the localization scorer and tamper guard.
  *  - `created_at` is taken from the PR for contamination/date-cutoff checks.
- *  - `test_command`, `fail_to_pass`, and `pass_to_pass` are left as TODO
- *    placeholders - these require actually running the test suite (use
- *    `agr validate` after filling in the fixture).
+ *  - `test_command`, `fail_to_pass`, and `pass_to_pass` must be filled in
+ *    manually (or by an agent) after running the test suite; `agr validate`
+ *    only checks the resulting definition, it does not populate these fields.
  *
  * With `--clone-fixture`, the repo is cloned and checked out at the PR's
- * `base.sha` into `<outDir>/fixture`, so the test case is immediately
- * runnable (modulo the `test_command`/`fail_to_pass`/`pass_to_pass` TODOs).
+ * `base.sha` into `<outDir>/fixture`, and `success` / `test_command` are
+ * guessed from the fixture layout when possible.
  *
  * With `--validate`, `agr validate` is run against the scaffolded
- * `agr.yaml` once it's written (most useful combined with
- * `--clone-fixture`, and after filling in the TODO fields).
+ * `agr.yaml` once it's written (most useful combined with `--clone-fixture`,
+ * after `test_command` and test-name lists are filled in).
  *
  * Set `GITHUB_TOKEN` in the environment to avoid GitHub's low unauthenticated
  * rate limits.
@@ -92,37 +94,6 @@ export async function importPrCommand(
     writeFileSync(resolve(outDir, "test_patch.patch"), testDiff);
   }
 
-  const yamlDoc: Record<string, any> = {
-    name: slug,
-    description: pr.title,
-    fixture: "./fixture",
-    prompt: buildPrompt(pr),
-    success: [{ run: "npm install && npm test", expect: { exit_code: 0 } }],
-    timeout_seconds: 600,
-    tags: ["imported", repoName],
-    created_at: pr.created_at,
-    // TODO: fill these in after setting up ./fixture (checked out at
-    // base.sha below) and running the test suite to discover real test names.
-    test_command: "<TODO: e.g. tsx --test --test-reporter=tap src/**/*.test.ts>",
-    fail_to_pass: ["<TODO: fill in via `agr validate`>"],
-    pass_to_pass: ["<TODO: fill in via `agr validate`>"],
-  };
-
-  if (solutionDiff.trim()) yamlDoc.solution = "./solution.patch";
-  if (testDiff.trim()) yamlDoc.test_patch = "./test_patch.patch";
-  if (expectedFiles.length > 0) yamlDoc.expected_files = expectedFiles;
-  if (forbidModified.length > 0) yamlDoc.forbid_modified = forbidModified;
-
-  writeFileSync(resolve(outDir, "agr.yaml"), stringify(yamlDoc));
-
-  console.log(`\nImported PR #${pr.number}: "${pr.title}"`);
-  console.log(`Wrote scaffold to: ${outDir}`);
-  console.log("  - agr.yaml");
-  if (solutionDiff.trim())
-    console.log(`  - solution.patch (${expectedFiles.length} file(s) changed)`);
-  if (testDiff.trim())
-    console.log(`  - test_patch.patch (${forbidModified.length} test file(s) changed)`);
-
   if (opts.cloneFixture) {
     const fixtureDir = resolve(outDir, "fixture");
     console.log(`\nCloning ${owner}/${repoName} into ${fixtureDir}...`);
@@ -133,6 +104,40 @@ export async function importPrCommand(
     execFileSync("git", ["checkout", pr.base.sha], { cwd: fixtureDir, stdio: "inherit" });
   }
 
+  const projectKind = opts.cloneFixture
+    ? detectProjectKind(resolve(outDir, "fixture"))
+    : "unknown";
+  const { success, test_command } = projectTestDefaults(projectKind, opts.cloneFixture ?? false);
+
+  const yamlDoc: Record<string, any> = {
+    name: slug,
+    description: pr.title,
+    fixture: "./fixture",
+    prompt: buildPrompt(pr),
+    success,
+    timeout_seconds: 600,
+    tags: ["imported", repoName],
+    created_at: pr.created_at,
+    test_command,
+    fail_to_pass: [],
+    pass_to_pass: [],
+  };
+
+  if (solutionDiff.trim()) yamlDoc.solution = "./solution.patch";
+  if (testDiff.trim()) yamlDoc.test_patch = "./test_patch.patch";
+  if (expectedFiles.length > 0) yamlDoc.expected_files = expectedFiles;
+  if (forbidModified.length > 0) yamlDoc.forbid_modified = forbidModified;
+
+  writeFileSync(resolve(outDir, "agr.yaml"), buildAgrYaml(yamlDoc, projectKind));
+
+  console.log(`\nImported PR #${pr.number}: "${pr.title}"`);
+  console.log(`Wrote scaffold to: ${outDir}`);
+  console.log("  - agr.yaml");
+  if (solutionDiff.trim())
+    console.log(`  - solution.patch (${expectedFiles.length} file(s) changed)`);
+  if (testDiff.trim())
+    console.log(`  - test_patch.patch (${forbidModified.length} test file(s) changed)`);
+
   console.log("\nNext steps:");
   if (!opts.cloneFixture) {
     console.log(`  1. Check out ${owner}/${repoName}@${pr.base.sha} into ${outDir}/fixture`);
@@ -141,7 +146,7 @@ export async function importPrCommand(
       `  3. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
     );
   } else {
-    console.log("  1. Fill in test_command, fail_to_pass, and pass_to_pass in agr.yaml");
+    console.log("  1. Fill in fail_to_pass and pass_to_pass in agr.yaml");
     console.log(
       `  2. Run "agr validate ${resolve(outDir, "agr.yaml")}" to verify the test case`,
     );
@@ -151,6 +156,74 @@ export async function importPrCommand(
     console.log("\nRunning validation...\n");
     await validateCommand(resolve(outDir, "agr.yaml"));
   }
+}
+
+function detectProjectKind(fixtureDir: string): ProjectKind {
+  if (
+    existsSync(resolve(fixtureDir, "pyproject.toml")) ||
+    existsSync(resolve(fixtureDir, "setup.py")) ||
+    readdirSync(fixtureDir).some((name) => /^requirements.*\.txt$/i.test(name))
+  ) {
+    return "python";
+  }
+  if (existsSync(resolve(fixtureDir, "package.json"))) return "node";
+  if (existsSync(resolve(fixtureDir, "go.mod"))) return "go";
+  return "unknown";
+}
+
+function projectTestDefaults(
+  kind: ProjectKind,
+  cloned: boolean,
+): { success: Array<{ run: string; expect: { exit_code: number } }>; test_command: string } {
+  if (!cloned) {
+    return {
+      success: [
+        { run: "<TODO: install dependencies and run the test suite>", expect: { exit_code: 0 } },
+      ],
+      test_command: "<TODO: shell command that runs tests with TAP output>",
+    };
+  }
+
+  switch (kind) {
+    case "python":
+      return {
+        success: [{ run: "pip install -e . && pytest", expect: { exit_code: 0 } }],
+        test_command: "pytest --tap-stream",
+      };
+    case "node":
+      return {
+        success: [{ run: "npm install && npm test", expect: { exit_code: 0 } }],
+        test_command: "tsx --test --test-reporter=tap src/**/*.test.ts",
+      };
+    case "go":
+      return {
+        success: [{ run: "go test ./...", expect: { exit_code: 0 } }],
+        test_command: "<TODO: configure a TAP-producing test command for go>",
+      };
+    default:
+      return {
+        success: [
+          { run: "<TODO: install dependencies and run the test suite>", expect: { exit_code: 0 } },
+        ],
+        test_command: "<TODO: shell command that runs tests with TAP output>",
+      };
+  }
+}
+
+function buildAgrYaml(doc: Record<string, any>, projectKind: ProjectKind): string {
+  let yaml = stringify(doc);
+  const testListComment =
+    "# TODO: run the test suite (see test_command above) and add real test names here.\n# agr validate checks pre/post-patch status once these fields are filled in.";
+  yaml = yaml.replace(/^fail_to_pass:/m, `${testListComment}\nfail_to_pass:`);
+
+  if (projectKind === "python") {
+    yaml = yaml.replace(
+      /^test_command: (.+)$/m,
+      "# Requires pytest-tap for TAP output (pip install pytest-tap).\n$&",
+    );
+  }
+
+  return yaml;
 }
 
 function buildPrompt(pr: PullRequestInfo): string {

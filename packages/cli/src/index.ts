@@ -11,6 +11,10 @@ const cli = cac("agr");
 cli
   .command("run <testCase>", "Run a single agent test case")
   .option("--config <config>", "Path to an AgentConfig YAML file")
+  .option(
+    "--verbose",
+    "Stream agent steps live to the console as they happen",
+  )
   .action(async (testCase, options) => {
     try {
       await runSingleCommand(testCase, options);
@@ -23,15 +27,23 @@ cli
 cli
   .command("bench", "Run a benchmark matrix of multiple test cases and configs")
   .option("--configs <configs>", "Comma-separated paths to AgentConfig YAML files")
+  .option("--config <config>", "Alias for --configs (single config path)")
   .option("--suite <suite>", "Path to test suite directory containing test cases")
   .option("--concurrency <concurrency>", "Number of parallel sandbox executions", { default: 2 })
   .option(
     "--matrix <matrix>",
     "Path to an optimizer matrix YAML file - expands into agent configs and prints a Pareto summary afterwards (alternative to --configs)",
   )
+  .example("agr bench --suite tasks --configs agent.yaml,agent-openrouter.yaml")
+  .example("agr bench --suite tasks --matrix optimizer-matrix.yaml")
   .action(async (options) => {
+    if (!options.configs && options.config) {
+      options.configs = options.config;
+    }
     if (!options.suite || (!options.configs && !options.matrix)) {
-      console.error("Error: --suite and either --configs or --matrix are required for benchmarking.");
+      console.error(
+        "Error: --suite and either --configs, --config, or --matrix are required for benchmarking.",
+      );
       process.exit(1);
     }
     try {
@@ -52,9 +64,13 @@ cli
     "validate <testCase>",
     "Validate a test case definition (fixture, fail_to_pass/pass_to_pass, gold patch)",
   )
-  .action(async (testCase) => {
+  .option(
+    "--strict",
+    "Exit with code 1 if test_command or fail_to_pass/pass_to_pass are missing",
+  )
+  .action(async (testCase, options) => {
     try {
-      await validateCommand(testCase);
+      await validateCommand(testCase, options);
     } catch (err: any) {
       console.error(`Error executing validate: ${err.message}`);
       process.exit(1);
@@ -69,6 +85,7 @@ cli
   .option("--out <dir>", "Output directory for the scaffolded test case")
   .option("--clone-fixture", "Clone the repo and check out the PR's base commit into ./fixture")
   .option("--validate", "Run `agr validate` against the scaffolded test case afterwards")
+  .example("agr import-pr astropy/astropy 12907 --clone-fixture --validate")
   .action(async (repo, prNumber, options) => {
     try {
       await importPrCommand(repo, prNumber, options);
