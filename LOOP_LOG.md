@@ -125,3 +125,59 @@ published (or testable some other way), re-run astropy-12907 with
 step 6, check whether the setuptools fix resolves the pip install failure,
 and check `agr trace --tools` for find-usages/view-structure/rename-symbol
 adoption now that calling them "works" via the repair path.
+
+---
+
+## Iteration 4 (2026-06-12)
+
+**JetBrains persona** (bestagenttrainer):
+- The iteration-3 fix (`experimental_repairToolCall`) is still unpublished,
+  so used `bun link` to point bestagenttrainer's top-level
+  `node_modules/@agentgrader/agent-openrouter` at the local crucible build -
+  but discovered `bunx agr run` still crashed identically, because the
+  published `agentgrader` CLI ships its own **nested**
+  `node_modules/agentgrader/node_modules/@agentgrader/agent-openrouter`
+  which Node resolution prefers over the top-level link.
+- Wrote `bestagenttrainer/scripts/run-with-local-fix.ts`, a standalone
+  runner that calls `runSingle`/`AiSdkAgentAdapter` directly, importing
+  `@agentgrader/agent-openrouter` from the top-level link (has the fix)
+  and `@agentgrader/core`/`@agentgrader/sandbox-docker` from
+  bestagenttrainer's published deps (no `db`, sidesteps a
+  `better-sqlite3` Bun ABI mismatch).
+- **Re-ran astropy-12907 (2x) - the repair fix works**: survived past
+  step 6 (~55 step-events vs. 6-step crash), and `view-structure` was
+  called as a bare tool at steps 7/8, repaired to
+  `executeCommand("view-structure '...'")`, and returned real symbol-list
+  output the agent used productively (found the actual fix commit,
+  diagnosed the `_cstack` bug in `separable.py`).
+- New issue: neither run printed a final RUN SUMMARY or cleaned up its
+  sandbox container (left running `tail -f /dev/null`, manually
+  `docker rm -f`'d). Likely `max_steps: 20` was hit and/or the harness
+  reaped the process during the long `success.run` command - documented
+  as deferred/open.
+- Wrote iteration 4 findings + an agr dev response section to
+  `JETBRAINS_FEEDBACK.md`.
+
+**agr dev persona** (crucible):
+- `agent-jetbrains.yaml`: bumped `max_steps: 20` -> `30` (toolkit-heavy
+  exploration burns steps fast).
+- `packages/sandbox-docker/src/index.ts`: `DockerSandboxHandle.destroy()`
+  no longer silently swallows `container.stop()`/`container.remove()`
+  errors (treats Docker's "already stopped" 304 as expected-and-silent,
+  logs everything else) - addresses the "container left running with no
+  explanation" symptom with better diagnostics. Added changeset
+  `.changeset/quiet-otters-cleanup.md` (`@agentgrader/sandbox-docker`:
+  patch). Build-verified (`bun run build`, 8/8 tasks pass).
+- Docs: added a "Testing unpublished crucible changes locally" recipe
+  (the `bun link` + nested-`node_modules` gotcha + standalone-runner
+  pattern) and a `max_steps` tip to the toolkits best-practices section.
+  Pushed docs submodule (`a4c3e51`).
+
+**Next iteration suggestion:** JetBrains persona re-runs astropy-12907
+with `max_steps: 30` via the same standalone-runner pattern, this time
+with a hard wall-clock cap (e.g. `timeout 240 bun
+scripts/run-with-local-fix.ts ...`) so a long `success.run` can't get the
+process reaped mid-flight without at least a partial summary. Check
+whether the agent reaches a `submit` this time, whether the
+`setuptools<60` fixture fix resolves `pip install -e`, and whether
+`find-usages`/`rename-symbol` (not just `view-structure`) get adopted too.

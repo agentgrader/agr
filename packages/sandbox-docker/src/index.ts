@@ -138,10 +138,19 @@ export class DockerSandboxHandle implements SandboxHandle {
   async destroy(): Promise<void> {
     try {
       await this.container.stop();
-    } catch (e) {}
+    } catch (e: any) {
+      // "container already stopped" (HTTP 304) is expected; anything else
+      // is worth surfacing, since a swallowed error here is how containers
+      // silently pile up instead of being removed below.
+      if (e?.statusCode !== 304) {
+        console.error(`Failed to stop sandbox container: ${e.message || e}`);
+      }
+    }
     try {
       await this.container.remove({ force: true });
-    } catch (e) {}
+    } catch (e: any) {
+      console.error(`Failed to remove sandbox container: ${e.message || e}`);
+    }
   }
 }
 
