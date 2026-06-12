@@ -224,15 +224,31 @@ export class AiSdkAgentAdapter implements AgentAdapter {
 
     const pricing = getPricing(modelName);
 
+    // per-step inactivity watchdog. NOT AbortSignal.timeout: that would cap
+    // the ENTIRE multi-step loop at step_timeout_ms (a 50-step run dies
+    // mid-flight at the deadline no matter how well it is progressing), and
+    // its unref'd timer doesn't keep the event loop alive - if an abort
+    // mid-step strands the loop with no live handles, the process exits 0
+    // silently with no error and no result. A ref'd timer that is reset on
+    // every finished step gives the intended semantics (abort only when a
+    // single step stalls) and pins the event loop until the run settles.
+    const stepTimeoutMs = config.step_timeout_ms || 120_000;
+    const watchdogController = new AbortController();
+    const onStepTimeout = () =>
+      watchdogController.abort(
+        new DOMException(`step exceeded step_timeout_ms (${stepTimeoutMs}ms)`, "TimeoutError"),
+      );
+    let watchdog = setTimeout(onStepTimeout, stepTimeoutMs);
+    const resetWatchdog = () => {
+      clearTimeout(watchdog);
+      watchdog = setTimeout(onStepTimeout, stepTimeoutMs);
+    };
+
     try {
       await generateText({
         model,
         maxSteps: config.max_steps || 30,
-        // without this, a single hung provider request leaves the whole run
-        // (and its sandbox container) stuck forever with no error and no
-        // result - the outer try/catch below never fires because the
-        // request itself never settles.
-        abortSignal: AbortSignal.timeout(config.step_timeout_ms || 120_000),
+        abortSignal: watchdogController.signal,
         tools,
         system: config.system_prompt || "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.",
         prompt,
@@ -266,6 +282,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
           };
         },
         onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
+          resetWatchdog();
           const promptTokens = usage?.promptTokens || 0;
           const completionTokens = usage?.completionTokens || 0;
           const stepCost = promptTokens * pricing.input + completionTokens * pricing.output;
@@ -313,10 +330,11 @@ export class AiSdkAgentAdapter implements AgentAdapter {
     } catch (err: any) {
       loopError =
         err.name === "AbortError" || err.name === "TimeoutError"
-          ? `Aborted: a provider request exceeded step_timeout_ms (${config.step_timeout_ms || 120_000}ms). Raise step_timeout_ms in agent.yaml if responses are legitimately slow.`
+          ? `Aborted: a single step exceeded step_timeout_ms (${stepTimeoutMs}ms) with no progress. Raise step_timeout_ms in agent.yaml if individual steps are legitimately slow.`
           : err.message;
       console.error(`Error in generateText agent loop: ${err.message}`);
     } finally {
+      clearTimeout(watchdog);
       for (const client of mcpClients) {
         try {
           await client.close();
