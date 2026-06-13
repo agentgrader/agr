@@ -28,6 +28,7 @@ cli
 cli
   .command("run <testCase>", "Run a single agent test case")
   .option("--config <config>", "Path to an AgentConfig YAML file")
+  .option("--adapter <adapter>", "Agent adapter to use (ai-sdk, acp)", { default: "ai-sdk" })
   .option(
     "--verbose",
     "Stream agent steps live to the console as they happen",
@@ -54,6 +55,7 @@ cli
     "Path to a bench manifest YAML (suite + agent paths/glob in one file)",
   )
   .option("--suite <suite>", "Path to test suite directory containing test cases")
+  .option("--adapters <adapters>", "Comma-separated agent adapters (ai-sdk, acp)", { default: "ai-sdk" })
   .option("--concurrency <concurrency>", "Number of parallel sandbox executions", { default: 2 })
   .option(
     "--matrix <matrix>",

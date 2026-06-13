@@ -1,17 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { render } from "ink";
 import React from "react";
-import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
 import { type AgentConfig, type StepEvent, runSingle } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
 import { loadAgentConfig } from "../lib/load-agent-config";
+import { resolveAdapter } from "../lib/resolve-adapters";
 import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
 import { RunView, type RunSummary } from "../ui/RunView";
 
 export async function runSingleCommand(
   testCasePath: string,
-  opts: { config?: string; verbose?: boolean },
+  opts: { config?: string; verbose?: boolean; adapter?: string },
 ) {
   const testCase = loadTestCase(testCasePath);
 
@@ -34,7 +34,7 @@ export async function runSingleCommand(
   console.log(`Starting run for "${testCase.name}" using model "${agentConfig.model}"...`);
 
   const sandboxProvider = new DockerSandboxProvider();
-  const adapter = new AiSdkAgentAdapter();
+  const adapter = resolveAdapter(opts.adapter ?? "ai-sdk");
   const db = initDb();
 
   await saveTestCase(db, testCaseToDbRow(testCase));

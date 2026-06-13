@@ -5,9 +5,9 @@ import React from "react";
 import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, type AgrDb } from "@agentgrader/store";
 import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
-import { AiSdkAgentAdapter } from "@agentgrader/agent-openrouter";
 import { StaticQualityScorer } from "@agentgrader/scorer-static";
 import { expandMatrix, aggregateResults, paretoFront } from "@agentgrader/optimizer";
+import { resolveAdapters } from "../lib/resolve-adapters";
 import { Dashboard, type RunState } from "../ui/Dashboard";
 import {
   loadBenchManifest,
@@ -33,6 +33,7 @@ export async function runBenchCommand(opts: {
   concurrency?: number;
   matrix?: string;
   manifest?: string;
+  adapters?: string;
 }) {
   let suiteDir: string;
   let concurrency = opts.concurrency ?? 2;
@@ -127,7 +128,9 @@ export async function runBenchCommand(opts: {
 
   // 4. wire up providers
   const sandboxProvider = new DockerSandboxProvider();
-  const adapter = new AiSdkAgentAdapter();
+  const adapters = resolveAdapters(
+    opts.adapters ? opts.adapters.split(",") : ["ai-sdk"],
+  );
 
   // 5. render the live dashboard
   const runStates: Record<string, RunState> = {};
@@ -161,7 +164,7 @@ export async function runBenchCommand(opts: {
     await runBenchmark({
       testCases,
       agentConfigs,
-      adapter,
+      adapters,
       sandboxProvider,
       db,
       concurrency,
