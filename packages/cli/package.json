@@ -19,6 +19,7 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
+    "@agentgrader/agent-acp": "^1.0.0",
     "@agentgrader/agent-openrouter": "^3.0.0",
     "@agentgrader/core": "^1.2.0",
     "@agentgrader/optimizer": "^1.0.0",

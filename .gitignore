@@ -11,6 +11,9 @@ dist/
 # Local database and traces
 .agr/
 
+# Internal loop-iteration notes (never push to the shared repo)
+LOOP_LOG.md
+
 # Environment Variables
 .env
 .env.*

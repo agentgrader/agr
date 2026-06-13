@@ -35,6 +35,25 @@ export const AgentConfigSchema = z.object({
   // takes effect when both fields are set.
   escalate_after_steps: z.number().optional(),
   escalate_model: z.string().optional(),
+
+  acp_command: z
+    .string()
+    .optional()
+    .describe(
+      "Executable for an ACP-compatible agent (e.g. cursor-agent or claude). Used by @agentgrader/agent-acp.",
+    ),
+  acp_args: z
+    .array(z.string())
+    .optional()
+    .describe("Arguments passed to acp_command (e.g. [\"acp\"] or [\"--acp\"])."),
+  acp_cwd: z
+    .string()
+    .optional()
+    .describe("Session working directory forwarded to the ACP agent (defaults to /app in sandboxes)."),
+  acp_env: z
+    .record(z.string())
+    .optional()
+    .describe("Extra environment variables for the spawned ACP agent subprocess."),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
