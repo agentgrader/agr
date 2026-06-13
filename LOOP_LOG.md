@@ -476,3 +476,44 @@ write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 7.
   `agr validate tasks/hello-world/agr.yaml` also still works and is
   emoji-free (`[OK] has name and prompt`, `[WARN] execution-checks
   (skipped ...)`, `Validation passed.`).
+
+---
+
+## Iteration 11 (2026-06-13)
+
+**JetBrains persona** (bestagenttrainer):
+- `bun link @agentgrader/core` (crucible's local `1.2.0` build) into
+  `bestagenttrainer`, fixing the iteration-9 version-skew so
+  `step_timeout_ms: 90000` in `agent-jetbrains.yaml` is actually read.
+- Re-ran `leetcode-reverse-string` with `--verbose`: stalled after step 7
+  (a `readFile` tool_result) - third occurrence of this pattern across two
+  iterations and three tasks, reinforcing it's a generic
+  post-tool-result provider stall, not task-specific.
+- New wrinkle: with the corrected 90s timeout, no `[watchdog]`/`RUN SUMMARY`
+  appeared within the 280s wrapper `timeout` (vs. iteration 9's clean
+  172.5s finish with the old 120s default). Likely just output buffering
+  lost on the wrapper's SIGTERM kill, not a regression in the watchdog
+  itself - flagged for a follow-up run without an external `timeout`
+  wrapper.
+
+**agr dev persona** (crucible):
+- Implemented iteration 9's queued suggestion: `loadAgentConfig`/
+  `loadTestCase` (`packages/cli/src/lib/`) now call
+  `warnUnrecognizedKeys()` (new `packages/cli/src/lib/schema-warnings.ts`)
+  and print `[WARN] agent config "...": unrecognized field(s) "..."` to
+  stderr for any top-level YAML key the installed `@agentgrader/core`
+  doesn't recognize - covers `agr run`, `agr bench`, and `agr validate`.
+  This is exactly the check that would have surfaced iteration 9's
+  `step_timeout_ms` version-skew bug immediately instead of silently.
+- Verified with a throwaway config containing `totally_unknown_field: 42`:
+  prints the expected `[WARN] ...` and still parses correctly.
+- Changeset `tidy-herons-warn.md` (`agentgrader`: minor).
+- `docs/guide/best-practices.md`: new troubleshooting section
+  `[WARN] ... unrecognized field(s) "..."` explaining the version-skew trap
+  and pointing at `bun link @agentgrader/core` to fix it.
+
+**Next iteration suggestion**: JetBrains persona re-runs a leetcode task
+with `--verbose` and no external `timeout` wrapper, to confirm the
+`step_timeout_ms: 90000` watchdog/escape-hatch fires and produces a clean
+`RUN SUMMARY` on its own (distinguishing "watchdog didn't fire" from
+"output lost to SIGTERM buffering" from iteration 11 point 3).

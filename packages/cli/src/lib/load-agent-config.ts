@@ -4,6 +4,7 @@ import { type AgentConfig, AgentConfigSchema } from "@agentgrader/core";
 import { parse } from "yaml";
 import { ZodError } from "zod";
 import { formatZodError } from "./format-zod-error";
+import { warnUnrecognizedKeys } from "./schema-warnings";
 
 /**
  * Loads and parses an agent config YAML file.
@@ -18,6 +19,8 @@ export function loadAgentConfig(yamlPath: string): AgentConfig {
   const fileContent = readFileSync(path, "utf-8");
   const raw = parse(fileContent);
   const dir = dirname(path);
+
+  warnUnrecognizedKeys(AgentConfigSchema, raw, `agent config "${path}"`);
 
   let config: AgentConfig;
   try {
