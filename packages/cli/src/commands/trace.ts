@@ -1,4 +1,5 @@
 import { getRun, getTraces, initDb } from "@agentgrader/store";
+import { countToolCalls, printToolUsageBlock } from "../lib/tool-usage";
 
 /**
  * `agr trace <runId> [--quality] [--tools]`
@@ -44,7 +45,8 @@ export async function traceCommand(runId: string, opts: { quality?: boolean; too
   const steps = await getTraces(db, runId);
 
   if (opts.tools) {
-    printToolUsage(steps);
+    printToolUsageBlock(countToolCalls(steps), { header: "\n================ TOOL USAGE ================" });
+    console.log("=============================================\n");
     return;
   }
 
@@ -71,30 +73,6 @@ export async function traceCommand(runId: string, opts: { quality?: boolean; too
       `\nprompt cache: ${totalCachedTokens}/${totalTokensIn} input tokens served from cache (${cacheHitRate}%)`,
     );
   }
-}
-
-function printToolUsage(steps: Awaited<ReturnType<typeof getTraces>>) {
-  const counts = new Map<string, number>();
-  let totalCalls = 0;
-  for (const step of steps) {
-    if (step.kind !== "tool_call") continue;
-    const name = step.tool ?? "(unknown)";
-    counts.set(name, (counts.get(name) ?? 0) + 1);
-    totalCalls++;
-  }
-
-  console.log("\n================ TOOL USAGE ================");
-  if (counts.size === 0) {
-    console.log("  (no tool_call steps recorded for this run)");
-  } else {
-    const nameWidth = Math.max(...[...counts.keys()].map((n) => n.length));
-    for (const [name, count] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
-      console.log(`  ${name.padEnd(nameWidth)}  ${count}`);
-    }
-    console.log("");
-    console.log(`Total: ${totalCalls} tool call(s) across ${counts.size} distinct tool(s)`);
-  }
-  console.log("=============================================\n");
 }
 
 function printQualityBreakdown(metricsJson: string | null) {

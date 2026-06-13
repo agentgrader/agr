@@ -2,12 +2,13 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "path";
 import { render } from "ink";
 import React from "react";
-import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, type AgrDb } from "@agentgrader/store";
+import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getTraces, type AgrDb } from "@agentgrader/store";
 import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { StaticQualityScorer } from "@agentgrader/scorer-static";
 import { expandMatrix, aggregateResults, paretoFront } from "@agentgrader/optimizer";
 import { resolveAdapters } from "../lib/resolve-adapters";
+import { countToolCalls, mergeToolCounts, printToolUsageBlock } from "../lib/tool-usage";
 import { Dashboard, type RunState } from "../ui/Dashboard";
 import {
   loadBenchManifest,
@@ -188,6 +189,8 @@ export async function runBenchCommand(opts: {
 
   printTagBreakdown(testCases, agentConfigs, runStates);
 
+  await printToolUsageByConfig(db, agentConfigs, runStates);
+
   if (matrixId) {
     await printMatrixSummary(db, matrixId, agentConfigs);
   }
@@ -225,6 +228,41 @@ async function printMatrixSummary(db: AgrDb, matrixId: string, agentConfigs: Age
     `\n* = Pareto-optimal (solve rate, cost${includesQuality ? ", lint violations" : ""})`,
   );
   console.log("=================================================\n");
+}
+
+async function printToolUsageByConfig(
+  db: AgrDb,
+  agentConfigs: AgentConfig[],
+  runStates: Record<string, RunState>,
+) {
+  const byConfig = new Map<string, Map<string, number>>();
+
+  for (const run of Object.values(runStates)) {
+    if (run.status !== "completed" && run.status !== "failed") continue;
+    if (!run.runId) continue;
+
+    const steps = await getTraces(db, run.runId);
+    const runCounts = countToolCalls(steps);
+    const configCounts = byConfig.get(run.agentConfigId) ?? new Map<string, number>();
+    mergeToolCounts(configCounts, runCounts);
+    byConfig.set(run.agentConfigId, configCounts);
+  }
+
+  if (byConfig.size === 0) return;
+
+  console.log("\n================ TOOL USAGE BY CONFIG ================");
+  for (const ac of agentConfigs) {
+    const configId = ac.id || ac.name;
+    const counts = byConfig.get(configId);
+    if (!counts || counts.size === 0) continue;
+    console.log(`${configId}:`);
+    printToolUsageBlock(counts, { indent: "  " });
+    console.log("");
+  }
+  console.log(
+    "Tip: per-run detail with `agr trace <runId> --tools`. Compare two runs with `agr compare`.",
+  );
+  console.log("=======================================================\n");
 }
 
 /**
