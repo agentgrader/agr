@@ -517,3 +517,63 @@ with `--verbose` and no external `timeout` wrapper, to confirm the
 `step_timeout_ms: 90000` watchdog/escape-hatch fires and produces a clean
 `RUN SUMMARY` on its own (distinguishing "watchdog didn't fire" from
 "output lost to SIGTERM buffering" from iteration 11 point 3).
+
+---
+
+## Out-of-band fix (2026-06-13, between iterations 11 and 12)
+
+User reported being actively blocked by the recurring "stalls with no
+`RUN SUMMARY`" symptom and asked for an immediate root-cause fix, outside
+the normal iteration cadence.
+
+**Root cause found**: `DockerSandboxHandle.exec()` (`packages/sandbox-docker`)
+had **no timeout at all** - it polled `exec.inspect()` every 50ms until the
+command exited, with no upper bound. This is the single chokepoint used by
+(a) the agent's `executeCommand` tool during the loop, and (b)
+`CommandScorer`/`RegressionScorer` during the `score` step (running
+`test_command`, `fail_to_pass`/`pass_to_pass`).
+
+Two failure modes both produced the identical "silent stall, leftover
+container" symptom previously attributed only to `generateText` provider
+hangs:
+
+1. The agent loop stalls (provider hang) - `step_timeout_ms` correctly
+   aborts it after ~90-105s, `runSingle` returns `agentResult.error` set.
+2. **But `runSingle`'s `score` step ran anyway**, executing the full
+   `test_command` against the agent's half-finished edit. If that edit
+   causes an infinite loop in the code under test (very plausible for a
+   leetcode task interrupted mid-edit), `sandbox.exec()` hangs forever with
+   zero protection - a *second*, independent, unbounded hang stacked right
+   after the first, with no log line marking the transition between them.
+
+**Fix** (`@agentgrader/core`, `@agentgrader/sandbox-docker`, both minor,
+`.changeset/breezy-llamas-timeout.md`):
+- `exec(cmd, timeoutMs = 180000)` now gives up after 180s and returns
+  `{ exitCode: 124, timedOut: true }` instead of polling forever.
+- `CommandScorer` reports timed-out commands with a clear message.
+- `runSingle`'s `score` step now **short-circuits with `passed: false`**
+  when `agentResult.error` is set - no point running the test suite against
+  a guaranteed-fail run.
+- `runSingle`'s `cleanup` step bounds `sandbox.destroy()` to 60s.
+
+Build-verified (`bun run build`, 8/8 tasks pass). Docs updated
+(`docs/guide/best-practices.md`, new "A second, independent cause: a hanging
+test_command" subsection), pushed to docs `main` (`4505e2c`) and crucible
+`main` (`0324c8a`).
+
+Also found (not fixed - blocked by the auto-mode permission classifier on
+`docker rm -f` of a running container, needs explicit user action): ~30
+leftover `tail -f /dev/null` sandbox containers from earlier iterations
+(`docker ps -a`, all `python:3.11`/`node:20`, exited 2h ago), plus one still
+`Up 21 minutes` (`goofy_bhabha`, python:3.11) - very likely the orphan from
+iteration 11's stalled run, now explained by the bug above. User should run
+`agr cleanup` or `docker rm -f` these manually.
+
+**Next iteration suggestion**: JetBrains persona re-runs a leetcode task
+with `--verbose` (via `bun link @agentgrader/sandbox-docker` /
+`@agentgrader/core` to pick up this fix) and no external `timeout` wrapper.
+Expect either a clean `RUN SUMMARY` with `passed: false` shortly after any
+`step_timeout_ms` abort (score step now skipped), or, if the agent itself
+runs a hanging `test_command` during the loop via `executeCommand`, a
+`tool_result` showing `exitCode: 124, timedOut: true` instead of an
+indefinite stall.
