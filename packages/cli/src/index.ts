@@ -4,11 +4,26 @@ import { cleanupCommand } from "./commands/cleanup";
 import { compareCommand } from "./commands/compare";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
+import { initCommand } from "./commands/init";
 import { runSingleCommand } from "./commands/run";
 import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
 
 const cli = cac("agr");
+
+cli
+  .command("init [dir]", "Scaffold a minimal, runnable agentgrader project (agent config + sample test case)")
+  .option("--force", "Overwrite agent.yaml if it already exists")
+  .example("agr init")
+  .example("agr init my-project")
+  .action(async (dir, options) => {
+    try {
+      await initCommand(dir, options);
+    } catch (err: any) {
+      console.error(`Error executing init: ${err.message}`);
+      process.exit(1);
+    }
+  });
 
 cli
   .command("run <testCase>", "Run a single agent test case")
