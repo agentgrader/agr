@@ -26,6 +26,13 @@ export const AgentConfigSchema = z.object({
   // inject into the sandbox and surface to the agent via the system prompt
   toolkits: z.array(z.string()).optional(),
 
+  require_tools_before_submit: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Command names (e.g. a toolkit's run-tests, or a generic pytest/biome) that should have been invoked at least once before submit. Checked against executeCommand/terminal/create first-words and direct tool names - never blocks the run, just annotates metrics['tool-adoption'] for agr trace/bench.",
+    ),
+
   // MCP servers to connect to and expose as additional tools, keyed by name
   mcp_servers: z.record(McpServerConfigSchema).optional(),
 
