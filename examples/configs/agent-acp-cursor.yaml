@@ -1,0 +1,9 @@
+id: acp-cursor
+name: Cursor Agent (ACP)
+model: acp
+max_steps: 30
+step_timeout_ms: 300000
+acp_command: cursor-agent
+acp_args:
+  - acp
+acp_cwd: /app
