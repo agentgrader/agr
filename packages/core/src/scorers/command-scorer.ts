@@ -16,6 +16,12 @@ export class CommandScorer implements Scorer {
         
         try {
           const res = await input.sandbox.exec(cmd);
+          if (res.timedOut) {
+            return {
+              passed: false,
+              detail: `Command "${cmd}" timed out and was abandoned (likely an infinite loop or hang introduced by the agent's changes).\nStdout: ${res.stdout}\nStderr: ${res.stderr}`,
+            };
+          }
           if (res.exitCode !== expectedExitCode) {
             return {
               passed: false,

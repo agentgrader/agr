@@ -236,6 +236,22 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         }
       }
 
+      // if the agent loop itself errored or was aborted (e.g. a
+      // `step_timeout_ms` watchdog firing on a stuck provider request), the
+      // agent never got a real chance to finish - skip the functional
+      // scorers entirely. They run `test_command`/regression checks via
+      // `sandbox.exec`, which can itself take minutes (or, pre-timeout,
+      // forever) against a half-edited fixture; running them on a run that's
+      // already a guaranteed fail just delays `RUN SUMMARY` and risks
+      // compounding one hang with another.
+      if (agentResult?.error) {
+        return {
+          passed: false,
+          detail: `Agent loop did not complete: ${agentResult.error}`,
+          score: 0,
+        };
+      }
+
       // run the test suite in the sandbox
       const cmdScorer = new CommandScorer();
       const cmdResult = await cmdScorer.score({
@@ -321,7 +337,21 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
           // evaluation-only test_patch was applied); fall back to a fresh
           // diff if that capture failed for some reason.
           finalDiff = agentDiff || (await sandbox.gitDiff());
-          await sandbox.destroy();
+        } catch (e: any) {
+          console.error(`Failed to capture final diff: ${e.message}`);
+        }
+        try {
+          // `destroy()` calls stop/remove on the container, which can hang
+          // if the Docker daemon is itself wedged (e.g. by a backlog of
+          // stale containers). A run that made it this far should still
+          // produce a RUN SUMMARY even if teardown itself stalls - the
+          // container is then left for `agr cleanup` to reap later.
+          await Promise.race([
+            sandbox.destroy(),
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error("sandbox.destroy() timed out after 60000ms")), 60_000),
+            ),
+          ]);
         } catch (e: any) {
           console.error(`Failed to clean up sandbox: ${e.message}`);
         }
