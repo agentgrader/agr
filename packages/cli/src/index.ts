@@ -205,7 +205,7 @@ try {
   cli.parse();
 } catch (err: any) {
   if (err.name === "CACError") {
-    console.error(`\n❌ ${err.message}\n`);
+    console.error(`\n[error] ${err.message}\n`);
     cli.outputHelp();
     process.exit(1);
   }
