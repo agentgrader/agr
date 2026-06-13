@@ -40,48 +40,54 @@ export class AiSdkAgentAdapter implements AgentAdapter {
   }): Promise<AgentResult> {
     const { prompt, sandbox, config, onStep } = input;
 
-    const provider = resolveProvider(config);
-    const modelName = config.model || "gpt-4o-mini";
-    let model: any;
+    // builds a model instance for `modelName`, resolving its provider the
+    // same way as the primary model. Used both for the primary model and for
+    // `escalate_model` (which may be on a different provider).
+    const buildModel = (modelName: string): { model: any; provider: string } => {
+      const modelProvider = resolveProvider({ ...config, model: modelName });
 
-    if (provider === "anthropic") {
-      if (!process.env.ANTHROPIC_API_KEY) {
-        throw new Error(
-          "ANTHROPIC_API_KEY is not set. Set it in your environment or .env file to use provider: anthropic.",
-        );
+      if (modelProvider === "anthropic") {
+        if (!process.env.ANTHROPIC_API_KEY) {
+          throw new Error(
+            "ANTHROPIC_API_KEY is not set. Set it in your environment or .env file to use provider: anthropic.",
+          );
+        }
+        const anthropic = createAnthropic({
+          apiKey: process.env.ANTHROPIC_API_KEY,
+        });
+        return { model: anthropic(modelName), provider: modelProvider };
+      } else if (modelProvider === "openai") {
+        if (!process.env.OPENAI_API_KEY) {
+          throw new Error(
+            "OPENAI_API_KEY is not set. Set it in your environment or .env file to use provider: openai.",
+          );
+        }
+        const openai = createOpenAI({
+          apiKey: process.env.OPENAI_API_KEY,
+        });
+        return { model: openai(modelName), provider: modelProvider };
+      } else {
+        // Default to openrouter
+        const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+        if (!apiKey) {
+          throw new Error(
+            "OPENROUTER_API_KEY (or OPENAI_API_KEY) is not set. Set it in your environment or .env file to use provider: openrouter.",
+          );
+        }
+        const openrouter = createOpenAI({
+          baseURL: "https://openrouter.ai/api/v1",
+          apiKey,
+          headers: {
+            "HTTP-Referer": "https://github.com/agentgrader/agr",
+            "X-Title": "Agentgrader",
+          },
+        });
+        return { model: openrouter(modelName), provider: modelProvider };
       }
-      const anthropic = createAnthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
-      model = anthropic(modelName);
-    } else if (provider === "openai") {
-      if (!process.env.OPENAI_API_KEY) {
-        throw new Error(
-          "OPENAI_API_KEY is not set. Set it in your environment or .env file to use provider: openai.",
-        );
-      }
-      const openai = createOpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
-      });
-      model = openai(modelName);
-    } else {
-      // Default to openrouter
-      const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-      if (!apiKey) {
-        throw new Error(
-          "OPENROUTER_API_KEY (or OPENAI_API_KEY) is not set. Set it in your environment or .env file to use provider: openrouter.",
-        );
-      }
-      const openrouter = createOpenAI({
-        baseURL: "https://openrouter.ai/api/v1",
-        apiKey,
-        headers: {
-          "HTTP-Referer": "https://github.com/agentgrader/agr",
-          "X-Title": "Agentgrader",
-        },
-      });
-      model = openrouter(modelName);
-    }
+    };
+
+    const modelName = config.model || "gpt-4o-mini";
+    const { model, provider } = buildModel(modelName);
 
     let submitted = false;
     let stepIndex = 0;
@@ -267,6 +273,32 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       });
     });
 
+    // a single system message + the task prompt, instead of `system` +
+    // `prompt`. This lets us attach `providerOptions.anthropic.cacheControl`
+    // to the system message - Anthropic caches everything up to and
+    // including the marked block (tools + system prompt), so repeated runs
+    // with the same agent config (e.g. `agr bench`/matrix sweeps) only pay
+    // full price for that prefix once per 5-minute cache window. Harmless on
+    // other providers, which simply ignore the unrecognized providerOptions
+    // key.
+    const systemPrompt =
+      config.system_prompt ||
+      "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.";
+    const messages = [
+      {
+        role: "system" as const,
+        content: systemPrompt,
+        ...(provider === "anthropic"
+          ? { providerOptions: { anthropic: { cacheControl: { type: "ephemeral" as const } } } }
+          : {}),
+      },
+      { role: "user" as const, content: prompt },
+    ];
+
+    // lazily-built model for `escalate_model`, reused across steps once
+    // escalation triggers.
+    let escalatedModel: any;
+
     try {
       await Promise.race([
         generateText({
@@ -274,11 +306,30 @@ export class AiSdkAgentAdapter implements AgentAdapter {
           maxSteps: config.max_steps || 30,
           abortSignal: watchdogController.signal,
           tools,
-          system:
-            config.system_prompt ||
-            "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.",
-          prompt,
+          messages,
           experimental_telemetry: { isEnabled: true },
+          // start on the cheap/default model; once the agent has spent
+          // `escalate_after_steps` steps without calling `submit`, switch to
+          // `escalate_model` for the rest of the run (e.g. haiku -> sonnet
+          // when the cheap model is struggling). No-op unless both
+          // `escalate_after_steps` and `escalate_model` are set.
+          experimental_prepareStep: async ({ stepNumber }) => {
+            if (
+              !submitted &&
+              config.escalate_model &&
+              config.escalate_after_steps != null &&
+              stepNumber >= config.escalate_after_steps
+            ) {
+              if (!escalatedModel) {
+                escalatedModel = buildModel(config.escalate_model).model;
+                console.error(
+                  `[escalate] step ${stepNumber} >= escalate_after_steps (${config.escalate_after_steps}) - switching to ${config.escalate_model}`,
+                );
+              }
+              return { model: escalatedModel };
+            }
+            return undefined;
+          },
           // small models (e.g. haiku) sometimes call a toolkit/skill's CLI name
           // (e.g. "view-structure") as if it were a tool, rather than running it
           // via executeCommand. Without this, the AI SDK throws and aborts the
@@ -309,11 +360,28 @@ export class AiSdkAgentAdapter implements AgentAdapter {
               args: JSON.stringify({ command: `${toolCall.toolName} ${argString}`.trim() }),
             };
           },
-          onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
+          onStepFinish: ({ text, toolCalls, toolResults, usage, providerMetadata }) => {
             resetWatchdog();
             const promptTokens = usage?.promptTokens || 0;
             const completionTokens = usage?.completionTokens || 0;
-            const stepCost = promptTokens * pricing.input + completionTokens * pricing.output;
+
+            // Anthropic prompt-cache stats (0 for providers/models without
+            // cache support, or when nothing was cached yet).
+            const cacheReadTokens = Number(providerMetadata?.anthropic?.cacheReadInputTokens ?? 0);
+            const cacheCreationTokens = Number(
+              providerMetadata?.anthropic?.cacheCreationInputTokens ?? 0,
+            );
+            const regularInputTokens = Math.max(
+              0,
+              promptTokens - cacheReadTokens - cacheCreationTokens,
+            );
+            // cache reads are billed at 0.1x the input price, cache writes
+            // at 1.25x (5-minute TTL) - see Anthropic's prompt caching docs.
+            const stepCost =
+              regularInputTokens * pricing.input +
+              cacheReadTokens * pricing.input * 0.1 +
+              cacheCreationTokens * pricing.input * 1.25 +
+              completionTokens * pricing.output;
 
             // forward step events to whoever is listening (dashboard, db, etc)
             if (text) {
@@ -322,6 +390,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
                 kind: "message",
                 tokensIn: promptTokens,
                 tokensOut: completionTokens,
+                cachedTokens: cacheReadTokens,
                 costUsd: stepCost,
                 timestamp: Date.now(),
                 content: text,
@@ -335,6 +404,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
                 tool: tc.toolName,
                 tokensIn: 0,
                 tokensOut: 0,
+                cachedTokens: 0,
                 costUsd: 0,
                 timestamp: Date.now(),
                 content: JSON.stringify(tc.args),
@@ -348,6 +418,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
                 tool: tr.toolName,
                 tokensIn: 0,
                 tokensOut: 0,
+                cachedTokens: 0,
                 costUsd: 0,
                 timestamp: Date.now(),
                 content: JSON.stringify(tr.result),

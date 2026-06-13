@@ -49,15 +49,27 @@ export async function traceCommand(runId: string, opts: { quality?: boolean; too
   }
 
   console.log(`\n${steps.length} step(s):`);
+  let totalCachedTokens = 0;
+  let totalTokensIn = 0;
   for (const step of steps) {
     const label = step.tool ? `${step.kind}:${step.tool}` : step.kind;
+    const cached = step.cachedTokens ? ` cached:${step.cachedTokens}` : "";
     console.log(
-      `  [${step.stepIndex}] ${label} (in:${step.tokensIn} out:${step.tokensOut} $${step.costUsd.toFixed(4)})`,
+      `  [${step.stepIndex}] ${label} (in:${step.tokensIn} out:${step.tokensOut}${cached} $${step.costUsd.toFixed(4)})`,
     );
     if (step.content) {
       const preview = step.content.length > 200 ? `${step.content.slice(0, 200)}...` : step.content;
       console.log(`      ${preview.replace(/\n/g, "\n      ")}`);
     }
+    totalCachedTokens += step.cachedTokens || 0;
+    totalTokensIn += step.tokensIn || 0;
+  }
+
+  if (totalTokensIn > 0) {
+    const cacheHitRate = ((totalCachedTokens / totalTokensIn) * 100).toFixed(1);
+    console.log(
+      `\nprompt cache: ${totalCachedTokens}/${totalTokensIn} input tokens served from cache (${cacheHitRate}%)`,
+    );
   }
 }
 

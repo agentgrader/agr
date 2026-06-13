@@ -6,6 +6,9 @@ export const StepEventSchema = z.object({
   tool: z.string().optional(),
   tokensIn: z.number().default(0),
   tokensOut: z.number().default(0),
+  // tokens served from the provider's prompt cache (subset of tokensIn),
+  // billed at a discount. 0 for providers/models without cache support.
+  cachedTokens: z.number().default(0),
   costUsd: z.number().default(0),
   timestamp: z.number(),
   content: z.string().optional(),

@@ -136,6 +136,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
             tool: stepEvent.tool,
             tokensIn: stepEvent.tokensIn,
             tokensOut: stepEvent.tokensOut,
+            cachedTokens: stepEvent.cachedTokens,
             costUsd: stepEvent.costUsd,
             timestamp: stepEvent.timestamp,
             content: stepEvent.content,
