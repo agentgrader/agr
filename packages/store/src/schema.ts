@@ -80,6 +80,7 @@ export const traces = sqliteTable("traces", {
   tool: text("tool"),
   tokensIn: integer("tokens_in").notNull().default(0),
   tokensOut: integer("tokens_out").notNull().default(0),
+  cachedTokens: integer("cached_tokens").notNull().default(0),
   costUsd: real("cost_usd").notNull().default(0),
   timestamp: integer("timestamp").notNull(),
   content: text("content"), // raw text, tool args, or tool result

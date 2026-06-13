@@ -337,3 +337,57 @@ write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 7.
   and both observed hangs occurred shortly after a `pytest` tool result -
   worth checking whether the stall is actually in sandbox exec/stdout
   rather than the LLM call.
+
+## Iteration 9 (2026-06-13)
+
+- Re-ran `leetcode-two-sum` to test iteration 8's open question (does the
+  stall correlate with a `pytest` tool result?). It does not: this run
+  stalled right after a `readFile` tool_result, not pytest. Watchdog fired
+  at 120s, escape hatch forced completion 15s later, run finished cleanly
+  (`EXIT: 0`, `Status: FAILED` on a genuine scoring miss, 149.9s, $0.0088).
+  Closes iteration 8's open question: the stall is a generic
+  post-tool-result provider hang, and `step_timeout_ms` on `generateText` is
+  the correct fix layer (not a symptom-only patch).
+- Also noted (but did not chase further): the watchdog fired at 120000ms,
+  not the `step_timeout_ms: 90000` configured in `agent-jetbrains.yaml` -
+  the published `@agentgrader/core@1.1.3` in bestagenttrainer's
+  `node_modules` predates `step_timeout_ms` in `AgentConfigSchema`, so zod
+  silently drops the field. Logged as a "next iteration" suggestion in
+  `JETBRAINS_FEEDBACK.md`: `agr validate` should warn on unrecognized
+  top-level `agent.yaml` keys instead of silently dropping them.
+- Fixed `tasks/*/agr.yaml` (fizzbuzz, reverse-string, two-sum) in
+  bestagenttrainer: `success.run: pytest ...` was failing with exit 127
+  (`pytest: not found`) on the plain `python:3.11` image, regardless of
+  whether the agent's fix was correct. Now `pip install -q pytest && pytest ...`.
+- Implemented two items from the live Q4 discussion (prompt caching /
+  per-step hooks), grounded via the `claude-api` skill against the installed
+  `ai@4.3.19` / `@ai-sdk/anthropic@1.2.12`:
+  - **Prompt caching**: `provider: anthropic` now sends `system` + `prompt`
+    as a `messages` array with `providerOptions.anthropic.cacheControl:
+    { type: "ephemeral" }` on the system message, caching the
+    system-prompt+tools prefix for 5 minutes. Cost calc now applies the
+    0.1x/1.25x cache-read/cache-write multipliers instead of full input
+    price.
+  - **Cache stats**: new `cachedTokens` field on `StepEvent` (+
+    `traces.cached_tokens` column, lightweight `ensureColumn` migration).
+    `agr trace <runId>` shows `cached:N` per step and a
+    `prompt cache: X/Y input tokens served from cache (Z%)` summary.
+  - **Model escalation**: new optional `agent.yaml` fields
+    `escalate_after_steps` + `escalate_model`, implemented via the AI SDK's
+    `experimental_prepareStep` (fires before every step/LLM call - the
+    concrete answer to "can we hook in before each tool call"). If the agent
+    hasn't `submit`ted after N steps, switch to a stronger model for the
+    rest of the run.
+  - Changeset `lazy-foxes-cache.md` covers `@agentgrader/core`,
+    `@agentgrader/agent-openrouter`, `@agentgrader/store`, `agentgrader`
+    (all minor).
+  - Verification: re-ran `leetcode-fizzbuzz` (now with the pytest fix) with
+    the new build. The `messages`-array/cache-control/`experimental_prepareStep`
+    refactor introduced no regression - the run produced a clean
+    `RUN SUMMARY` (steps: 11, cost: $0.0133, duration: 172.5s). It hit the
+    same step-timeout watchdog as iteration 9's first run (the agent stalled
+    after a `readFile` tool_result and was aborted/cleaned up by the
+    `step_timeout_ms` escape hatch), which is the pre-existing config
+    version-skew issue noted above, not something the new code introduced.
+- `docs/reference/agent-config-yaml.md` updated: prompt-caching note under
+  `provider`, new `escalate_after_steps`/`escalate_model` section.

@@ -74,6 +74,7 @@ export function initDb(dbPath = ".agr/db.sqlite") {
       tool TEXT,
       tokens_in INTEGER NOT NULL DEFAULT 0,
       tokens_out INTEGER NOT NULL DEFAULT 0,
+      cached_tokens INTEGER NOT NULL DEFAULT 0,
       cost_usd REAL NOT NULL DEFAULT 0,
       timestamp INTEGER NOT NULL,
       content TEXT,
@@ -105,6 +106,7 @@ export function initDb(dbPath = ".agr/db.sqlite") {
   ensureColumn(sqlite, "test_cases", "source_created_at", "TEXT");
   ensureColumn(sqlite, "runs", "metrics", "TEXT");
   ensureColumn(sqlite, "runs", "matrix_id", "TEXT");
+  ensureColumn(sqlite, "traces", "cached_tokens", "INTEGER NOT NULL DEFAULT 0");
 
   return db;
 }

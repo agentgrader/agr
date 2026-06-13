@@ -28,6 +28,13 @@ export const AgentConfigSchema = z.object({
 
   // MCP servers to connect to and expose as additional tools, keyed by name
   mcp_servers: z.record(McpServerConfigSchema).optional(),
+
+  // model escalation: after this many steps without a `submit` call, switch
+  // to `escalate_model` for the remaining steps (e.g. start on a cheap model
+  // and fall back to a stronger one if the cheap model is struggling). Only
+  // takes effect when both fields are set.
+  escalate_after_steps: z.number().optional(),
+  escalate_model: z.string().optional(),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
