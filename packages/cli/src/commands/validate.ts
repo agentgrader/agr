@@ -10,9 +10,9 @@ function isSkippedCheck(check: ValidationCheck): boolean {
 }
 
 function checkIcon(check: ValidationCheck): string {
-  if (!check.passed) return "❌";
-  if (isSkippedCheck(check)) return "⚠️";
-  return "✅";
+  if (!check.passed) return "[FAIL]";
+  if (isSkippedCheck(check)) return "[WARN]";
+  return "[OK]";
 }
 
 /**
@@ -74,6 +74,6 @@ export async function validateCommand(testCasePath: string, opts?: { strict?: bo
   }
 
   console.log("");
-  console.log(report.ok ? "✅ Validation passed." : "❌ Validation failed.");
+  console.log(report.ok ? "Validation passed." : "Validation failed.");
   process.exit(report.ok ? 0 : 1);
 }

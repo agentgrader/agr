@@ -51,7 +51,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
     <Box flexDirection="column" padding={1}>
       <Box borderStyle="round" borderColor="cyan" paddingX={2} marginBottom={1} flexDirection="column">
         <Text color="cyan" bold>
-          🔥 AGENTGRADER BENCHMARK 🔥
+          AGENTGRADER BENCHMARK
         </Text>
         <Text color="gray">
           Docker Sandboxes • Parallel Execution • Mastra Orchestration
@@ -145,7 +145,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
                 return (
                   <Box key={cfg} width={CONFIG_COL_WIDTH}>
                     <Text color="red" wrap="truncate-end">
-                      ✗ {seconds}s (${run.costUsd.toFixed(3)})
+                      FAIL {seconds}s (${run.costUsd.toFixed(3)})
                     </Text>
                   </Box>
                 );
@@ -155,7 +155,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
               return (
                 <Box key={cfg} width={CONFIG_COL_WIDTH}>
                   <Text color="green" wrap="truncate-end">
-                    ✓ {seconds}s (${run.costUsd.toFixed(3)})
+                    PASS {seconds}s (${run.costUsd.toFixed(3)})
                   </Text>
                 </Box>
               );

@@ -108,7 +108,7 @@ export async function compareCommand(
   if (runA.testCaseId !== runB.testCaseId) {
     console.log(
       paint(
-        "⚠️  Comparing runs of different test cases - step alignment may not be meaningful.",
+        "[WARN] Comparing runs of different test cases - step alignment may not be meaningful.",
         ANSI.yellow,
       ),
     );

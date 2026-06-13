@@ -421,3 +421,58 @@ write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 7.
   lives only in `node_modules`, which is gitignored); flagging here in case
   a future iteration wants to pin a working `better-sqlite3` prebuild or
   switch `@agentgrader/store` to `bun:sqlite` for bun-native runs.
+
+## Iteration 10 (cont'd): `agr run` Ink TUI + repo-wide emoji removal
+
+- Removed every emoji/pictographic glyph from CLI output
+  (`packages/cli/src/index.ts`, `packages/cli/src/ui/Dashboard.tsx`,
+  `packages/cli/src/commands/validate.ts`, `compare.ts`, `run.ts`):
+  `❌`/`⚠️`/`✅`/`✗`/`✓`/`🔥` replaced with plain bracketed labels
+  (`[error]`, `[OK]`/`[WARN]`/`[FAIL]`, `PASS`/`FAIL`) and Ink/ANSI color.
+  Final grep over `packages/cli/src` and `packages/core/src` for the
+  emoji/symbol ranges found nothing left (the only remaining non-ASCII hits
+  were a `→` in a code comment and `•`/`●` typographic bullets in
+  `Dashboard.tsx`, neither of which are emoji - left as-is). "No emoji
+  anywhere" is now documented as a CLI-wide convention in
+  `docs/reference/cli.md`.
+- Rewrote `agr run` (`packages/cli/src/commands/run.tsx`, renamed from
+  `run.ts` since it now contains JSX) to render through a new
+  `packages/cli/src/ui/RunView.tsx` Ink component, mirroring
+  `bench.tsx`/`Dashboard.tsx` conventions (`borderStyle`, cyan headers, green
+  pass / red fail / yellow running, gray secondary text):
+  - Live step list driven by the existing `onStep` callback - re-renders via
+    `render()`'s `rerender` on every `StepEvent`. `--verbose` shows full
+    per-step detail (kind, tool, truncated content via the existing
+    `truncateForVerbose`/200-char logic); without `--verbose` it shows a
+    compact running step-count/cost counter.
+  - A bordered `RUN SUMMARY` panel replacing the old plain-text block:
+    PASS/FAIL (green/red), steps, cost, duration, the `prompt cache: X/Y ...
+    (Z%)` cache-hit-rate line (same calc as `agr trace`), error, and the
+    regression/diff/localization metric lines (skipped checks marked
+    `[skip]` instead of `⚠️`).
+  - New `Diff` panel rendering `result.finalDiff` (previously never
+    printed): `+`/`-` lines in green/red, `@@` hunk headers in cyan, capped
+    at 60 lines with a "... N more line(s)" note.
+  - Exit-code behavior preserved exactly: `unmount()` +
+    `await waitUntilExit()` before `process.exit(0)` (success, regardless of
+    pass/fail) or `process.exit(1)` (thrown error).
+- Changeset `quiet-otters-tui.md` (`agentgrader`: minor, no core changes
+  needed). `docs/reference/cli.md` updated: new `agr run` TUI description
+  plus a CLI-wide "no emoji anywhere" output-convention note near the top.
+- Build: `bun run --filter 'agentgrader' build` succeeds (ESM + DTS).
+- Live test: hit the same `better-sqlite3`/bun ABI 137-vs-141 issue noted
+  above (`bun packages/cli/src/index.ts run ...` fails immediately with the
+  ABI error before any agent step runs), so used the same workaround -
+  `node packages/cli/dist/index.js run tasks/hello-world/agr.yaml --config
+  agent.yaml --verbose` against `/tmp/agr-init-test` (reused from the `agr
+  init` live test), with `ANTHROPIC_API_KEY` from bestagenttrainer's `.env`
+  exported only into the shell. Result: clean run, steps streamed live and
+  re-rendered correctly (tool calls/results/messages color-coded, content
+  truncated and wrapped without breaking mid-word once step lines were
+  nested as a single `<Text>`), `RUN SUMMARY` showed `Status: PASSED`, 24
+  steps, $0.0327, 22.2s, `prompt cache: 0/12488 ... (0.0%)`, `[skip]`
+  regression/localization lines, and the diff panel rendered the
+  `math.js` `add(a, b)` change with colored `+`/`-`/`@@` lines. `EXIT:0`.
+  `agr validate tasks/hello-world/agr.yaml` also still works and is
+  emoji-free (`[OK] has name and prompt`, `[WARN] execution-checks
+  (skipped ...)`, `Validation passed.`).
