@@ -84,6 +84,7 @@ function printQualityBreakdown(metricsJson: string | null) {
   const llmJudge = metrics?.["llm-judge"]?.quality;
   const diff = metrics?.diff;
   const localization = metrics?.localization;
+  const toolAdoption = metrics?.["tool-adoption"];
 
   if (staticQuality) {
     console.log("Static quality (static-quality):");
@@ -113,7 +114,14 @@ function printQualityBreakdown(metricsJson: string | null) {
     console.log(`Localization: ${localization.detail ?? JSON.stringify(localization)}`);
   }
 
-  if (!staticQuality && !llmJudge && !diff && !localization) {
+  if (toolAdoption) {
+    if (staticQuality || llmJudge || diff || localization) console.log("");
+    const mark = toolAdoption.passed ? "OK" : "MISSING";
+    console.log(`Tool adoption (require_tools_before_submit): ${mark}`);
+    console.log(`  ${toolAdoption.detail}`);
+  }
+
+  if (!staticQuality && !llmJudge && !diff && !localization && !toolAdoption) {
     console.log("  (no quality metrics recorded for this run)");
   }
 

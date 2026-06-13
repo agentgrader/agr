@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "path";
 import { render } from "ink";
 import React from "react";
-import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getTraces, type AgrDb } from "@agentgrader/store";
+import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, type AgrDb } from "@agentgrader/store";
 import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
 import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
 import { StaticQualityScorer } from "@agentgrader/scorer-static";
@@ -191,6 +191,8 @@ export async function runBenchCommand(opts: {
 
   await printToolUsageByConfig(db, agentConfigs, runStates);
 
+  await printToolAdoptionByConfig(db, agentConfigs, runStates);
+
   if (matrixId) {
     await printMatrixSummary(db, matrixId, agentConfigs);
   }
@@ -263,6 +265,62 @@ async function printToolUsageByConfig(
     "Tip: per-run detail with `agr trace <runId> --tools`. Compare two runs with `agr compare`.",
   );
   console.log("=======================================================\n");
+}
+
+/**
+ * Aggregates `metrics["tool-adoption"]` (from `require_tools_before_submit`)
+ * across all runs of each agent config, showing how often each required
+ * tool was missing before submit. Silent if no config configured
+ * `require_tools_before_submit`.
+ */
+async function printToolAdoptionByConfig(
+  db: AgrDb,
+  agentConfigs: AgentConfig[],
+  runStates: Record<string, RunState>,
+) {
+  const byConfig = new Map<string, { total: number; missingCounts: Map<string, number> }>();
+
+  for (const run of Object.values(runStates)) {
+    if (run.status !== "completed" && run.status !== "failed") continue;
+    if (!run.runId) continue;
+
+    const row = await getRun(db, run.runId);
+    const toolAdoption = row?.metrics ? safeParseJson(row.metrics)?.["tool-adoption"] : undefined;
+    if (!toolAdoption) continue;
+
+    const entry = byConfig.get(run.agentConfigId) ?? { total: 0, missingCounts: new Map<string, number>() };
+    entry.total++;
+    for (const name of toolAdoption.missing ?? []) {
+      entry.missingCounts.set(name, (entry.missingCounts.get(name) ?? 0) + 1);
+    }
+    byConfig.set(run.agentConfigId, entry);
+  }
+
+  if (byConfig.size === 0) return;
+
+  console.log("\n================ TOOL ADOPTION BY CONFIG ================");
+  for (const ac of agentConfigs) {
+    const configId = ac.id || ac.name;
+    const entry = byConfig.get(configId);
+    if (!entry) continue;
+    if (entry.missingCounts.size === 0) {
+      console.log(`${configId}: all required tool(s) used in ${entry.total} run(s)`);
+      continue;
+    }
+    console.log(`${configId}:`);
+    for (const [name, count] of [...entry.missingCounts.entries()].sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${name.padEnd(20)} missing in ${count}/${entry.total} run(s)`);
+    }
+  }
+  console.log("==========================================================\n");
+}
+
+function safeParseJson(value: string): any {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return undefined;
+  }
 }
 
 /**

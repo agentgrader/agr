@@ -15,6 +15,7 @@ import { LocalizationScorer } from "../scorers/localization-scorer";
 import { RegressionScorer } from "../scorers/regression-scorer";
 import { getOrComputeBaseline } from "./baseline";
 import { buildSkillsPromptAddendum, discoverSkillsForToolkits } from "./skills";
+import { wasCommandUsed } from "./tool-usage";
 
 export interface RunSingleInput {
   testCase: TestCase;
@@ -216,6 +217,25 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
     }),
     execute: async () => {
       if (!sandbox) throw new Error("Sandbox not initialized");
+
+      // toolkit-adoption check: did the agent ever invoke each
+      // require_tools_before_submit command (e.g. a custom toolkit's
+      // run-tests/inspect-code)? Never blocks the run - just annotates
+      // metrics["tool-adoption"] so `agr trace`/`agr bench` can surface
+      // "configured but unused" toolkit tools.
+      if (agentConfig.require_tools_before_submit && agentConfig.require_tools_before_submit.length > 0) {
+        const required = agentConfig.require_tools_before_submit;
+        const missing = required.filter((name) => !wasCommandUsed(emittedSteps, name));
+        metrics["tool-adoption"] = {
+          passed: missing.length === 0,
+          detail:
+            missing.length === 0
+              ? `All required tool(s) were used at least once: ${required.join(", ")}`
+              : `Missing required tool(s) before submit: ${missing.join(", ")}`,
+          required,
+          missing,
+        };
+      }
 
       // run additive, non-blocking quality scorers first so their results
       // (diff size, lint, LLM judge, ...) are recorded regardless of
