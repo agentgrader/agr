@@ -1,5 +1,11 @@
 # agentgrader
 
+## 1.5.0
+
+### Minor Changes
+
+- After every `agr bench` run, print a `TOOL USAGE BY CONFIG` summary that aggregates `tool_call` counts from the SQLite trace per agent config. Makes toolkit/MCP adoption visible across a full bench sweep without running `agr trace --tools` on each run individually.
+
 ## 1.4.0
 
 ### Minor Changes
