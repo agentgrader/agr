@@ -156,13 +156,13 @@ export class AiSdkAgentAdapter implements AgentAdapter {
         const transport =
           "command" in serverConfig
             ? new Experimental_StdioMCPTransport({
-              command: serverConfig.command,
-              args: serverConfig.args,
-              env: serverConfig.env,
-            })
+                command: serverConfig.command,
+                args: serverConfig.args,
+                env: serverConfig.env,
+              })
             : // note: the installed AI SDK version only supports "sse" as a
-            // remote transport type, regardless of the configured `type`
-            { type: "sse" as const, url: serverConfig.url, headers: serverConfig.headers };
+              // remote transport type, regardless of the configured `type`
+              { type: "sse" as const, url: serverConfig.url, headers: serverConfig.headers };
 
         const client = (await experimental_createMCPClient({ transport })) as McpClientHandle;
         mcpClients.push(client);
@@ -234,99 +234,129 @@ export class AiSdkAgentAdapter implements AgentAdapter {
     // single step stalls) and pins the event loop until the run settles.
     const stepTimeoutMs = config.step_timeout_ms || 120_000;
     const watchdogController = new AbortController();
-    const onStepTimeout = () =>
+    const onStepTimeout = () => {
+      // log BEFORE aborting: if the abort's rejection path itself stalls
+      // (observed: a stranded provider connection that ignores the signal),
+      // this line is the only evidence the watchdog fired at all.
+      console.error(`[watchdog] no step finished for ${stepTimeoutMs}ms - aborting the agent loop`);
       watchdogController.abort(
         new DOMException(`step exceeded step_timeout_ms (${stepTimeoutMs}ms)`, "TimeoutError"),
       );
+    };
     let watchdog = setTimeout(onStepTimeout, stepTimeoutMs);
     const resetWatchdog = () => {
       clearTimeout(watchdog);
       watchdog = setTimeout(onStepTimeout, stepTimeoutMs);
     };
 
-    try {
-      await generateText({
-        model,
-        maxSteps: config.max_steps || 30,
-        abortSignal: watchdogController.signal,
-        tools,
-        system: config.system_prompt || "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.",
-        prompt,
-        experimental_telemetry: { isEnabled: true },
-        // small models (e.g. haiku) sometimes call a toolkit/skill's CLI name
-        // (e.g. "view-structure") as if it were a tool, rather than running it
-        // via executeCommand. Without this, the AI SDK throws and aborts the
-        // entire run on the first such mistake. Repair by replaying the call
-        // as `executeCommand <toolName> <args...>` so the agent gets a real
-        // result and can keep going.
-        experimental_repairToolCall: async ({ toolCall, tools: availableTools, error }) => {
-          if (!NoSuchToolError.isInstance(error) || !("executeCommand" in availableTools)) {
-            return null;
-          }
-
-          let args: Record<string, unknown> = {};
-          try {
-            args = JSON.parse(toolCall.args);
-          } catch { }
-
-          const argString = Object.values(args)
-            .map((value) =>
-              typeof value === "string" ? `'${value.replace(/'/g, `'\\''`)}'` : JSON.stringify(value),
-            )
-            .join(" ");
-
-          return {
-            ...toolCall,
-            toolName: "executeCommand",
-            args: JSON.stringify({ command: `${toolCall.toolName} ${argString}`.trim() }),
-          };
-        },
-        onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
-          resetWatchdog();
-          const promptTokens = usage?.promptTokens || 0;
-          const completionTokens = usage?.completionTokens || 0;
-          const stepCost = promptTokens * pricing.input + completionTokens * pricing.output;
-
-          // forward step events to whoever is listening (dashboard, db, etc)
-          if (text) {
-            onStep({
-              index: stepIndex++,
-              kind: "message",
-              tokensIn: promptTokens,
-              tokensOut: completionTokens,
-              costUsd: stepCost,
-              timestamp: Date.now(),
-              content: text,
-            });
-          }
-
-          for (const tc of toolCalls) {
-            onStep({
-              index: stepIndex++,
-              kind: "tool_call",
-              tool: tc.toolName,
-              tokensIn: 0,
-              tokensOut: 0,
-              costUsd: 0,
-              timestamp: Date.now(),
-              content: JSON.stringify(tc.args),
-            });
-          }
-
-          for (const tr of toolResults) {
-            onStep({
-              index: stepIndex++,
-              kind: "tool_result",
-              tool: tr.toolName,
-              tokensIn: 0,
-              tokensOut: 0,
-              costUsd: 0,
-              timestamp: Date.now(),
-              content: JSON.stringify(tr.result),
-            });
-          }
-        },
+    // hard escape hatch: aborting the signal SHOULD reject generateText,
+    // but a provider connection that already died silently can strand the
+    // SDK's promise so the rejection never happens. Give it 15s after the
+    // abort to unwind on its own, then force the loop to end so the run
+    // still reaches scoring and cleanup.
+    const forceSettleAfterAbort = new Promise<never>((_, reject) => {
+      watchdogController.signal.addEventListener("abort", () => {
+        const escapeTimer = setTimeout(() => {
+          console.error(
+            "[watchdog] generateText did not settle within 15s of abort - forcing the loop to end",
+          );
+          reject(watchdogController.signal.reason);
+        }, 15_000);
+        // don't keep the process alive just for this timer once the run ends
+        if (typeof (escapeTimer as any).unref === "function") (escapeTimer as any).unref();
       });
+    });
+
+    try {
+      await Promise.race([
+        generateText({
+          model,
+          maxSteps: config.max_steps || 30,
+          abortSignal: watchdogController.signal,
+          tools,
+          system:
+            config.system_prompt ||
+            "You are an expert software engineering agent. Solve the coding task in the sandbox. Use tools to inspect, modify, and run tests. Call 'submit' when done.",
+          prompt,
+          experimental_telemetry: { isEnabled: true },
+          // small models (e.g. haiku) sometimes call a toolkit/skill's CLI name
+          // (e.g. "view-structure") as if it were a tool, rather than running it
+          // via executeCommand. Without this, the AI SDK throws and aborts the
+          // entire run on the first such mistake. Repair by replaying the call
+          // as `executeCommand <toolName> <args...>` so the agent gets a real
+          // result and can keep going.
+          experimental_repairToolCall: async ({ toolCall, tools: availableTools, error }) => {
+            if (!NoSuchToolError.isInstance(error) || !("executeCommand" in availableTools)) {
+              return null;
+            }
+
+            let args: Record<string, unknown> = {};
+            try {
+              args = JSON.parse(toolCall.args);
+            } catch {}
+
+            const argString = Object.values(args)
+              .map((value) =>
+                typeof value === "string"
+                  ? `'${value.replace(/'/g, `'\\''`)}'`
+                  : JSON.stringify(value),
+              )
+              .join(" ");
+
+            return {
+              ...toolCall,
+              toolName: "executeCommand",
+              args: JSON.stringify({ command: `${toolCall.toolName} ${argString}`.trim() }),
+            };
+          },
+          onStepFinish: ({ text, toolCalls, toolResults, usage }) => {
+            resetWatchdog();
+            const promptTokens = usage?.promptTokens || 0;
+            const completionTokens = usage?.completionTokens || 0;
+            const stepCost = promptTokens * pricing.input + completionTokens * pricing.output;
+
+            // forward step events to whoever is listening (dashboard, db, etc)
+            if (text) {
+              onStep({
+                index: stepIndex++,
+                kind: "message",
+                tokensIn: promptTokens,
+                tokensOut: completionTokens,
+                costUsd: stepCost,
+                timestamp: Date.now(),
+                content: text,
+              });
+            }
+
+            for (const tc of toolCalls) {
+              onStep({
+                index: stepIndex++,
+                kind: "tool_call",
+                tool: tc.toolName,
+                tokensIn: 0,
+                tokensOut: 0,
+                costUsd: 0,
+                timestamp: Date.now(),
+                content: JSON.stringify(tc.args),
+              });
+            }
+
+            for (const tr of toolResults) {
+              onStep({
+                index: stepIndex++,
+                kind: "tool_result",
+                tool: tr.toolName,
+                tokensIn: 0,
+                tokensOut: 0,
+                costUsd: 0,
+                timestamp: Date.now(),
+                content: JSON.stringify(tr.result),
+              });
+            }
+          },
+        }),
+        forceSettleAfterAbort,
+      ]);
     } catch (err: any) {
       loopError =
         err.name === "AbortError" || err.name === "TimeoutError"
@@ -338,7 +368,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       for (const client of mcpClients) {
         try {
           await client.close();
-        } catch (e) { }
+        } catch (e) {}
       }
     }
 
