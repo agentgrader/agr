@@ -1,0 +1,9 @@
+id: acp-claude
+name: Claude Code (ACP)
+model: acp
+max_steps: 30
+step_timeout_ms: 300000
+acp_command: claude
+acp_args:
+  - --acp
+acp_cwd: /app
