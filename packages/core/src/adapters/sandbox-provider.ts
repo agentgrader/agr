@@ -8,7 +8,19 @@ export interface PatchApplyResult {
 }
 
 export interface SandboxHandle {
-  exec(cmd: string): Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  /**
+   * Runs `cmd` in the sandbox. If it hasn't finished after `timeoutMs`
+   * (default 180000), stops waiting and returns with `timedOut: true` and
+   * `exitCode: 124` (the conventional shell timeout exit code) - the process
+   * may still be running inside the container, but `destroy()` will reap it.
+   * Without this, a single hanging command (an agent-induced infinite loop,
+   * a network-dependent install that never connects, ...) blocks the entire
+   * run - including scoring and cleanup - forever.
+   */
+  exec(
+    cmd: string,
+    timeoutMs?: number,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut?: boolean }>;
   writeFile(path: string, content: string): Promise<void>;
   readFile(path: string): Promise<string>;
   gitDiff(): Promise<string>;

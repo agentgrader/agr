@@ -12,7 +12,10 @@ export class DockerSandboxHandle implements SandboxHandle {
     this.container = container;
   }
 
-  async exec(cmd: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  async exec(
+    cmd: string,
+    timeoutMs = 180_000,
+  ): Promise<{ stdout: string; stderr: string; exitCode: number; timedOut?: boolean }> {
     const exec = await this.container.exec({
       Cmd: ["sh", "-c", cmd],
       AttachStdout: true,
@@ -40,14 +43,37 @@ export class DockerSandboxHandle implements SandboxHandle {
 
     this.container.modem.demuxStream(stream, stdoutWritable, stderrWritable);
 
+    // poll until the exec'd process exits, but never longer than `timeoutMs`
+    // - a hanging command (agent-induced infinite loop, a test that never
+    // returns, an install that never connects) would otherwise block this
+    // call - and everything awaiting it (scoring, cleanup, the whole run) -
+    // forever, with no log output to explain why.
+    const start = Date.now();
     let running = true;
     let inspectData: any;
+    let timedOut = false;
     while (running) {
       inspectData = await exec.inspect();
       running = inspectData.Running;
       if (running) {
+        if (Date.now() - start >= timeoutMs) {
+          timedOut = true;
+          break;
+        }
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
+    }
+
+    if (timedOut) {
+      stdoutBuffer.push(
+        `\n[sandbox] command timed out after ${timeoutMs}ms and was abandoned: ${cmd}\n`,
+      );
+      return {
+        stdout: stdoutBuffer.join(""),
+        stderr: stderrBuffer.join(""),
+        exitCode: 124,
+        timedOut: true,
+      };
     }
 
     return {
