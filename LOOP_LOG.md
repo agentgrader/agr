@@ -391,3 +391,33 @@ write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 7.
     version-skew issue noted above, not something the new code introduced.
 - `docs/reference/agent-config-yaml.md` updated: prompt-caching note under
   `provider`, new `escalate_after_steps`/`escalate_model` section.
+
+## Iteration 10 (interim, 2026-06-13)
+
+- Added `agr init [dir] [--force]` (`packages/cli/src/commands/init.ts`,
+  registered in `packages/cli/src/index.ts`): scaffolds `agent.yaml`
+  (`claude-haiku-4-5-20251001`, `provider: anthropic`, `max_steps: 15`) plus
+  `tasks/hello-world/agr.yaml` + `fixture/` (a `math.js` with an
+  unimplemented `add(a, b)` and a `math.test.js` using `node --test`, no
+  `npm install`/`pip install` needed). Refuses to overwrite an existing
+  `agent.yaml` unless `--force` is passed, mirroring `git init`. Changeset
+  `spicy-mangos-init.md` (`agentgrader`: minor); docs added to
+  `docs/reference/cli.md`.
+- Live test: `agr init /tmp/agr-init-test` then `agr run
+  tasks/hello-world/agr.yaml --config agent.yaml --verbose` with
+  `ANTHROPIC_API_KEY` from bestagenttrainer's `.env`. Clean `RUN SUMMARY`:
+  `Status: PASSED`, 24 steps, $0.0327, 27.9s - the agent read `math.js`,
+  implemented `add`, ran `node --test math.test.js`, and called `submit`.
+  `agr trace <runId>` worked.
+- Unrelated environment note (not caused by this change, affects every `agr
+  run`/`agr trace` invocation via `bun`): the workspace's `better-sqlite3`
+  native binary was compiled for Node ABI 141, but `bun` (1.3.1) requires
+  ABI 137 and segfaults on a 137 rebuild of this version of better-sqlite3
+  on this machine. Worked around for this session's live test only by
+  rebuilding `better-sqlite3` for ABI 137 (= Node 24 headers) and invoking
+  the CLI via `node packages/cli/dist/index.js ...` instead of `bun
+  packages/cli/dist/index.js ...`, which loads and runs cleanly. No
+  source/lockfile changes were kept for this (the rebuilt `.node` binary
+  lives only in `node_modules`, which is gitignored); flagging here in case
+  a future iteration wants to pin a working `better-sqlite3` prebuild or
+  switch `@agentgrader/store` to `bun:sqlite` for bun-native runs.
