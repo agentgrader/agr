@@ -429,11 +429,18 @@ export class AiSdkAgentAdapter implements AgentAdapter {
         forceSettleAfterAbort,
       ]);
     } catch (err: any) {
+      // `forceSettleAfterAbort` rejects with `watchdogController.signal.reason`,
+      // but Bun's AbortController.abort(reason) doesn't reliably populate
+      // `signal.reason` - the rejection value can be `undefined`, where
+      // `err.name`/`err.message` would themselves throw. Check
+      // `signal.aborted` directly rather than relying on `err`'s shape.
+      const name = err?.name;
+      const message = err?.message ?? (err === undefined ? "undefined" : String(err));
       loopError =
-        err.name === "AbortError" || err.name === "TimeoutError"
+        watchdogController.signal.aborted || name === "AbortError" || name === "TimeoutError"
           ? `Aborted: a single step exceeded step_timeout_ms (${stepTimeoutMs}ms) with no progress. Raise step_timeout_ms in agent.yaml if individual steps are legitimately slow.`
-          : err.message;
-      console.error(`Error in generateText agent loop: ${err.message}`);
+          : message;
+      console.error(`Error in generateText agent loop: ${message}`);
     } finally {
       clearTimeout(watchdog);
       for (const client of mcpClients) {
