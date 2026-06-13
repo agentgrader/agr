@@ -292,3 +292,48 @@ bestagenttrainer, and documented generally in
 `docs/guide/best-practices.md` ("Testing unpublished crucible changes
 locally") since any custom `runSingle` script has the same gap. Full
 write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 7.
+
+---
+
+## Iteration 8 (2026-06-12/13)
+
+- Re-ran astropy-14182 with iteration 7's `.catch()` fix: process still
+  exited 0 silently with zero output, proving `.catch()` alone was
+  insufficient. Instrumented `run-with-local-fix.ts` (bestagenttrainer) with
+  `process.on("beforeExit"/"unhandledRejection"/"uncaughtException")` and a
+  30s keepalive timer to diagnose. With the keepalive, the run no longer
+  exits silently - it now hangs until killed, revealing the real bug.
+- Root cause: `step_timeout_ms` was `AbortSignal.timeout(...)` around the
+  *entire* multi-step `generateText` call (not a single step), with an
+  unref'd timer that didn't reliably fire/reject on a stranded provider
+  connection - either capping healthy long runs or letting a dead
+  connection drain the event loop silently.
+- Replaced it with a true per-step inactivity watchdog (`packages/agent-
+  openrouter/src/index.ts`): a ref'd `setTimeout`/`AbortController` reset on
+  every `onStepFinish`, aborting only when a single step makes no progress
+  for `step_timeout_ms`. Committed as `b90b9b7`.
+- Verification runs still hung even with the new watchdog - the `abort()`
+  fired (confirmed via a new `[watchdog]` stderr log) but `generateText`'s
+  promise never settled on the stranded connection. Added a hard escape
+  hatch: 15s after the watchdog aborts, `Promise.race` force-ends the run
+  with the abort's reason if `generateText` still hasn't settled. Committed
+  as `2ea9301`.
+- After a system reboot (Docker had to be restarted), re-ran
+  `leetcode-two-sum` end-to-end: clean `EXIT: 0`, full `RUN SUMMARY`
+  (`Status: FAILED` on a genuine scoring miss, not a hang), 157s, both
+  `[watchdog]` log lines present (watchdog fired at 120s, escape hatch
+  forced completion 15s later). The fix works.
+- Changeset `brave-llamas-watchdog.md` updated to cover both the watchdog
+  rewrite and the escape hatch (`@agentgrader/agent-openrouter`: minor).
+- `docs/reference/agent-config-yaml.md` (`step_timeout_ms` section) and
+  `docs/guide/best-practices.md` (new paragraph on the silent exit-0 drain
+  variant) updated and pushed in iteration 8's docs commit
+  (`80b7b5c`/the docs pointer in `b90b9b7`).
+- Cleaned up two stopped leaked sandbox containers from earlier iteration 8
+  hang attempts (`docker rm -f`, both already exited).
+- Full write-up in `bestagenttrainer/JETBRAINS_FEEDBACK.md` iteration 8,
+  including a follow-up question for the next iteration: the underlying
+  connection stall is now recoverable but its root cause is still unknown,
+  and both observed hangs occurred shortly after a `pytest` tool result -
+  worth checking whether the stall is actually in sandbox exec/stdout
+  rather than the LLM call.
