@@ -4,6 +4,7 @@ import { type TestCase, TestCaseSchema } from "@agentgrader/core";
 import { parse } from "yaml";
 import { ZodError } from "zod";
 import { formatZodError } from "./format-zod-error";
+import { warnUnrecognizedKeys } from "./schema-warnings";
 
 /**
  * Loads and parses an `agr.yaml` test case file.
@@ -19,6 +20,8 @@ export function loadTestCase(yamlPath: string): TestCase {
   const fileContent = readFileSync(path, "utf-8");
   const raw = parse(fileContent);
   const dir = dirname(path);
+
+  warnUnrecognizedKeys(TestCaseSchema, raw, `test case "${path}"`);
 
   if (
     raw.fixture &&
