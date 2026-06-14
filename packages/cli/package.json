@@ -16,7 +16,8 @@
   "scripts": {
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "dev": "bun run src/index.ts"
+    "dev": "bun run src/index.ts",
+    "test": "bun test src"
   },
   "dependencies": {
     "@agentgrader/agent-acp": "^2.0.1",
