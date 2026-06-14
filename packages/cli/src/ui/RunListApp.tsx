@@ -1,12 +1,19 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import type { EnrichedRun } from "../lib/load-run-list";
 import { formatRunStatus, shortRunId } from "../lib/load-run-list";
-import { formatAbsoluteTime, formatRelativeTime, formatRunWhen } from "../lib/format-relative-time";
+import { formatAbsoluteTime, formatCompactWhen, formatRunWhen } from "../lib/format-relative-time";
+import {
+  clearTerminalScreen,
+  computeListColumnLayout,
+  formatListHeader,
+  formatListRow,
+} from "../lib/list-table-layout";
 import { DiffPanel, maxDiffScroll } from "./DiffPanel";
 
 type Screen = "list" | "detail" | "compare";
 type ComparePhase = "idle" | "pick-a" | "pick-b";
+type DetailPane = "diff" | "trace";
 
 export interface TracePreviewStep {
   stepIndex: number;
@@ -21,9 +28,10 @@ export interface RunListAppProps {
   loadTraces: (runId: string) => Promise<TracePreviewStep[]>;
 }
 
-const LIST_WINDOW = 12;
 const DETAIL_TRACE_WINDOW = 10;
 const DIFF_WINDOW = 18;
+const MIN_LIST_WINDOW = 8;
+const MAX_LIST_WINDOW = 30;
 
 function truncate(value: string, max: number): string {
   if (value.length <= max) return value;
@@ -48,20 +56,64 @@ function ensureCursorVisible(cursor: number, scrollTop: number, windowSize: numb
   return scrollTop;
 }
 
+function formatTraceLine(step: TracePreviewStep, maxWidth: number): string {
+  const label = step.tool ? `${step.kind}:${step.tool}` : step.kind;
+  const preview = step.content ? step.content.replace(/\s+/g, " ").trim() : "";
+  const line = preview ? `[${step.stepIndex}] ${label} ${preview}` : `[${step.stepIndex}] ${label}`;
+  return truncate(line, maxWidth);
+}
+
+function traceFooterText(total: number, scroll: number, windowSize: number): string {
+  if (total === 0) return " ";
+  const start = scroll + 1;
+  const end = Math.min(scroll + windowSize, total);
+  return `Steps ${start}-${end} of ${total}`;
+}
+
+const DetailRow: React.FC<{
+  label: string;
+  lines: string[];
+  valueColor?: string;
+  bold?: boolean;
+}> = ({ label, lines, valueColor, bold }) => (
+  <Box flexDirection="column" marginBottom={0}>
+    <Text color="gray">{label}</Text>
+    <Box paddingLeft={2} flexDirection="column" marginTop={0}>
+      {lines.map((line, index) => (
+        <Text key={`${label}-${index}`} wrap="truncate-end" color={valueColor} bold={bold}>
+          {line}
+        </Text>
+      ))}
+    </Box>
+  </Box>
+);
+
 const RunListRow: React.FC<{
   run: EnrichedRun;
   selected: boolean;
   marker?: string;
   nowMs: number;
-}> = ({ run, selected, marker, nowMs }) => {
+  layout: ReturnType<typeof computeListColumnLayout>;
+  showMarker: boolean;
+}> = ({ run, selected, marker, nowMs, layout, showMarker }) => {
   const status = formatRunStatus(run);
-  const when = formatRelativeTime(run.createdAt, nowMs);
+  const when = formatCompactWhen(run.createdAt, nowMs);
+  const row = formatListRow(layout, showMarker, {
+    marker,
+    status,
+    runId: shortRunId(run.id),
+    testCase: run.testCaseName,
+    agent: run.agentConfigName,
+    model: run.agentModel,
+    when,
+    cost: `$${run.costUsd.toFixed(3)}`,
+    steps: `${run.stepsCount} steps`,
+  });
+
   return (
-    <Box>
+    <Box width={layout.width}>
       <Text inverse={selected} color={selected ? undefined : statusColor(status)}>
-        {marker ?? " "} {status.padEnd(5)} {shortRunId(run.id)} {truncate(run.testCaseName, 22).padEnd(22)}{" "}
-        {truncate(run.agentConfigName, 16).padEnd(16)} {truncate(run.agentModel, 18).padEnd(18)}{" "}
-        {when.padEnd(16)} ${run.costUsd.toFixed(3).padStart(7)} {String(run.stepsCount).padStart(3)} steps
+        {row.padEnd(layout.width, " ")}
       </Text>
     </Box>
   );
@@ -70,7 +122,10 @@ const RunListRow: React.FC<{
 export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces }) => {
   const { exit } = useApp();
   const { stdout } = useStdout();
-  const columns = stdout?.columns ?? 120;
+  const [terminalSize, setTerminalSize] = useState({
+    columns: stdout?.columns ?? 120,
+    rows: stdout?.rows ?? 24,
+  });
 
   const [screen, setScreen] = useState<Screen>("list");
   const [cursor, setCursor] = useState(0);
@@ -83,12 +138,53 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
   const [compareB, setCompareB] = useState<EnrichedRun | null>(null);
   const [comparePhase, setComparePhase] = useState<ComparePhase>("idle");
   const [compareScroll, setCompareScroll] = useState(0);
+  const [detailPane, setDetailPane] = useState<DetailPane>("diff");
+  const [detailWhenLabel, setDetailWhenLabel] = useState("");
   const [nowMs, setNowMs] = useState(Date.now());
+  const [layoutEpoch, setLayoutEpoch] = useState(0);
+  const sizeReady = useRef(false);
+
+  const navigateToScreen = (next: Screen) => {
+    if (next !== screen) {
+      clearTerminalScreen(stdout);
+    }
+    setScreen(next);
+  };
 
   useEffect(() => {
+    if (screen !== "list") return;
     const timer = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [screen]);
+
+  useEffect(() => {
+    const updateSize = () => {
+      const next = {
+        columns: stdout?.columns ?? 120,
+        rows: stdout?.rows ?? 24,
+      };
+      if (sizeReady.current) {
+        clearTerminalScreen(stdout);
+        setLayoutEpoch((epoch) => epoch + 1);
+      } else {
+        sizeReady.current = true;
+      }
+      setTerminalSize(next);
+    };
+    updateSize();
+    stdout?.on("resize", updateSize);
+    return () => {
+      stdout?.off("resize", updateSize);
+    };
+  }, [stdout]);
+
+  const columns = terminalSize.columns;
+  const listWindow = clamp(terminalSize.rows - 16, MIN_LIST_WINDOW, MAX_LIST_WINDOW);
+  const showCompareMarker = comparePhase !== "idle";
+  const listLayout = useMemo(
+    () => computeListColumnLayout(columns, showCompareMarker),
+    [columns, showCompareMarker],
+  );
 
   useEffect(() => {
     if (screen !== "detail" || !detailRun) return;
@@ -117,15 +213,18 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
     setDetailRun(run);
     setDetailDiffScroll(0);
     setDetailTraceScroll(0);
-    setScreen("detail");
+    setDetailPane("diff");
+    setDetailWhenLabel(formatRunWhen(run.createdAt));
+    navigateToScreen("detail");
   };
 
   const backToList = () => {
-    setScreen("list");
+    setDetailTraces([]);
     setDetailRun(null);
     setComparePhase("idle");
     setCompareA(null);
     setCompareB(null);
+    navigateToScreen("list");
   };
 
   const startComparePickA = () => {
@@ -144,7 +243,7 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
     setCompareB(b);
     setComparePhase("idle");
     setCompareScroll(0);
-    setScreen("compare");
+    navigateToScreen("compare");
   };
 
   useInput((input, key) => {
@@ -159,7 +258,7 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
       if (key.upArrow || input === "k") {
         setCursor((c) => {
           const next = clamp(c - 1, 0, runs.length - 1);
-          setListScroll((scroll) => ensureCursorVisible(next, scroll, LIST_WINDOW, runs.length));
+          setListScroll((scroll) => ensureCursorVisible(next, scroll, listWindow, runs.length));
           return next;
         });
         return;
@@ -167,7 +266,7 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
       if (key.downArrow || input === "j") {
         setCursor((c) => {
           const next = clamp(c + 1, 0, runs.length - 1);
-          setListScroll((scroll) => ensureCursorVisible(next, scroll, LIST_WINDOW, runs.length));
+          setListScroll((scroll) => ensureCursorVisible(next, scroll, listWindow, runs.length));
           return next;
         });
         return;
@@ -214,20 +313,30 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
         setComparePhase("pick-b");
         setCompareA(detailRun);
         setCompareB(null);
-        setScreen("list");
         setCursor(runs.findIndex((r) => r.id === detailRun.id));
+        navigateToScreen("list");
+        return;
+      }
+      if (key.tab || input === "t") {
+        setDetailPane((pane) => (pane === "diff" ? "trace" : "diff"));
         return;
       }
       if (key.upArrow || input === "k") {
-        setDetailTraceScroll((s) => clamp(s - 1, 0, Math.max(0, detailTraces.length - DETAIL_TRACE_WINDOW)));
-        setDetailDiffScroll((s) => clamp(s - 1, 0, maxDiffScroll(detailRun.finalDiff ?? "", DIFF_WINDOW)));
+        if (detailPane === "diff") {
+          setDetailDiffScroll((s) => clamp(s - 1, 0, maxDiffScroll(detailRun.finalDiff ?? "", DIFF_WINDOW)));
+        } else {
+          setDetailTraceScroll((s) => clamp(s - 1, 0, Math.max(0, detailTraces.length - DETAIL_TRACE_WINDOW)));
+        }
         return;
       }
       if (key.downArrow || input === "j") {
-        setDetailTraceScroll((s) =>
-          clamp(s + 1, 0, Math.max(0, detailTraces.length - DETAIL_TRACE_WINDOW)),
-        );
-        setDetailDiffScroll((s) => clamp(s + 1, 0, maxDiffScroll(detailRun.finalDiff ?? "", DIFF_WINDOW)));
+        if (detailPane === "diff") {
+          setDetailDiffScroll((s) => clamp(s + 1, 0, maxDiffScroll(detailRun.finalDiff ?? "", DIFF_WINDOW)));
+        } else {
+          setDetailTraceScroll((s) =>
+            clamp(s + 1, 0, Math.max(0, detailTraces.length - DETAIL_TRACE_WINDOW)),
+          );
+        }
         return;
       }
       if (input === "q") exit();
@@ -251,7 +360,7 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
     }
   });
 
-  const visibleRuns = runs.slice(listScroll, listScroll + LIST_WINDOW);
+  const visibleRuns = runs.slice(listScroll, listScroll + listWindow);
   const compareMarker = (run: EnrichedRun): string | undefined => {
     if (comparePhase === "idle") return undefined;
     if (compareA?.id === run.id) return "A";
@@ -260,40 +369,49 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
   };
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Box borderStyle="round" borderColor="cyan" paddingX={2} marginBottom={1} flexDirection="column">
+    <Box key={layoutEpoch} flexDirection="column" width={columns} padding={1}>
+      <Box
+        borderStyle="round"
+        borderColor="cyan"
+        paddingX={2}
+        marginBottom={1}
+        flexDirection="column"
+        width={Math.max(columns - 2, 1)}
+      >
         <Text color="cyan" bold>
           AGENTGRADER RUN HISTORY
         </Text>
-        <Text color="gray">{dbPath}</Text>
+        <Text color="gray" wrap="wrap">
+          {dbPath}
+        </Text>
       </Box>
 
       {runs.length === 0 ? (
-        <Box flexDirection="column">
+        <Box flexDirection="column" width={Math.max(columns - 2, 1)}>
           <Text color="yellow">No runs found in the database.</Text>
           <Text color="gray">Run `agr run` or `agr bench` first, then reopen `agr list`.</Text>
           <Text color="gray">Press q to quit.</Text>
         </Box>
       ) : screen === "list" ? (
-        <Box flexDirection="column">
+        <Box key="list" flexDirection="column" width={Math.max(columns - 2, 1)}>
           {comparePhase !== "idle" && (
-            <Box marginBottom={1} borderStyle="single" borderColor="yellow" paddingX={1}>
-              <Text color="yellow" bold>
+            <Box marginBottom={1} borderStyle="single" borderColor="yellow" paddingX={1} width={listLayout.width}>
+              <Text color="yellow" bold wrap="wrap">
                 Diff compare:{" "}
                 {comparePhase === "pick-a"
                   ? "pick run A (Enter), Esc to cancel"
-                  : `A=${shortRunId(compareA!.id)} ${truncate(compareA!.agentConfigName, 20)} - pick run B (Enter)`}
+                  : `A=${shortRunId(compareA!.id)} ${compareA!.agentConfigName} - pick run B (Enter)`}
               </Text>
             </Box>
           )}
 
-          <Box marginBottom={1}>
+          <Box marginBottom={1} width={listLayout.width}>
             <Text bold color="cyan">
-              {"  Status Run     Test Case              Agent            Model               When             Cost Steps"}
+              {formatListHeader(listLayout, showCompareMarker)}
             </Text>
           </Box>
 
-          <Box flexDirection="column" marginBottom={1}>
+          <Box flexDirection="column" marginBottom={1} width={listLayout.width}>
             {visibleRuns.map((run, index) => (
               <RunListRow
                 key={run.id}
@@ -301,118 +419,138 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
                 selected={listScroll + index === cursor}
                 marker={compareMarker(run)}
                 nowMs={nowMs}
+                layout={listLayout}
+                showMarker={showCompareMarker}
               />
             ))}
           </Box>
 
           <Text color="gray">
-            Showing {listScroll + 1}-{Math.min(listScroll + LIST_WINDOW, runs.length)} of {runs.length} runs
+            Showing {listScroll + 1}-{Math.min(listScroll + listWindow, runs.length)} of {runs.length} runs
           </Text>
           <Text color="gray">
             Enter open | c compare | ↑↓/jk move | q quit
           </Text>
         </Box>
       ) : screen === "detail" && detailRun ? (
-        <Box flexDirection="column">
-          <Box borderStyle="double" borderColor={detailRun.passed ? "green" : "red"} paddingX={1} marginBottom={1}>
+        <Box key="detail" flexDirection="column" width={Math.max(columns - 2, 1)}>
+          <Box
+            flexDirection="column"
+            borderStyle="double"
+            borderColor={detailRun.passed ? "green" : "red"}
+            paddingX={2}
+            paddingY={0}
+            width={listLayout.width}
+          >
             <Text bold color="cyan">
               RUN DETAIL
             </Text>
-            <Text>
-              ID: {detailRun.id}
-            </Text>
-            <Text>
-              When: {formatRunWhen(detailRun.createdAt, nowMs)}
-            </Text>
-            <Text>
-              Test case: {detailRun.testCaseName} ({detailRun.testCaseId})
-            </Text>
-            <Text>
-              Agent: {detailRun.agentConfigName} ({detailRun.agentModel})
-            </Text>
-            <Text>
-              Sandbox: {detailRun.sandboxProvider}
-              {detailRun.matrixId ? ` | matrix: ${truncate(detailRun.matrixId, 24)}` : ""}
-            </Text>
-            <Text color={statusColor(formatRunStatus(detailRun))} bold>
-              Status: {formatRunStatus(detailRun)} | ${detailRun.costUsd.toFixed(4)} |{" "}
-              {(detailRun.durationMs / 1000).toFixed(1)}s | {detailRun.stepsCount} steps
-            </Text>
-            {detailRun.error && <Text color="red">Error: {detailRun.error}</Text>}
+
+            <DetailRow label="Run ID" lines={[detailRun.id]} />
+            <DetailRow label="When" lines={[detailWhenLabel]} />
+            <DetailRow label="Test case" lines={[detailRun.testCaseName, detailRun.testCaseId]} />
+            <DetailRow label="Agent" lines={[detailRun.agentConfigName, detailRun.agentModel]} />
+            <DetailRow
+              label="Sandbox"
+              lines={
+                detailRun.matrixId
+                  ? [detailRun.sandboxProvider, `matrix: ${detailRun.matrixId}`]
+                  : [detailRun.sandboxProvider]
+              }
+            />
+            <DetailRow
+              label="Status"
+              lines={[
+                `${formatRunStatus(detailRun)}  |  $${detailRun.costUsd.toFixed(4)}  |  ${(detailRun.durationMs / 1000).toFixed(1)}s  |  ${detailRun.stepsCount} steps`,
+              ]}
+              valueColor={statusColor(formatRunStatus(detailRun))}
+              bold
+            />
+            {detailRun.error && (
+              <DetailRow label="Error" lines={[detailRun.error]} valueColor="red" />
+            )}
           </Box>
 
           <DiffPanel
             diff={detailRun.finalDiff ?? ""}
-            title="Agent diff"
+            title={`Agent diff${detailPane === "diff" ? " (active)" : ""}`}
             scrollOffset={detailDiffScroll}
             maxVisibleLines={DIFF_WINDOW}
+            width={listLayout.width}
           />
 
-          <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1} marginTop={1}>
+          <Box
+            flexDirection="column"
+            borderStyle="single"
+            borderColor={detailPane === "trace" ? "cyan" : "gray"}
+            paddingX={1}
+            width={listLayout.width}
+          >
             <Text bold color="cyan">
-              Trace preview
+              Trace preview{detailPane === "trace" ? " (active)" : ""}
             </Text>
             {detailTraces.length === 0 ? (
-              <Text color="gray">(no steps recorded)</Text>
+              <>
+                <Text color="gray">(no steps recorded)</Text>
+                <Text color="gray"> </Text>
+              </>
             ) : (
-              detailTraces
-                .slice(detailTraceScroll, detailTraceScroll + DETAIL_TRACE_WINDOW)
-                .map((step) => {
-                  const label = step.tool ? `${step.kind}:${step.tool}` : step.kind;
-                  const preview = step.content
-                    ? truncate(step.content.replace(/\n/g, " "), 80)
-                    : "";
-                  return (
-                    <Text key={step.stepIndex}>
-                      <Text color="gray">[{step.stepIndex}] </Text>
-                      <Text color="blue">{label}</Text>
-                      {preview && <Text color="gray"> {preview}</Text>}
-                    </Text>
-                  );
-                })
+              Array.from({ length: DETAIL_TRACE_WINDOW }, (_, index) => {
+                const step = detailTraces[detailTraceScroll + index];
+                const line = step ? formatTraceLine(step, listLayout.width - 4) : " ";
+                return (
+                  <Box key={`trace-slot-${index}`} height={1}>
+                    <Text wrap="truncate-end">{line.padEnd(listLayout.width - 4, " ")}</Text>
+                  </Box>
+                );
+              })
             )}
-            {detailTraces.length > DETAIL_TRACE_WINDOW && (
-              <Text color="gray">
-                Trace lines {detailTraceScroll + 1}-
-                {Math.min(detailTraceScroll + DETAIL_TRACE_WINDOW, detailTraces.length)} of {detailTraces.length}
-              </Text>
-            )}
+            <Text color="gray">
+              {traceFooterText(detailTraces.length, detailTraceScroll, DETAIL_TRACE_WINDOW)}
+            </Text>
           </Box>
 
-          <Box marginTop={1}>
+          <Box>
             <Text color="gray">
-              c compare from this run | ↑↓ scroll diff/trace | b/Esc back | q quit
+              Tab/t switch diff/trace | ↑↓ scroll active pane | c compare | b/Esc back | q quit
             </Text>
           </Box>
         </Box>
       ) : screen === "compare" && compareA && compareB ? (
-        <Box flexDirection="column">
-          <Box borderStyle="double" borderColor="cyan" paddingX={1} marginBottom={1} flexDirection="column">
+        <Box key="compare" flexDirection="column" width={Math.max(columns - 2, 1)}>
+          <Box
+            borderStyle="double"
+            borderColor="cyan"
+            paddingX={2}
+            paddingY={1}
+            marginBottom={1}
+            flexDirection="column"
+            width={listLayout.width}
+          >
             <Text bold color="cyan">
               AGENT DIFF COMPARE
             </Text>
             {compareA.testCaseId !== compareB.testCaseId && (
-              <Text color="yellow">
+              <Text color="yellow" wrap="wrap">
                 Warning: different test cases. Diff comparison may not be meaningful.
               </Text>
             )}
-            <Text>
-              A: {shortRunId(compareA.id)} | {compareA.agentConfigName} | {formatRunStatus(compareA)} |{" "}
-              {formatAbsoluteTime(compareA.createdAt)}
+            <Text wrap="wrap">
+              A: {shortRunId(compareA.id)}  |  {compareA.agentConfigName}  |  {formatRunStatus(compareA)}  |  {formatAbsoluteTime(compareA.createdAt)}
             </Text>
-            <Text>
-              B: {shortRunId(compareB.id)} | {compareB.agentConfigName} | {formatRunStatus(compareB)} |{" "}
-              {formatAbsoluteTime(compareB.createdAt)}
+            <Text wrap="wrap">
+              B: {shortRunId(compareB.id)}  |  {compareB.agentConfigName}  |  {formatRunStatus(compareB)}  |  {formatAbsoluteTime(compareB.createdAt)}
             </Text>
           </Box>
 
           {stackedDiff ? (
-            <Box flexDirection="column">
+            <Box flexDirection="column" width={listLayout.width}>
               <DiffPanel
                 diff={compareA.finalDiff ?? ""}
                 title={`Run A (${shortRunId(compareA.id)})`}
                 scrollOffset={compareScroll}
                 maxVisibleLines={DIFF_WINDOW}
+                width={listLayout.width}
               />
               <Box marginTop={1}>
                 <DiffPanel
@@ -420,25 +558,28 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
                   title={`Run B (${shortRunId(compareB.id)})`}
                   scrollOffset={compareScroll}
                   maxVisibleLines={DIFF_WINDOW}
+                  width={listLayout.width}
                 />
               </Box>
             </Box>
           ) : (
-            <Box flexDirection="row">
-              <Box width="50%" marginRight={1}>
+            <Box flexDirection="row" width={listLayout.width}>
+              <Box width={Math.floor(listLayout.width / 2) - 1} marginRight={1}>
                 <DiffPanel
                   diff={compareA.finalDiff ?? ""}
                   title={`Run A (${shortRunId(compareA.id)})`}
                   scrollOffset={compareScroll}
                   maxVisibleLines={DIFF_WINDOW}
+                  width={Math.floor(listLayout.width / 2) - 1}
                 />
               </Box>
-              <Box width="50%">
+              <Box width={Math.floor(listLayout.width / 2) - 1}>
                 <DiffPanel
                   diff={compareB.finalDiff ?? ""}
                   title={`Run B (${shortRunId(compareB.id)})`}
                   scrollOffset={compareScroll}
                   maxVisibleLines={DIFF_WINDOW}
+                  width={Math.floor(listLayout.width / 2) - 1}
                 />
               </Box>
             </Box>

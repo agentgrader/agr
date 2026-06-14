@@ -3,6 +3,7 @@ import React from "react";
 import { getTraces, initDb } from "@agentgrader/store";
 import { loadEnrichedRuns, formatRunStatus, shortRunId } from "../lib/load-run-list";
 import { formatRunWhen } from "../lib/format-relative-time";
+import { clearTerminalScreen, enterAlternateScreen, leaveAlternateScreen } from "../lib/list-table-layout";
 import { RunListApp, type TracePreviewStep } from "../ui/RunListApp";
 
 export interface ListCommandOptions {
@@ -60,9 +61,16 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
     }));
   };
 
+  enterAlternateScreen(process.stdout);
+  clearTerminalScreen(process.stdout);
+
   const { waitUntilExit } = render(
     <RunListApp runs={runs} dbPath={dbPath} loadTraces={loadTraces} />,
   );
 
-  await waitUntilExit();
+  try {
+    await waitUntilExit();
+  } finally {
+    leaveAlternateScreen(process.stdout);
+  }
 }
