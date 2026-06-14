@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/agent-acp",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Agent Client Protocol (ACP) adapter for the Agentgrader framework",
   "license": "MIT",
   "type": "module",
