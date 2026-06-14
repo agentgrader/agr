@@ -494,12 +494,22 @@ export class AcpAgentAdapter implements AgentAdapter {
       const stepTimeoutMs = config.step_timeout_ms ?? 120_000;
       let timedOut = false;
 
+      // ACP has no dedicated system-prompt field (NewSessionRequest/PromptRequest
+      // carry no such slot), so `config.system_prompt` - including the
+      // toolkits skills addendum run-single.ts appends to it - is sent as a
+      // leading text block in the same prompt turn, ahead of the task prompt.
+      const promptBlocks: { type: "text"; text: string }[] = [];
+      if (config.system_prompt) {
+        promptBlocks.push({ type: "text", text: config.system_prompt });
+      }
+      promptBlocks.push({ type: "text", text: prompt });
+
       let promptResponse;
       try {
         promptResponse = await Promise.race([
           connection.prompt({
             sessionId: session.sessionId,
-            prompt: [{ type: "text", text: prompt }],
+            prompt: promptBlocks,
           }),
           new Promise<never>((_, reject) => {
             setTimeout(() => {
