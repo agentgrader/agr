@@ -1,5 +1,18 @@
 # @agentgrader/optimizer
 
+## 2.0.1
+
+### Patch Changes
+
+- 3b2181d: `expandMatrix` now passes `base.track_tools` through to each generated
+  `AgentConfig`, matching the existing `require_tools_before_submit`
+  pass-through. Without this, `track_tools` set in a `--matrix` YAML's `base`
+  was silently dropped and `metrics["tool-usage"]` was never populated for
+  matrix-bench runs.
+- Updated dependencies [631b5af]
+- Updated dependencies [4f141ee]
+  - @agentgrader/core@1.3.1
+
 ## 2.0.0
 
 ### Minor Changes

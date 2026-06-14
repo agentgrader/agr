@@ -1,5 +1,19 @@
 # @agentgrader/agent-acp
 
+## 2.0.1
+
+### Patch Changes
+
+- 6c3c87b: The ACP adapter's `terminal/output` handler now also emits a `tool_result`
+  step containing the command's actual stdout/stderr (truncated to 4000
+  chars), not just the terminal ID. This lets `agr trace` show what ACP-run
+  commands printed, and lets toolkit scripts that self-report adoption via a
+  "<name>: ..." marker line (see `wasCommandUsed` in `@agentgrader/core`)
+  satisfy `require_tools_before_submit` on ACP runs too.
+- Updated dependencies [631b5af]
+- Updated dependencies [4f141ee]
+  - @agentgrader/core@1.3.1
+
 ## 2.0.0
 
 ### Minor Changes
