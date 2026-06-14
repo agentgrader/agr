@@ -6,6 +6,7 @@ import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
 import { initCommand } from "./commands/init";
 import { runSingleCommand } from "./commands/run";
+import { toolkitAddCommand } from "./commands/toolkit";
 import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
 
@@ -197,6 +198,20 @@ cli
       await cleanupCommand(options);
     } catch (err: any) {
       console.error(`Error executing cleanup: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("toolkit-add <name>", "Scaffold a new toolkit tool (bin/<name> script + .claude/skills/<name>/SKILL.md)")
+  .option("--dir <dir>", "Toolkit directory to scaffold into", { default: "./toolkit" })
+  .example("agr toolkit-add find-usages")
+  .example("agr toolkit-add run-tests --dir ./toolkits/jetbrains-tools")
+  .action(async (name, options) => {
+    try {
+      await toolkitAddCommand(name, options);
+    } catch (err: any) {
+      console.error(`Error executing toolkit-add: ${err.message}`);
       process.exit(1);
     }
   });
