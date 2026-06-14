@@ -19,6 +19,7 @@ const MatrixBaseSchema = z.object({
   tools: z.array(z.string()).optional(),
   toolkits: z.array(z.string()).optional(),
   require_tools_before_submit: z.array(z.string()).optional(),
+  track_tools: z.array(z.string()).optional(),
 });
 
 /**
@@ -115,6 +116,10 @@ export function expandMatrix(matrix: Matrix): AgentConfig[] {
 
     if (base.require_tools_before_submit !== undefined) {
       config.require_tools_before_submit = base.require_tools_before_submit;
+    }
+
+    if (base.track_tools !== undefined) {
+      config.track_tools = base.track_tools;
     }
 
     return config;
