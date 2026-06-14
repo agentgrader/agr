@@ -11,11 +11,17 @@ interface McpClientHandle {
   close(): Promise<void>;
 }
 
-function resolveProvider(config: { provider?: string; model?: string }): string {
+export function resolveProvider(config: { provider?: string; model?: string }): string {
   if (config.provider) return config.provider;
 
   const modelName = config.model || "";
-  const hasOpenRouterKey = Boolean(process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY);
+  // OPENAI_API_KEY is *also* used as an openrouter fallback key (see
+  // buildModel's "openrouter" branch below), but it must not short-circuit
+  // the native-provider checks here - otherwise a gpt-/o-series model with
+  // only OPENAI_API_KEY set would resolve to "openrouter" and call
+  // OpenRouter's API with an OpenAI key, which fails. Only an explicit
+  // OPENROUTER_API_KEY should skip the native-provider checks.
+  const hasOpenRouterKey = Boolean(process.env.OPENROUTER_API_KEY);
 
   if (!hasOpenRouterKey) {
     if (/^claude-/i.test(modelName) && process.env.ANTHROPIC_API_KEY) {
