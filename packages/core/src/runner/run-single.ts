@@ -237,6 +237,22 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         };
       }
 
+      // optional, non-gating adoption tracking for toolkit tools that aren't
+      // required before submit (e.g. find-usages, show-call-hierarchy). Lets
+      // `agr trace --quality` surface adoption trends for new/optional tools
+      // without affecting metrics["tool-adoption"] or pass/fail.
+      if (agentConfig.track_tools && agentConfig.track_tools.length > 0) {
+        const tracked = agentConfig.track_tools;
+        const used = tracked.filter((name) => wasCommandUsed(emittedSteps, name));
+        const unused = tracked.filter((name) => !used.includes(name));
+        metrics["tool-usage"] = {
+          tracked,
+          used,
+          unused,
+          detail: `Used ${used.length}/${tracked.length} tracked tool(s): ${used.join(", ") || "(none)"}`,
+        };
+      }
+
       // run additive, non-blocking quality scorers first so their results
       // (diff size, lint, LLM judge, ...) are recorded regardless of
       // whether the functional checks below pass or fail.
