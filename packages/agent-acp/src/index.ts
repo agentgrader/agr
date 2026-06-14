@@ -44,7 +44,7 @@ interface TerminalState {
   released: boolean;
 }
 
-function resolveAcpSpawn(config: AgentConfig): { command: string; args: string[] } {
+export function resolveAcpSpawn(config: AgentConfig): { command: string; args: string[] } {
   if (!config.acp_command) {
     throw new Error(
       "acp_command is required in agent config when using AcpAgentAdapter (e.g. acp_command: cursor-agent).",
@@ -64,18 +64,18 @@ function resolveAcpSpawn(config: AgentConfig): { command: string; args: string[]
   return { command: parts[0]!, args: parts.slice(1) };
 }
 
-function resolveSandboxPath(path: string, workspaceRoot: string): string {
+export function resolveSandboxPath(path: string, workspaceRoot: string): string {
   if (path.startsWith("/")) {
     return path;
   }
   return `${workspaceRoot}/${path}`.replace(/\/+/g, "/");
 }
 
-function shellQuote(value: string): string {
+export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-function sliceFileContent(content: string, line?: number | null, limit?: number | null): string {
+export function sliceFileContent(content: string, line?: number | null, limit?: number | null): string {
   if (line == null && limit == null) {
     return content;
   }
@@ -395,7 +395,7 @@ class SandboxAcpClient implements Client {
   }
 }
 
-function extractTextContent(chunk: { content: { type: string; text?: string } }): string | undefined {
+export function extractTextContent(chunk: { content: { type: string; text?: string } }): string | undefined {
   if (chunk.content.type === "text") {
     return chunk.content.text;
   }
