@@ -1,5 +1,31 @@
 # agentgrader
 
+## 1.5.1
+
+### Patch Changes
+
+- 76f766a: Add `agr toolkit-add <name> [--dir <toolkitDir>]`: scaffolds a new toolkit tool as a `bin/<name>` shell script stub plus a matching `.claude/skills/<name>/SKILL.md` stub, following the layout used by `toolkits/jetbrains-tools`. Both files are TODO-filled templates - implement the script and fill in the skill description, then reference `<toolkitDir>` from `toolkits:` in an agent config or test case. Previously, adding a new toolkit tool meant hand-copying an existing `bin/`+`SKILL.md` pair and editing every reference.
+- ae11ad1: Fix `expandMatrix` silently dropping `base.require_tools_before_submit`: it was missing from `MatrixBaseSchema` (so zod stripped it) and from the per-combination `AgentConfig` it builds, so `metrics["tool-adoption"]` never appeared for `agr bench --matrix` runs even when configured in `base`.
+- caf23c3: Add `require_tools_before_submit: string[]` to agent config: a list of command names (e.g. a toolkit's `run-tests`, or a generic `pytest`/`biome`) that should have been invoked at least once before `submit`. Checked against `executeCommand`/`terminal/create` first-words and direct tool names via the new `wasCommandUsed` helper. Never blocks the run - purely annotates `metrics["tool-adoption"]` (`{ passed, detail, required, missing }`), surfaced by `agr trace --quality` and a new `TOOL ADOPTION BY CONFIG` footer in `agr bench`. Lets users measure whether a custom toolkit's tools are configured but unused, without manually grepping trace output.
+- 4f141ee: Add an optional `track_tools` agent config field for non-gating toolkit-tool
+  adoption analytics. Listed command names are checked the same way as
+  `require_tools_before_submit`, but the result only annotates
+  `metrics["tool-usage"]` (used/unused breakdown) without affecting
+  `metrics["tool-adoption"]` or pass/fail. `agr trace --quality` now prints a
+  "Tool usage (track_tools)" section when this metric is present. Useful for
+  watching adoption trends of optional toolkit tools (e.g. a new
+  `show-call-hierarchy`) over many runs without making them required.
+- e5862a3: Bucket `executeCommand` (AI SDK adapter) and `terminal/create` (ACP adapter) calls by the first word of the command in `agr trace --tools` and the `agr bench` `TOOL USAGE BY CONFIG` footer (e.g. `executeCommand:find-usages`, `terminal/create:pytest` instead of one opaque `executeCommand`/`terminal/create` bucket). Previously, a custom toolkit's CLI tools were indistinguishable from generic shell exploration (`find`, `grep`, `cat`, ...) in tool-usage breakdowns, making it impossible to measure adoption of toolkit-provided commands for either adapter.
+- Updated dependencies [6c3c87b]
+- Updated dependencies [631b5af]
+- Updated dependencies [3b2181d]
+- Updated dependencies [49beb87]
+- Updated dependencies [4f141ee]
+  - @agentgrader/agent-acp@2.0.1
+  - @agentgrader/core@1.3.1
+  - @agentgrader/optimizer@2.0.1
+  - @agentgrader/sandbox-docker@4.1.0
+
 ## 1.5.0
 
 ### Minor Changes

@@ -1,5 +1,24 @@
 # @agentgrader/core
 
+## 1.3.1
+
+### Patch Changes
+
+- 631b5af: `require_tools_before_submit` adoption checks now also count a tool as
+  "used" if a tool_result's output contains a `<name>: ` marker line, even
+  when the agent never invoked `<name>` directly. This lets a composite
+  toolkit tool (e.g. a `rename-symbol` that runs `run-tests` internally after
+  renaming) satisfy adoption for the tool it wraps, as long as the wrapped
+  tool prints a self-identifying output line.
+- 4f141ee: Add an optional `track_tools` agent config field for non-gating toolkit-tool
+  adoption analytics. Listed command names are checked the same way as
+  `require_tools_before_submit`, but the result only annotates
+  `metrics["tool-usage"]` (used/unused breakdown) without affecting
+  `metrics["tool-adoption"]` or pass/fail. `agr trace --quality` now prints a
+  "Tool usage (track_tools)" section when this metric is present. Useful for
+  watching adoption trends of optional toolkit tools (e.g. a new
+  `show-call-hierarchy`) over many runs without making them required.
+
 ## 1.3.0
 
 ### Minor Changes
