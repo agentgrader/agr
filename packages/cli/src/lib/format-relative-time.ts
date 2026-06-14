@@ -37,3 +37,19 @@ export function formatRunWhen(unixSeconds: number, nowMs = Date.now()): string {
   if (relative === absolute) return absolute;
   return `${relative} (${absolute})`;
 }
+
+export function formatCompactDate(unixSeconds: number): string {
+  const date = new Date(unixSeconds * 1000);
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// Like formatRelativeTime, but for runs older than a week falls back to a
+// short "Mon D" date instead of the full "Mon D, YYYY, H:MM AM/PM" string,
+// so the result always fits in a fixed-width table column.
+export function formatCompactWhen(unixSeconds: number, nowMs = Date.now()): string {
+  const relative = formatRelativeTime(unixSeconds, nowMs);
+  if (relative === formatAbsoluteTime(unixSeconds)) {
+    return formatCompactDate(unixSeconds);
+  }
+  return relative;
+}

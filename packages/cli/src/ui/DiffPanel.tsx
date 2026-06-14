@@ -7,6 +7,7 @@ export interface DiffPanelProps {
   scrollOffset?: number;
   maxVisibleLines?: number;
   emptyLabel?: string;
+  width?: number;
 }
 
 export function splitDiffLines(diff: string): string[] {
@@ -28,13 +29,17 @@ export const DiffPanel: React.FC<DiffPanelProps> = ({
   scrollOffset = 0,
   maxVisibleLines = 60,
   emptyLabel = "(no diff recorded)",
+  width,
 }) => {
   const lines = splitDiffLines(diff);
-  const truncated = lines.length > maxVisibleLines;
-  const window = lines.slice(scrollOffset, scrollOffset + maxVisibleLines);
+  const paged = lines.slice(scrollOffset, scrollOffset + maxVisibleLines);
+  const slots = Array.from({ length: maxVisibleLines }, (_, index) => paged[index] ?? null);
+  const lineWidth = width ? Math.max(width - 4, 20) : undefined;
+  const hasPaging = lines.length > maxVisibleLines;
+  const visibleEnd = Math.min(scrollOffset + maxVisibleLines, lines.length);
 
   return (
-    <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1} flexGrow={1}>
+    <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1} width={width}>
       {title && (
         <Text bold color="cyan">
           {title}
@@ -43,14 +48,26 @@ export const DiffPanel: React.FC<DiffPanelProps> = ({
       {lines.length === 0 ? (
         <Text color="gray">{emptyLabel}</Text>
       ) : (
-        window.map((line, i) => (
-          <Text key={`${scrollOffset + i}-${line}`} color={diffLineColor(line)}>
-            {line.length > 0 ? line : " "}
-          </Text>
+        slots.map((line, index) => (
+          <Box key={`${scrollOffset + index}`} height={1}>
+            <Text color={line ? diffLineColor(line) : undefined} wrap="truncate-end">
+              {!line
+                ? " "
+                : lineWidth && line.length > lineWidth
+                  ? `${line.slice(0, lineWidth - 1)}…`
+                  : line.length > 0
+                    ? line
+                    : " "}
+            </Text>
+          </Box>
         ))
       )}
-      {truncated && scrollOffset + maxVisibleLines < lines.length && (
-        <Text color="gray">... {lines.length - scrollOffset - maxVisibleLines} more line(s)</Text>
+      {hasPaging && (
+        <Text color="gray">
+          {visibleEnd < lines.length
+            ? `Lines ${scrollOffset + 1}-${visibleEnd} of ${lines.length} · ${lines.length - visibleEnd} more below`
+            : `Lines ${scrollOffset + 1}-${lines.length} of ${lines.length}`}
+        </Text>
       )}
     </Box>
   );
