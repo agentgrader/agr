@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { StepEvent } from "@agentgrader/core";
+import { DiffPanel } from "./DiffPanel";
 
 export const VERBOSE_CONTENT_MAX = 200;
 
@@ -8,8 +9,6 @@ export function truncateForVerbose(value: string, max = VERBOSE_CONTENT_MAX): st
   if (value.length <= max) return value;
   return `${value.slice(0, max)}...`;
 }
-
-const MAX_DIFF_LINES = 60;
 
 export interface RunSummary {
   passed: boolean;
@@ -77,38 +76,6 @@ const StepLine: React.FC<{ step: StepEvent }> = ({ step }) => {
         </Text>
         {content && <Text color="gray"> {content}</Text>}
       </Text>
-    </Box>
-  );
-};
-
-const DiffView: React.FC<{ diff: string }> = ({ diff }) => {
-  const lines = diff.split("\n");
-  const truncated = lines.length > MAX_DIFF_LINES;
-  const shown = truncated ? lines.slice(0, MAX_DIFF_LINES) : lines;
-
-  return (
-    <Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1} marginTop={1}>
-      <Text bold color="cyan">
-        Diff
-      </Text>
-      {shown.map((line, i) => {
-        let color: string | undefined;
-        if (line.startsWith("@@")) {
-          color = "cyan";
-        } else if (line.startsWith("+") && !line.startsWith("+++")) {
-          color = "green";
-        } else if (line.startsWith("-") && !line.startsWith("---")) {
-          color = "red";
-        }
-        return (
-          <Text key={i} color={color}>
-            {line.length > 0 ? line : " "}
-          </Text>
-        );
-      })}
-      {truncated && (
-        <Text color="gray">... {lines.length - MAX_DIFF_LINES} more line(s)</Text>
-      )}
     </Box>
   );
 };
@@ -222,7 +189,9 @@ export const RunView: React.FC<RunViewProps> = ({
 
       {summary && <SummaryView summary={summary} />}
       {summary?.finalDiff && summary.finalDiff.trim().length > 0 && (
-        <DiffView diff={summary.finalDiff} />
+        <Box marginTop={1}>
+          <DiffPanel diff={summary.finalDiff} title="Diff" />
+        </Box>
       )}
     </Box>
   );

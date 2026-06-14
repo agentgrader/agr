@@ -5,6 +5,7 @@ import { compareCommand } from "./commands/compare";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
 import { initCommand } from "./commands/init";
+import { listCommand } from "./commands/list";
 import { runSingleCommand } from "./commands/run";
 import { toolkitAddCommand } from "./commands/toolkit";
 import { traceCommand } from "./commands/trace";
@@ -147,6 +148,27 @@ cli
       await importPrCommand(repo, prNumber, options);
     } catch (err: any) {
       console.error(`Error executing import-pr: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("list", "Browse saved runs from .agr/db.sqlite interactively")
+  .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .option("--limit <n>", "Maximum number of runs to load", { default: 100 })
+  .option("--plain", "Print a plain text list instead of the interactive UI")
+  .example("agr list")
+  .example("agr list --limit 20")
+  .example("agr list --plain")
+  .action(async (options) => {
+    try {
+      await listCommand({
+        db: options.db,
+        limit: Number(options.limit),
+        plain: options.plain,
+      });
+    } catch (err: any) {
+      console.error(`Error executing list: ${err.message}`);
       process.exit(1);
     }
   });
