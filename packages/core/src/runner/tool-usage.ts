@@ -55,14 +55,24 @@ export function mergeToolCounts(target: Map<string, number>, source: Map<string,
  * least once among the given steps, either directly as a tool name or as
  * the first word of an `executeCommand`/`terminal/create` command. Used by
  * `require_tools_before_submit` to check toolkit-tool adoption.
+ *
+ * Also counts as "used" if a tool_result's output contains a
+ * `<commandName>: ` marker line - this lets a composite toolkit tool (e.g.
+ * `rename-symbol` running `run-tests` internally) satisfy adoption for the
+ * tool it wraps, as long as the wrapped tool prints a self-identifying
+ * output line (run-tests does: `run-tests: running <files>`).
  */
 export function wasCommandUsed(steps: TraceStepLike[], commandName: string): boolean {
   for (const step of steps) {
-    if (step.kind !== "tool_call") continue;
-    const bucketed = bucketToolName(step);
-    if (bucketed === commandName) return true;
-    if (bucketed === `executeCommand:${commandName}`) return true;
-    if (bucketed === `terminal/create:${commandName}`) return true;
+    if (step.kind === "tool_call") {
+      const bucketed = bucketToolName(step);
+      if (bucketed === commandName) return true;
+      if (bucketed === `executeCommand:${commandName}`) return true;
+      if (bucketed === `terminal/create:${commandName}`) return true;
+    }
+    if (step.kind === "tool_result" && step.content?.includes(`${commandName}: `)) {
+      return true;
+    }
   }
   return false;
 }
