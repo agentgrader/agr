@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentConfig } from "@agentgrader/core";
 import {
+  buildTerminalShellCommand,
   extractTextContent,
   resolveAcpSpawn,
   resolveSandboxPath,
@@ -106,5 +107,56 @@ describe("extractTextContent", () => {
 
   test("returns undefined for a non-text content block", () => {
     expect(extractTextContent({ content: { type: "image" } })).toBeUndefined();
+  });
+});
+
+describe("buildTerminalShellCommand", () => {
+  const files = {
+    outputFile: "/tmp/acp-term-1.out",
+    exitFile: "/tmp/acp-term-1.exit",
+    pidFile: "/tmp/acp-term-1.pid",
+  };
+
+  test("builds a backgrounded command with cd, redirect, exit code, and pid capture", () => {
+    const cmd = buildTerminalShellCommand({
+      cwd: "/app",
+      command: "find-usages",
+      ...files,
+    });
+    expect(cmd).toBe(
+      "cd '/app' && ('find-usages') > '/tmp/acp-term-1.out' 2>&1; echo $? > '/tmp/acp-term-1.exit' & echo $! > '/tmp/acp-term-1.pid'",
+    );
+  });
+
+  test("appends quoted args after the command", () => {
+    const cmd = buildTerminalShellCommand({
+      cwd: "/app",
+      command: "find-usages",
+      args: ["Foo", "src/bar.py"],
+      ...files,
+    });
+    expect(cmd).toContain("('find-usages' 'Foo' 'src/bar.py') >");
+  });
+
+  test("prefixes env vars before the quoted command", () => {
+    const cmd = buildTerminalShellCommand({
+      cwd: "/app",
+      command: "run-tests",
+      env: [{ name: "PYTHONPATH", value: "/app/src" }],
+      ...files,
+    });
+    expect(cmd).toContain("(PYTHONPATH='/app/src' 'run-tests') >");
+  });
+
+  test("escapes single quotes in the cwd, command, args, and env values", () => {
+    const cmd = buildTerminalShellCommand({
+      cwd: "/app/it's",
+      command: "echo",
+      args: ["it's a test"],
+      env: [{ name: "MSG", value: "can't" }],
+      ...files,
+    });
+    expect(cmd).toContain("cd '/app/it'\\''s'");
+    expect(cmd).toContain("(MSG='can'\\''t' 'echo' 'it'\\''s a test') >");
   });
 });

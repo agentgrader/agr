@@ -86,6 +86,34 @@ export function sliceFileContent(content: string, line?: number | null, limit?: 
   return lines.slice(start, end).join("\n");
 }
 
+/**
+ * Builds the backgrounded shell command used to implement ACP's
+ * terminal/create. This is the mechanism toolkit CLI tools (e.g.
+ * `find-usages`, `run-tests`) run through when invoked by an ACP agent, so
+ * its quoting/composition is covered directly rather than only indirectly
+ * via SandboxAcpClient.
+ */
+export function buildTerminalShellCommand(params: {
+  cwd: string;
+  command: string;
+  args?: string[];
+  env?: { name: string; value: string }[];
+  outputFile: string;
+  exitFile: string;
+  pidFile: string;
+}): string {
+  const args = (params.args ?? []).map(shellQuote).join(" ");
+  const envPrefix =
+    params.env && params.env.length > 0
+      ? `${params.env.map((entry) => `${entry.name}=${shellQuote(entry.value)}`).join(" ")} `
+      : "";
+  const command = `${envPrefix}${shellQuote(params.command)}${args ? ` ${args}` : ""}`;
+  return [
+    `cd ${shellQuote(params.cwd)}`,
+    `(${command}) > ${shellQuote(params.outputFile)} 2>&1; echo $? > ${shellQuote(params.exitFile)} & echo $! > ${shellQuote(params.pidFile)}`,
+  ].join(" && ");
+}
+
 class SandboxAcpClient implements Client {
   private readonly terminals = new Map<string, TerminalState>();
   private stepIndex = 0;
@@ -229,16 +257,15 @@ class SandboxAcpClient implements Client {
     const exitFile = `/tmp/acp-term-${terminalId}.exit`;
     const pidFile = `/tmp/acp-term-${terminalId}.pid`;
     const cwd = params.cwd ?? this.workspaceRoot;
-    const args = (params.args ?? []).map(shellQuote).join(" ");
-    const envPrefix =
-      params.env && params.env.length > 0
-        ? `${params.env.map((entry) => `${entry.name}=${shellQuote(entry.value)}`).join(" ")} `
-        : "";
-    const command = `${envPrefix}${shellQuote(params.command)}${args ? ` ${args}` : ""}`;
-    const shellCmd = [
-      `cd ${shellQuote(cwd)}`,
-      `(${command}) > ${shellQuote(outputFile)} 2>&1; echo $? > ${shellQuote(exitFile)} & echo $! > ${shellQuote(pidFile)}`,
-    ].join(" && ");
+    const shellCmd = buildTerminalShellCommand({
+      cwd,
+      command: params.command,
+      args: params.args,
+      env: params.env,
+      outputFile,
+      exitFile,
+      pidFile,
+    });
 
     this.emitStep({
       kind: "tool_call",
