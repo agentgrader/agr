@@ -35,6 +35,7 @@ import type {
 } from "@agentgrader/core";
 
 const DEFAULT_WORKSPACE_ROOT = "/app";
+const TERMINAL_OUTPUT_TRUNCATE_LIMIT = 4000;
 
 interface TerminalState {
   outputFile: string;
@@ -278,6 +279,19 @@ class SandboxAcpClient implements Client {
       kind: "tool_call",
       tool: "terminal/output",
       content: params.terminalId,
+    });
+
+    // Surface the command's actual stdout/stderr as a tool_result, mirroring
+    // the AI SDK adapter's executeCommand result. Without this, `agr trace`
+    // can't show what a terminal command printed, and toolkit scripts that
+    // self-report adoption via a "<name>: ..." marker line (see
+    // wasCommandUsed in @agentgrader/core) are invisible on ACP runs.
+    this.emitStep({
+      kind: "tool_result",
+      tool: "terminal/output",
+      content: TERMINAL_OUTPUT_TRUNCATE_LIMIT < output.length
+        ? `${output.slice(0, TERMINAL_OUTPUT_TRUNCATE_LIMIT)}\n... (truncated)`
+        : output,
     });
 
     return {
