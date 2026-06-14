@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
 import type { PatchApplyResult, SandboxHandle, SandboxProvider } from "@agentgrader/core";
 import Docker from "dockerode";
@@ -223,6 +223,33 @@ async function copyDirToContainer(
   });
 }
 
+async function copyFileToContainer(
+  container: Docker.Container,
+  localFile: string,
+  containerPath: string,
+): Promise<void> {
+  const dir = dirname(localFile);
+  const base = basename(localFile);
+
+  const tarBuffer = await new Promise<Buffer>((resolve, reject) => {
+    execFile("tar", ["--no-xattrs", "-cf", "-", "-C", dir, base], {
+      env: { ...process.env, COPYFILE_DISABLE: "1" },
+      maxBuffer: 1024 * 1024 * 1024,
+      encoding: "buffer",
+    }, (err, stdout) => {
+      if (err) reject(err);
+      else resolve(stdout);
+    });
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    container.putArchive(tarBuffer, { path: containerPath }, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
 export interface OrphanedSandbox {
   id: string;
   image: string;
@@ -340,8 +367,8 @@ export class DockerSandboxProvider implements SandboxProvider {
       const toolkitPath = resolve(toolkitOpt);
       if (!existsSync(toolkitPath)) continue;
 
-      // copy everything except bin/ into /app (e.g. .claude/skills/...)
-      await copyDirToContainer(container, toolkitPath, "/app", ["bin"]);
+      // copy everything except bin/ and setup.sh into /app (e.g. .claude/skills/...)
+      await copyDirToContainer(container, toolkitPath, "/app", ["bin", "setup.sh"]);
 
       // copy bin/ contents onto PATH and make them executable
       const binPath = resolve(toolkitPath, "bin");
@@ -349,6 +376,15 @@ export class DockerSandboxProvider implements SandboxProvider {
         await handle.exec("mkdir -p /usr/local/bin");
         await copyDirToContainer(container, binPath, "/usr/local/bin");
         await handle.exec("chmod +x /usr/local/bin/* || true");
+      }
+
+      // run setup.sh once, if present, so toolkit commands can rely on
+      // dependencies (e.g. `pip install pytest`) being present up front
+      // instead of every invocation re-checking/installing them
+      const setupPath = resolve(toolkitPath, "setup.sh");
+      if (existsSync(setupPath)) {
+        await copyFileToContainer(container, setupPath, "/tmp");
+        await handle.exec("sh /tmp/setup.sh && rm -f /tmp/setup.sh");
       }
     }
 
