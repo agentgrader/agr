@@ -85,6 +85,7 @@ function printQualityBreakdown(metricsJson: string | null) {
   const diff = metrics?.diff;
   const localization = metrics?.localization;
   const toolAdoption = metrics?.["tool-adoption"];
+  const toolUsage = metrics?.["tool-usage"];
 
   if (staticQuality) {
     console.log("Static quality (static-quality):");
@@ -121,7 +122,15 @@ function printQualityBreakdown(metricsJson: string | null) {
     console.log(`  ${toolAdoption.detail}`);
   }
 
-  if (!staticQuality && !llmJudge && !diff && !localization && !toolAdoption) {
+  if (toolUsage) {
+    if (staticQuality || llmJudge || diff || localization || toolAdoption) console.log("");
+    console.log(`Tool usage (track_tools): ${toolUsage.detail}`);
+    if (toolUsage.unused?.length > 0) {
+      console.log(`  Not used: ${toolUsage.unused.join(", ")}`);
+    }
+  }
+
+  if (!staticQuality && !llmJudge && !diff && !localization && !toolAdoption && !toolUsage) {
     console.log("  (no quality metrics recorded for this run)");
   }
 

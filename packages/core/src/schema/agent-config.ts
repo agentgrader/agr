@@ -33,6 +33,13 @@ export const AgentConfigSchema = z.object({
       "Command names (e.g. a toolkit's run-tests, or a generic pytest/biome) that should have been invoked at least once before submit. Checked against executeCommand/terminal/create first-words and direct tool names - never blocks the run, just annotates metrics['tool-adoption'] for agr trace/bench.",
     ),
 
+  track_tools: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "Optional toolkit command names to track usage of for analytics only (e.g. a toolkit's optional tools like find-usages or show-call-hierarchy). Same detection as require_tools_before_submit, but purely informational - annotates metrics['tool-usage'] with which tracked tools were/weren't used, without affecting metrics['tool-adoption'] or pass/fail.",
+    ),
+
   // MCP servers to connect to and expose as additional tools, keyed by name
   mcp_servers: z.record(McpServerConfigSchema).optional(),
 
