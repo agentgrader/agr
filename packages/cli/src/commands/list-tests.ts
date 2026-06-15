@@ -21,12 +21,15 @@ export async function listTestsCommand(dir: string | undefined) {
     return;
   }
 
+  const nameWidth = Math.min(Math.max(...testCases.map(tc => tc.name.length)), 36);
+  const pathWidth = Math.min(Math.max(...testCases.map(tc => relative(root, tc.path).length)), 44);
+
   console.log(`Test cases under ${root} (${testCases.length} found):\n`);
   for (const tc of testCases) {
-    console.log(`${tc.name}`);
-    console.log(`  path: ${relative(root, tc.path)}`);
-    if (tc.description) console.log(`  ${tc.description}`);
-    console.log("");
+    const name = tc.name.padEnd(nameWidth);
+    const path = relative(root, tc.path).padEnd(pathWidth);
+    const desc = tc.description ? `  ${tc.description}` : "";
+    console.log(`  ${name}  ${path}${desc}`);
   }
-  console.log("Run one with `agr run <name>` or `agr run <path>`.");
+  console.log(`\nRun one with \`agr run <name>\` or \`agr run <path>\`.`);
 }
