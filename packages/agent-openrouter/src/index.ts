@@ -251,8 +251,11 @@ export class AiSdkAgentAdapter implements AgentAdapter {
     // rough pricing per model — good enough for cost tracking
     const getPricing = (model: string) => {
       const name = model.toLowerCase();
-      if (name.includes("claude-3-5-sonnet")) {
+      if (name.includes("claude-3-5-sonnet") || name.includes("claude-sonnet-4")) {
         return { input: 3 / 1000000, output: 15 / 1000000 };
+      }
+      if (name.includes("claude-haiku-4-5")) {
+        return { input: 1 / 1000000, output: 5 / 1000000 };
       }
       if (name.includes("gpt-4o")) {
         return { input: 5 / 1000000, output: 15 / 1000000 };
@@ -407,14 +410,22 @@ export class AiSdkAgentAdapter implements AgentAdapter {
             const cacheCreationTokens = Number(
               providerMetadata?.anthropic?.cacheCreationInputTokens ?? 0,
             );
-            const regularInputTokens = Math.max(
-              0,
-              promptTokens - cacheReadTokens - cacheCreationTokens,
-            );
+            // for Anthropic, `usage.promptTokens` is the response's
+            // `input_tokens` field, which - unlike OpenAI's `prompt_tokens` -
+            // already EXCLUDES cache_read_input_tokens/cache_creation_input_tokens
+            // (Anthropic reports those as separate usage fields). Add them back
+            // in here so `tokensIn` represents the step's *total* input size
+            // (matching OpenAI's semantics, where cached tokens are a subset of
+            // promptTokens) and `cachedTokens <= tokensIn` always holds - the
+            // previous version of this code subtracted cache tokens from
+            // promptTokens again, double-counting the exclusion, which clamped
+            // the "regular" input cost to 0 on nearly every step and made
+            // `agr trace`'s "X/Y tokens served from cache" exceed 100%.
+            const totalInputTokens = promptTokens + cacheReadTokens + cacheCreationTokens;
             // cache reads are billed at 0.1x the input price, cache writes
             // at 1.25x (5-minute TTL) - see Anthropic's prompt caching docs.
             const stepCost =
-              regularInputTokens * pricing.input +
+              promptTokens * pricing.input +
               cacheReadTokens * pricing.input * 0.1 +
               cacheCreationTokens * pricing.input * 1.25 +
               completionTokens * pricing.output;
@@ -424,7 +435,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
               onStep({
                 index: stepIndex++,
                 kind: "message",
-                tokensIn: promptTokens,
+                tokensIn: totalInputTokens,
                 tokensOut: completionTokens,
                 cachedTokens: cacheReadTokens,
                 costUsd: stepCost,
