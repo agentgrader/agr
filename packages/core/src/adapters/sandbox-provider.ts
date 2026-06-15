@@ -58,6 +58,11 @@ export interface SandboxHandle {
    * processes with attached stdin (currently `@agentgrader/sandbox-docker`).
    */
   spawnStdio?(cmd: string): Promise<SandboxStdioProcess>;
+  /**
+   * Optional identifier used to bridge stdio MCP servers into this sandbox
+   * from a host-side proxy (e.g. Docker container id for `docker exec -i`).
+   */
+  sandboxBridgeId?: string;
   destroy(): Promise<void>;
 }
 

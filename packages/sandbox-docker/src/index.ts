@@ -9,14 +9,18 @@ import type {
   SandboxProvider,
   SandboxStdioProcess,
 } from "@agentgrader/core";
+import { initializeSandboxWorkspace } from "@agentgrader/core";
 import Docker from "dockerode";
 
 export class DockerSandboxHandle implements SandboxHandle {
-  private container: Docker.Container;
+  readonly sandboxBridgeId: string;
 
   constructor(container: Docker.Container) {
     this.container = container;
+    this.sandboxBridgeId = container.id;
   }
+
+  private container: Docker.Container;
 
   async exec(
     cmd: string,
@@ -379,48 +383,14 @@ export class DockerSandboxProvider implements SandboxProvider {
     await container.start();
     const handle = new DockerSandboxHandle(container);
 
-    // make sure /app exists even on bare images
-    await handle.exec("mkdir -p /app");
-
-    // copy fixture into /app if a path was given
-    if (opts.gitSnapshot) {
-      const localPath = resolve(opts.gitSnapshot);
-      if (existsSync(localPath)) {
-        await copyDirToContainer(container, localPath, "/app");
-      }
-    }
-
-    // init a git repo so we can diff what the agent changed later
-    await handle.exec(
-      "git init && git config user.email 'agent@agentgrader.local' && git config user.name 'Agentgrader' && git add -A && git commit -m 'initial' || true",
-    );
-
-    // inject toolkits (custom CLI tools + Agent Skills docs) after the
-    // initial commit, so they're untracked and don't show up in gitDiff()
-    for (const toolkitOpt of opts.toolkits ?? []) {
-      const toolkitPath = resolve(toolkitOpt);
-      if (!existsSync(toolkitPath)) continue;
-
-      // copy everything except bin/ and setup.sh into /app (e.g. .claude/skills/...)
-      await copyDirToContainer(container, toolkitPath, "/app", ["bin", "setup.sh"]);
-
-      // copy bin/ contents onto PATH and make them executable
-      const binPath = resolve(toolkitPath, "bin");
-      if (existsSync(binPath)) {
-        await handle.exec("mkdir -p /usr/local/bin");
-        await copyDirToContainer(container, binPath, "/usr/local/bin");
-        await handle.exec("chmod +x /usr/local/bin/* || true");
-      }
-
-      // run setup.sh once, if present, so toolkit commands can rely on
-      // dependencies (e.g. `pip install pytest`) being present up front
-      // instead of every invocation re-checking/installing them
-      const setupPath = resolve(toolkitPath, "setup.sh");
-      if (existsSync(setupPath)) {
-        await copyFileToContainer(container, setupPath, "/tmp");
-        await handle.exec("sh /tmp/setup.sh && rm -f /tmp/setup.sh");
-      }
-    }
+    await initializeSandboxWorkspace(handle, {
+      copyDirectory: (localPath, remotePath, excludes = []) =>
+        copyDirToContainer(container, localPath, remotePath, excludes),
+      copyFile: (localFile, remoteDir) => copyFileToContainer(container, localFile, remoteDir),
+    }, {
+      gitSnapshot: opts.gitSnapshot,
+      toolkits: opts.toolkits,
+    });
 
     return handle;
   }

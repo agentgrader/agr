@@ -1,0 +1,34 @@
+{
+  "name": "@agentgrader/sandbox-e2b",
+  "version": "1.0.0",
+  "description": "E2B cloud SandboxProvider implementation for the Agentgrader framework",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --treeshake",
+    "build:watch": "tsup src/index.ts --format esm --dts --watch",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@agentgrader/core": "workspace:*",
+    "e2b": "^2.0.0"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  },
+  "peerDependencies": {
+    "@agentgrader/core": "^1.3.1"
+  }
+}

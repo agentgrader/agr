@@ -370,6 +370,12 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         metrics.baseline = { cached: baseline.cached, fixtureHash: baseline.fixtureHash };
       }
 
+      const judgeMetric = metrics["llm-judge"];
+      if (judgeMetric && judgeMetric.passed === false) {
+        overallPassed = false;
+        overallDetail = judgeMetric.detail ?? "LLM judge gate failed";
+      }
+
       return {
         passed: overallPassed,
         detail: overallDetail,

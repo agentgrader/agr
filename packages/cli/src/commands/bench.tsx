@@ -3,9 +3,17 @@ import { resolve } from "path";
 import { render } from "ink";
 import React from "react";
 import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, type AgrDb } from "@agentgrader/store";
-import { runBenchmark, type TestCase, type AgentConfig } from "@agentgrader/core";
-import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
-import { StaticQualityScorer } from "@agentgrader/scorer-static";
+import { runBenchmark, summaryFromRunStates, auditToolkitDirectory, hasAuditErrors, type TestCase, type AgentConfig } from "@agentgrader/core";
+import { evaluateBenchExit } from "../lib/bench-exit";
+import { buildExtraScorers } from "../lib/extra-scorers";
+import { buildReportFromRunIds } from "../lib/report/build-report";
+import { writeReport, type ReportFormat } from "../lib/report/write-report";
+import {
+  buildBaselineSnapshotFromRunIds,
+  saveBaselineSnapshot,
+} from "../lib/baseline";
+import { maybeAutoExportOnBench } from "./export";
+import { resolveSandbox } from "../lib/resolve-sandbox";
 import { expandMatrix, aggregateResults, paretoFront } from "@agentgrader/optimizer";
 import { resolveAdapters } from "../lib/resolve-adapters";
 import { countToolCalls, mergeToolCounts, printToolUsageBlock } from "../lib/tool-usage";
@@ -35,6 +43,20 @@ export async function runBenchCommand(opts: {
   matrix?: string;
   manifest?: string;
   adapters?: string;
+  failOnFailure?: boolean;
+  minSolveRate?: number;
+  minSolveRateScope?: "global" | "per-config";
+  report?: ReportFormat;
+  output?: string;
+  reportIncludeTraces?: boolean;
+  saveBaseline?: string;
+  sandbox?: string;
+  strictToolkits?: boolean;
+  llmJudge?: boolean;
+  llmJudgeProvider?: "anthropic" | "openai";
+  llmJudgeModel?: string;
+  judgeGate?: boolean;
+  judgeMinScore?: number;
 }) {
   let suiteDir: string;
   let concurrency = opts.concurrency ?? 2;
@@ -114,6 +136,25 @@ export async function runBenchCommand(opts: {
     await saveTestCase(db, testCaseToDbRow(tc));
   }
 
+  if (opts.strictToolkits) {
+    const toolkitPaths = new Set<string>();
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i]!;
+      const yamlDir = resolve(yamlFiles[i]!, "..");
+      for (const t of tc.toolkits ?? []) toolkitPaths.add(resolve(yamlDir, t));
+    }
+    for (const ac of agentConfigs) {
+      for (const t of ac.toolkits ?? []) toolkitPaths.add(resolve(t));
+    }
+    for (const toolkitPath of toolkitPaths) {
+      const findings = auditToolkitDirectory(toolkitPath);
+      if (hasAuditErrors(findings)) {
+        console.error(`Toolkit security audit failed for ${toolkitPath}`);
+        process.exit(1);
+      }
+    }
+  }
+
   for (const ac of agentConfigs) {
     await saveAgentConfig(db, {
       id: ac.id || ac.name,
@@ -128,7 +169,7 @@ export async function runBenchCommand(opts: {
   }
 
   // 4. wire up providers
-  const sandboxProvider = new DockerSandboxProvider();
+  const sandboxProvider = resolveSandbox(opts.sandbox ?? "docker");
   const adapters = resolveAdapters(
     opts.adapters ? opts.adapters.split(",") : ["ai-sdk"],
   );
@@ -170,7 +211,13 @@ export async function runBenchCommand(opts: {
       db,
       concurrency,
       onRunUpdate,
-      extraScorers: [new StaticQualityScorer()],
+      extraScorers: buildExtraScorers({
+        llmJudge: opts.llmJudge,
+        llmJudgeProvider: opts.llmJudgeProvider,
+        llmJudgeModel: opts.llmJudgeModel,
+        judgeGate: opts.judgeGate,
+        judgeMinScore: opts.judgeMinScore,
+      }),
       matrixId,
     });
   } catch (err) {
@@ -197,8 +244,54 @@ export async function runBenchCommand(opts: {
     await printMatrixSummary(db, matrixId, agentConfigs);
   }
 
-  // all done
-  process.exit(0);
+  const summary = summaryFromRunStates(runStates, configIds);
+
+  if (opts.report && opts.output) {
+    const runIds = Object.values(runStates)
+      .map((r) => r.runId)
+      .filter((id): id is string => !!id);
+    const report = await buildReportFromRunIds(
+      db,
+      runIds,
+      summary,
+      agentConfigs,
+      !!opts.reportIncludeTraces,
+    );
+    const path = writeReport(report, opts.report, opts.output);
+    console.log(`Report written to ${path}`);
+  }
+
+  if (opts.saveBaseline) {
+    const runIds = Object.values(runStates)
+      .map((r) => r.runId)
+      .filter((id): id is string => !!id);
+    const snapshot = await buildBaselineSnapshotFromRunIds(db, runIds, {
+      suite: suiteDir,
+      configs: configIds,
+    });
+    const path = saveBaselineSnapshot(snapshot, opts.saveBaseline);
+    console.log(`Baseline snapshot written to ${path}`);
+  }
+
+  const runIdsForExport = Object.values(runStates)
+    .map((r) => r.runId)
+    .filter((id): id is string => !!id);
+  await maybeAutoExportOnBench(db, matrixId, runIdsForExport);
+
+  const { exitCode, reasons } = evaluateBenchExit(summary, {
+    failOnFailure: opts.failOnFailure,
+    minSolveRate: opts.minSolveRate,
+    minSolveRateScope: opts.minSolveRateScope,
+  });
+
+  if (reasons.length > 0) {
+    console.error("\n[FAIL] Benchmark gate failed:");
+    for (const reason of reasons) {
+      console.error(`  - ${reason}`);
+    }
+  }
+
+  process.exit(exitCode);
 }
 
 /**

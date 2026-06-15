@@ -1,0 +1,22 @@
+{
+  "name": "@agentgrader/mcp-sandbox-proxy",
+  "version": "1.0.0",
+  "description": "Host-side stdio MCP proxy that bridges into an Agentgrader sandbox",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agr-mcp-proxy": "dist/proxy.js"
+  },
+  "main": "./dist/proxy.js",
+  "types": "./dist/proxy.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/proxy.ts --format esm --dts --clean --treeshake",
+    "test": "bun test src"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}

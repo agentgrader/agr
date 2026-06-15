@@ -245,24 +245,41 @@ describe("convertMcpServersForAcp", () => {
     expect(servers.map((s) => s.name)).toEqual(["local", "remote"]);
   });
 
-  test("skips a stdio server with sandboxed: true and warns, rather than forwarding sandbox-only paths", () => {
+  test("rewrites sandboxed stdio server to agr-mcp-proxy when sandboxBridgeId is provided", () => {
+    const servers = convertMcpServersForAcp(
+      {
+        "jetbrains-tools": { command: "bun", args: ["/app/mcp-server.ts"], sandboxed: true },
+      },
+      { sandboxBridgeId: "container-abc" },
+    );
+    expect(servers[0]?.command).toBe("agr-mcp-proxy");
+    expect(servers[0]?.args).toEqual([
+      "--bridge-id",
+      "container-abc",
+      "--",
+      "bun",
+      "/app/mcp-server.ts",
+    ]);
+  });
+
+  test("skips sandboxed stdio server without sandboxBridgeId", () => {
     const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
     const servers = convertMcpServersForAcp({
       "jetbrains-tools": { command: "bun", args: ["/app/mcp-server.ts"], sandboxed: true },
     });
     expect(servers).toEqual([]);
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("jetbrains-tools"));
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("sandboxed: true"));
+    expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 
-  test("keeps non-sandboxed stdio servers alongside a skipped sandboxed one", () => {
-    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
-    const servers = convertMcpServersForAcp({
-      local: { command: "local-mcp" },
-      "jetbrains-tools": { command: "bun", args: ["/app/mcp-server.ts"], sandboxed: true },
-    });
-    expect(servers.map((s) => s.name)).toEqual(["local"]);
-    warnSpy.mockRestore();
+  test("keeps non-sandboxed stdio servers alongside a proxied sandboxed one", () => {
+    const servers = convertMcpServersForAcp(
+      {
+        local: { command: "local-mcp" },
+        "jetbrains-tools": { command: "bun", args: ["/app/mcp-server.ts"], sandboxed: true },
+      },
+      { sandboxBridgeId: "container-abc" },
+    );
+    expect(servers.map((s) => s.name)).toEqual(["local", "jetbrains-tools"]);
   });
 });

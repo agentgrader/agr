@@ -154,17 +154,29 @@ export function buildPromptBlocks(
  * a confusing host-side spawn failure. See docs/advanced/acp-agent.md's
  * "Sandbox caveat".
  */
-export function convertMcpServersForAcp(mcpServers: Record<string, McpServerConfig> | undefined): McpServer[] {
+export function convertMcpServersForAcp(
+  mcpServers: Record<string, McpServerConfig> | undefined,
+  opts?: { sandboxBridgeId?: string; proxyCommand?: string },
+): McpServer[] {
   if (!mcpServers) return [];
 
   const servers: McpServer[] = [];
   for (const [name, server] of Object.entries(mcpServers)) {
     if ("command" in server) {
       if (server.sandboxed) {
-        console.warn(
-          `[agent-acp] mcp_servers.${name} has sandboxed: true, which ACP agents don't support yet ` +
-            `(its command/args reference sandbox-only paths). Skipping this server for this run.`,
-        );
+        if (!opts?.sandboxBridgeId) {
+          console.warn(
+            `[agent-acp] mcp_servers.${name} has sandboxed: true but the sandbox provider did not expose sandboxBridgeId. Skipping this server.`,
+          );
+          continue;
+        }
+        const proxy = opts.proxyCommand ?? "agr-mcp-proxy";
+        servers.push({
+          name,
+          command: proxy,
+          args: ["--bridge-id", opts.sandboxBridgeId, "--", server.command, ...(server.args ?? [])],
+          env: Object.entries(server.env ?? {}).map(([envName, value]) => ({ name: envName, value })),
+        });
         continue;
       }
       servers.push({
@@ -587,7 +599,9 @@ export class AcpAgentAdapter implements AgentAdapter {
 
       const session = await connection.newSession({
         cwd: workspaceRoot,
-        mcpServers: convertMcpServersForAcp(config.mcp_servers),
+        mcpServers: convertMcpServersForAcp(config.mcp_servers, {
+          sandboxBridgeId: sandbox.sandboxBridgeId,
+        }),
       });
 
       const stepTimeoutMs = config.step_timeout_ms ?? 120_000;
