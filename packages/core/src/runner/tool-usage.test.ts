@@ -38,6 +38,34 @@ describe("bucketToolName", () => {
     const step = { kind: "tool_call", tool: "readFile", content: "src/foo.py" };
     expect(bucketToolName(step)).toBe("readFile");
   });
+
+  test("skips a leading 'cd <dir> &&' prefix on executeCommand", () => {
+    const step = {
+      kind: "tool_call",
+      tool: "executeCommand",
+      content: JSON.stringify({ command: "cd /app && python -m pytest test_mathutils.py -v" }),
+    };
+    expect(bucketToolName(step)).toBe("executeCommand:python");
+  });
+
+  test("skips a leading 'cd <dir>;' prefix on terminal/create", () => {
+    const step = { kind: "tool_call", tool: "terminal/create", content: "cd /app; pytest -q" };
+    expect(bucketToolName(step)).toBe("terminal/create:pytest");
+  });
+
+  test("skips multiple chained 'cd' prefixes", () => {
+    const step = {
+      kind: "tool_call",
+      tool: "executeCommand",
+      content: JSON.stringify({ command: "cd /app && cd src && pytest" }),
+    };
+    expect(bucketToolName(step)).toBe("executeCommand:pytest");
+  });
+
+  test("a bare 'cd <dir>' with no further command still buckets as 'cd'", () => {
+    const step = { kind: "tool_call", tool: "executeCommand", content: JSON.stringify({ command: "cd /app" }) };
+    expect(bucketToolName(step)).toBe("executeCommand:cd");
+  });
 });
 
 describe("countToolCalls", () => {
