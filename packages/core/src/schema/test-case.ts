@@ -59,6 +59,18 @@ export const TestCaseSchema = z.object({
   toolkits: z.array(z.string()).optional(),
 
   agent_config: z.string().optional(),
+
+  rubrics: z
+    .array(
+      z.object({
+        id: z.string(),
+        prompt: z.string(),
+        scale: z.enum(["0-1", "1-5"]).optional().default("0-1"),
+        weight: z.number().optional().default(1),
+      }),
+    )
+    .optional(),
 });
 
 export type TestCase = z.infer<typeof TestCaseSchema>;
+export type Rubric = NonNullable<TestCase["rubrics"]>[number];

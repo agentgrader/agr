@@ -2,6 +2,8 @@ import "dotenv/config";
 import { cac } from "cac";
 import { cleanupCommand } from "./commands/cleanup";
 import { compareCommand } from "./commands/compare";
+import { compareBaselineCommand } from "./commands/compare-baseline";
+import { exportCommand } from "./commands/export";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
 import { initCommand } from "./commands/init";
@@ -10,6 +12,7 @@ import { runSingleCommand } from "./commands/run";
 import { toolkitAddCommand, toolkitListCommand } from "./commands/toolkit";
 import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
+import { validateToolkitCommand } from "./commands/validate-toolkit";
 
 const cli = cac("agr");
 
@@ -35,6 +38,16 @@ cli
     "--verbose",
     "Stream agent steps live to the console as they happen",
   )
+  .option("--fail-on-failure", "Exit with code 1 if the run does not pass")
+  .option("--report <format>", "Write a report (json, jsonl, html, md)")
+  .option("--output <path>", "Output path for --report")
+  .option("--report-include-traces", "Include full step traces in --report output")
+  .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
+  .option("--llm-judge", "Run LlmJudgeScorer after the agent completes")
+  .option("--llm-judge-provider <provider>", "LLM judge provider (anthropic, openai)", { default: "anthropic" })
+  .option("--llm-judge-model <model>", "LLM judge model slug")
+  .option("--judge-gate", "Fail the run when the LLM judge score is below --judge-min-score")
+  .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .action(async (testCase, options) => {
     try {
       await runSingleCommand(testCase, options);
@@ -63,6 +76,24 @@ cli
     "--matrix <matrix>",
     "Path to an optimizer matrix YAML file - expands into agent configs and prints a Pareto summary afterwards (alternative to --configs)",
   )
+  .option("--fail-on-failure", "Exit with code 1 if any run in the benchmark fails")
+  .option("--min-solve-rate <rate>", "Exit with code 1 if solve rate is below this threshold (0-1)")
+  .option(
+    "--min-solve-rate-scope <scope>",
+    "Apply --min-solve-rate globally or per agent config (global, per-config)",
+    { default: "global" },
+  )
+  .option("--report <format>", "Write a report after the bench (json, jsonl, html, md)")
+  .option("--output <path>", "Output path for --report")
+  .option("--report-include-traces", "Include full step traces in --report output")
+  .option("--save-baseline <path>", "Write a baseline snapshot JSON after the bench completes")
+  .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
+  .option("--strict-toolkits", "Exit with code 1 if any referenced toolkit fails security audit")
+  .option("--llm-judge", "Run LlmJudgeScorer on each completed run")
+  .option("--llm-judge-provider <provider>", "LLM judge provider (anthropic, openai)", { default: "anthropic" })
+  .option("--llm-judge-model <model>", "LLM judge model slug")
+  .option("--judge-gate", "Fail runs when the LLM judge score is below --judge-min-score")
+  .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .example("agr bench --manifest bench.yaml")
   .example("agr bench --suite tasks --configs-dir ./agents")
   .example("agr bench --suite tasks --configs agent.yaml,agent-openrouter.yaml")
@@ -106,6 +137,21 @@ cli
         concurrency: Number(options.concurrency),
         matrix: options.matrix,
         manifest: options.manifest,
+        adapters: options.adapters,
+        failOnFailure: options.failOnFailure,
+        minSolveRate: options.minSolveRate !== undefined ? Number(options.minSolveRate) : undefined,
+        minSolveRateScope: options.minSolveRateScope,
+        report: options.report,
+        output: options.output,
+        reportIncludeTraces: options.reportIncludeTraces,
+        saveBaseline: options.saveBaseline,
+        sandbox: options.sandbox,
+        strictToolkits: options.strictToolkits,
+        llmJudge: options.llmJudge,
+        llmJudgeProvider: options.llmJudgeProvider,
+        llmJudgeModel: options.llmJudgeModel,
+        judgeGate: options.judgeGate,
+        judgeMinScore: options.judgeMinScore !== undefined ? Number(options.judgeMinScore) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
@@ -122,6 +168,8 @@ cli
     "--strict",
     "Exit with code 1 if test_command or fail_to_pass/pass_to_pass are missing",
   )
+  .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
+  .option("--audit-toolkits", "Run security audit on toolkits referenced by the test case")
   .action(async (testCase, options) => {
     try {
       await validateCommand(testCase, options);
@@ -189,6 +237,71 @@ cli
       await traceCommand(runId, options);
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("export <subcommand>", "Export runs or traces (runs, traces)")
+  .option("--format <format>", "Export format (json, jsonl, otlp)", { default: "json" })
+  .option("--output <path>", "Output file path")
+  .option("--db <path>", "SQLite database path", { default: ".agr/db.sqlite" })
+  .option("--run-id <id>", "Run id for trace export")
+  .option("--matrix-id <id>", "Filter runs by matrix id")
+  .option("--limit <n>", "Maximum number of runs to export")
+  .example("agr export runs --format jsonl --output runs.jsonl")
+  .example("agr export traces --run-id <runId> --format otlp --output trace.json")
+  .action(async (subcommand, options) => {
+    try {
+      await exportCommand(subcommand, {
+        format: options.format,
+        output: options.output,
+        db: options.db,
+        runId: options.runId,
+        matrixId: options.matrixId,
+        limit: options.limit ? Number(options.limit) : undefined,
+      });
+    } catch (err: any) {
+      console.error(`Error executing export: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("validate-toolkit <dir>", "Run security audit on a toolkit directory")
+  .option("--strict", "Exit with code 1 on warnings as well as errors")
+  .example("agr validate-toolkit ./toolkits/jetbrains-tools")
+  .action(async (dir, options) => {
+    try {
+      await validateToolkitCommand(dir, options);
+    } catch (err: any) {
+      console.error(`Error executing validate-toolkit: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("compare-baseline [snapshotA] [snapshotB]", "Compare two baseline snapshots or current DB runs vs a snapshot")
+  .option("--current <path>", "Compare the most recent runs in .agr/db.sqlite against this baseline snapshot")
+  .option("--format <format>", "Output format (md, json)", { default: "md" })
+  .option("--output <path>", "Write comparison to a file instead of stdout")
+  .option("--db <path>", "Path to SQLite database for --current", { default: ".agr/db.sqlite" })
+  .option("--fail-on-regression", "Exit with code 1 if solve rate dropped or any case regressed")
+  .example("agr compare-baseline baselines/main.json baselines/pr.json")
+  .example("agr compare-baseline --current baselines/main.json --format md --output comment.md")
+  .action(async (snapshotA, snapshotB, options) => {
+    try {
+      await compareBaselineCommand({
+        snapshotA,
+        snapshotB,
+        current: options.current,
+        format: options.format,
+        output: options.output,
+        db: options.db,
+        failOnRegression: options.failOnRegression,
+      });
+    } catch (err: any) {
+      console.error(`Error executing compare-baseline: ${err.message}`);
       process.exit(1);
     }
   });

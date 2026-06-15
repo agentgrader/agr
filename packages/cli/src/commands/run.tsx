@@ -1,17 +1,34 @@
 import { randomUUID } from "node:crypto";
 import { render } from "ink";
 import React from "react";
-import { type AgentConfig, type StepEvent, runSingle } from "@agentgrader/core";
-import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
+import { type AgentConfig, type StepEvent, runSingle, computeBenchmarkSummary } from "@agentgrader/core";
+import { resolveSandbox } from "../lib/resolve-sandbox";
 import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { resolveAdapter } from "../lib/resolve-adapters";
 import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
+import { buildExtraScorers } from "../lib/extra-scorers";
+import { buildReportFromRunIds } from "../lib/report/build-report";
+import { writeReport, type ReportFormat } from "../lib/report/write-report";
 import { RunView, type RunSummary } from "../ui/RunView";
 
 export async function runSingleCommand(
   testCasePath: string,
-  opts: { config?: string; verbose?: boolean; adapter?: string },
+  opts: {
+    config?: string;
+    verbose?: boolean;
+    adapter?: string;
+    failOnFailure?: boolean;
+    report?: ReportFormat;
+    output?: string;
+    reportIncludeTraces?: boolean;
+    sandbox?: string;
+    llmJudge?: boolean;
+    llmJudgeProvider?: "anthropic" | "openai";
+    llmJudgeModel?: string;
+    judgeGate?: boolean;
+    judgeMinScore?: number;
+  },
 ) {
   const testCase = loadTestCase(testCasePath);
 
@@ -33,7 +50,7 @@ export async function runSingleCommand(
 
   console.log(`Starting run for "${testCase.name}" using model "${agentConfig.model}"...`);
 
-  const sandboxProvider = new DockerSandboxProvider();
+  const sandboxProvider = resolveSandbox(opts.sandbox ?? "docker");
   const adapter = resolveAdapter(opts.adapter ?? "ai-sdk");
   const db = initDb();
 
@@ -64,6 +81,13 @@ export async function runSingleCommand(
       sandboxProvider,
       db,
       runId,
+      extraScorers: buildExtraScorers({
+        llmJudge: opts.llmJudge,
+        llmJudgeProvider: opts.llmJudgeProvider,
+        llmJudgeModel: opts.llmJudgeModel,
+        judgeGate: opts.judgeGate,
+        judgeMinScore: opts.judgeMinScore,
+      }),
       onStep: (step) => {
         steps.push(step);
         rerender(
@@ -106,7 +130,24 @@ export async function runSingleCommand(
       />,
     );
 
-    exitCode = 0;
+    if (opts.failOnFailure && !result.passed) {
+      exitCode = 1;
+    } else {
+      exitCode = 0;
+    }
+
+    if (opts.report && opts.output) {
+      const summary = computeBenchmarkSummary([result], [agentConfig.id || agentConfig.name]);
+      const report = await buildReportFromRunIds(
+        db,
+        [runId],
+        summary,
+        [agentConfig],
+        !!opts.reportIncludeTraces,
+      );
+      const path = writeReport(report, opts.report, opts.output);
+      console.log(`Report written to ${path}`);
+    }
   } catch (err: any) {
     rerender(
       <RunView

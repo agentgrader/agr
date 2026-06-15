@@ -7,6 +7,7 @@ import type { Scorer } from "../adapters/scorer";
 import type { SandboxProvider } from "../adapters/sandbox-provider";
 import type { AgrDb } from "@agentgrader/store";
 import { runSingle, type RunSingleResult } from "./run-single";
+import { computeBenchmarkSummary, type BenchmarkSummary } from "./benchmark-summary";
 import { randomUUID } from "crypto";
 
 export interface BenchmarkInput {
@@ -33,6 +34,7 @@ export interface BenchmarkInput {
 
 export interface BenchmarkResult {
   runs: RunSingleResult[];
+  summary: BenchmarkSummary;
 }
 
 export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResult> {
@@ -191,7 +193,10 @@ export async function runBenchmark(input: BenchmarkInput): Promise<BenchmarkResu
   })) as any;
 
   const rawRuns = res.steps?.executeSingleRun?.output || [];
+  const runs: RunSingleResult[] = Array.isArray(rawRuns) ? rawRuns : [];
+  const configIds = agentConfigs.map((c) => c.id || c.name);
   return {
-    runs: Array.isArray(rawRuns) ? rawRuns : [],
+    runs,
+    summary: computeBenchmarkSummary(runs, configIds),
   };
 }

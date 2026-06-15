@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { discoverSkills } from "@agentgrader/core";
+import { discoverSkills, auditToolkitDirectory } from "@agentgrader/core";
 import { parse as parseYaml } from "yaml";
 
 function binTemplate(name: string): string {
@@ -153,6 +153,16 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
   const withSkill = toolNames.filter((name) => descriptionByName.has(name)).length;
   console.log("");
   console.log(`${toolNames.length} tool(s), ${withSkill} with SKILL.md.`);
+
+  const findings = auditToolkitDirectory(dir);
+  if (findings.length > 0) {
+    console.log("");
+    console.log("Security audit:");
+    for (const finding of findings) {
+      const label = finding.severity === "error" ? "FAIL" : "WARN";
+      console.log(`  [${label}] ${finding.rule}: ${finding.message}`);
+    }
+  }
 
   if (!opts.checkConfig) return;
 

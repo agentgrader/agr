@@ -1,5 +1,6 @@
-import { type ValidationCheck, validateTestCase } from "@agentgrader/core";
-import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
+import { type ValidationCheck, validateTestCase, auditToolkitDirectory, hasAuditErrors } from "@agentgrader/core";
+import { resolve } from "node:path";
+import { resolveSandbox } from "../lib/resolve-sandbox";
 import { loadTestCase } from "../lib/load-test-case";
 
 function isSkippedCheck(check: ValidationCheck): boolean {
@@ -25,7 +26,10 @@ function checkIcon(check: ValidationCheck): string {
  * is provided - a post-patch run verifying the gold patch actually fixes
  * FAIL_TO_PASS without breaking PASS_TO_PASS.
  */
-export async function validateCommand(testCasePath: string, opts?: { strict?: boolean }) {
+export async function validateCommand(
+  testCasePath: string,
+  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
+) {
   const testCase = loadTestCase(testCasePath);
 
   if (opts?.strict) {
@@ -43,7 +47,21 @@ export async function validateCommand(testCasePath: string, opts?: { strict?: bo
 
   console.log(`Validating "${testCase.name}" (${testCasePath})...\n`);
 
-  const sandboxProvider = new DockerSandboxProvider();
+  if (opts?.auditToolkits && testCase.toolkits?.length) {
+    const yamlDir = resolve(testCasePath, "..");
+    for (const toolkit of testCase.toolkits) {
+      const findings = auditToolkitDirectory(resolve(yamlDir, toolkit));
+      for (const finding of findings) {
+        const label = finding.severity === "error" ? "[FAIL]" : "[WARN]";
+        console.log(`${label} toolkit ${toolkit}: ${finding.message} (${finding.rule})`);
+      }
+      if (hasAuditErrors(findings)) {
+        process.exit(1);
+      }
+    }
+  }
+
+  const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
   const report = await validateTestCase({ testCase, sandboxProvider });
 
   const hadExecutionSkip = report.checks.some((c) =>

@@ -1,0 +1,72 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { initDb, getTraces, listRuns, type AgrDb } from "@agentgrader/store";
+import { tracesToOtelJson, tracesToOtelJsonl } from "../lib/export/otel";
+
+export async function exportCommand(
+  subcommand: string,
+  opts: {
+    format?: "json" | "jsonl" | "otlp";
+    output?: string;
+    db?: string;
+    runId?: string;
+    matrixId?: string;
+    limit?: number;
+  },
+) {
+  const db = initDb(opts.db ?? ".agr/db.sqlite");
+  const format = opts.format ?? "json";
+  const output = opts.output ?? `export-${subcommand}.${format === "jsonl" ? "jsonl" : "json"}`;
+
+  if (subcommand === "traces") {
+    if (!opts.runId) throw new Error("--run-id is required for `agr export traces`");
+    const traces = await getTraces(db, opts.runId);
+    const content =
+      format === "otlp" || format === "jsonl"
+        ? tracesToOtelJsonl(opts.runId, traces)
+        : JSON.stringify(tracesToOtelJson(opts.runId, traces), null, 2);
+    writeExport(output, content);
+    return;
+  }
+
+  if (subcommand === "runs") {
+    let runs = await listRuns(db);
+    if (opts.matrixId) runs = runs.filter((r) => r.matrixId === opts.matrixId);
+    if (opts.limit) runs = runs.slice(0, opts.limit);
+    const payload = runs.map((r) => ({
+      id: r.id,
+      testCaseId: r.testCaseId,
+      agentConfigId: r.agentConfigId,
+      passed: r.passed,
+      costUsd: r.costUsd,
+      durationMs: r.durationMs,
+      matrixId: r.matrixId,
+      metrics: r.metrics ? JSON.parse(r.metrics) : null,
+    }));
+    const content =
+      format === "jsonl"
+        ? `${payload.map((row) => JSON.stringify(row)).join("\n")}\n`
+        : JSON.stringify(payload, null, 2);
+    writeExport(output, content);
+    return;
+  }
+
+  throw new Error(`Unknown export subcommand "${subcommand}". Use "runs" or "traces".`);
+}
+
+function writeExport(outputPath: string, content: string) {
+  const path = resolve(outputPath);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, content, "utf-8");
+  console.log(`Export written to ${path}`);
+}
+
+export async function maybeAutoExportOnBench(
+  db: AgrDb,
+  matrixId: string | undefined,
+  runIds: string[],
+): Promise<void> {
+  if (process.env.AGR_EXPORT_ON_BENCH !== "true") return;
+  const output = matrixId ? `.agr/exports/bench-${matrixId}.json` : `.agr/exports/bench-latest.json`;
+  await exportCommand("runs", { format: "json", output, db: ".agr/db.sqlite", matrixId, limit: runIds.length });
+}

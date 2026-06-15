@@ -27,6 +27,7 @@ export interface ScorerResult {
     llmJudgeScore?: number;
     /** prose rationale from an LLM judge */
     llmJudgeDetail?: string;
+    rubrics?: Record<string, { score: number; normalizedScore: number; rationale: string }>;
   };
 }
 

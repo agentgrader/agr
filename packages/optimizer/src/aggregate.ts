@@ -102,7 +102,13 @@ export function aggregateResults(runs: RunRecord[], configs: AgentConfig[]): Agg
 function extractQuality(metrics: RunRecord["metrics"]): QualityAverages | undefined {
   if (!metrics) return undefined;
   const parsed = typeof metrics === "string" ? safeParseJson(metrics) : metrics;
-  return parsed?.["static-quality"]?.quality;
+  const staticQuality = parsed?.["static-quality"]?.quality;
+  const llmQuality = parsed?.["llm-judge"]?.quality;
+  if (!staticQuality && !llmQuality) return undefined;
+  return {
+    ...staticQuality,
+    llmJudgeScore: llmQuality?.llmJudgeScore ?? staticQuality?.llmJudgeScore,
+  };
 }
 
 function safeParseJson(value: string): any {
