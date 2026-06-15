@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { resolve } from "path";
+import { basename, dirname, resolve } from "path";
 import { render } from "ink";
 import React from "react";
 import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, type AgrDb } from "@agentgrader/store";
@@ -33,6 +33,7 @@ import {
   testCaseToDbRow,
   findTestCaseYamlFiles,
   resolveSharedAgentConfigFromTestCases,
+  resolveTestCasePath,
 } from "../lib/load-test-case";
 
 export async function runBenchCommand(opts: {
@@ -57,8 +58,9 @@ export async function runBenchCommand(opts: {
   llmJudgeModel?: string;
   judgeGate?: boolean;
   judgeMinScore?: number;
+  testCaseArgs?: string[];
 }) {
-  let suiteDir: string;
+  let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
   let agentConfigs: AgentConfig[] = [];
   let matrixId: string | undefined;
@@ -79,10 +81,11 @@ export async function runBenchCommand(opts: {
       `Bench manifest "${manifest.name ?? manifestPath}" loaded ${agentConfigs.length} agent config(s) from ${configPaths.length} file(s).`,
     );
   } else {
-    if (!opts.suite) {
-      throw new Error("--suite is required unless --manifest is provided.");
+    if (opts.suite) {
+      suiteDir = resolve(opts.suite);
+    } else if (!opts.testCaseArgs?.length) {
+      throw new Error("--suite is required unless --manifest is provided, or test case names are given as arguments.");
     }
-    suiteDir = resolve(opts.suite);
 
     if (opts.matrix) {
       if (opts.configs || opts.configsDir) {
@@ -106,15 +109,35 @@ export async function runBenchCommand(opts: {
     }
   }
 
-  const yamlFiles = findTestCaseYamlFiles(suiteDir);
-  if (yamlFiles.length === 0) {
-    console.error(`No test cases found in suite directory: ${suiteDir}`);
-    process.exit(1);
-  }
+  let yamlFiles: string[];
+  let testCases: TestCase[];
 
-  const testCases: TestCase[] = [];
-  for (const f of yamlFiles) {
-    testCases.push(loadTestCase(f));
+  if (suiteDir) {
+    const allYamlFiles = findTestCaseYamlFiles(suiteDir);
+    if (allYamlFiles.length === 0) {
+      console.error(`No test cases found in suite directory: ${suiteDir}`);
+      process.exit(1);
+    }
+    const allTestCases = allYamlFiles.map(f => loadTestCase(f));
+
+    if (opts.testCaseArgs?.length) {
+      const filter = new Set(opts.testCaseArgs);
+      const pairs = allTestCases
+        .map((tc, i) => ({ tc, yaml: allYamlFiles[i]! }))
+        .filter(({ tc, yaml }) => filter.has(tc.name) || filter.has(basename(dirname(yaml))));
+      if (pairs.length === 0) {
+        console.error(`No test cases matched: ${opts.testCaseArgs.join(", ")}`);
+        process.exit(1);
+      }
+      yamlFiles = pairs.map(p => p.yaml);
+      testCases = pairs.map(p => p.tc);
+    } else {
+      yamlFiles = allYamlFiles;
+      testCases = allTestCases;
+    }
+  } else {
+    yamlFiles = opts.testCaseArgs!.map(arg => resolveTestCasePath(arg));
+    testCases = yamlFiles.map(f => loadTestCase(f));
   }
 
   if (agentConfigs.length === 0) {
