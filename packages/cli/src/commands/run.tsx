@@ -33,12 +33,7 @@ export async function runSingleCommand(
   const resolvedPath = resolveTestCasePath(testCasePath);
   const testCase = loadTestCase(resolvedPath);
 
-  let agentConfig: AgentConfig = {
-    id: "baseline",
-    name: "Baseline Agent",
-    model: "gpt-4o-mini",
-    max_steps: 20,
-  };
+  let agentConfig: AgentConfig;
 
   if (opts.config) {
     agentConfig = loadAgentConfig(opts.config);
@@ -47,6 +42,11 @@ export async function runSingleCommand(
     console.log(
       `Using agent config from agr.yaml: ${testCase.agent_config} (model: ${agentConfig.model})`,
     );
+  } else {
+    console.error(
+      `No agent config specified. Either:\n  - Pass --config <path> to the CLI\n  - Add agent_config: <path> to your agr.yaml`,
+    );
+    process.exit(1);
   }
 
   console.log(`Starting run for "${testCase.name}" (${resolvedPath}) using model "${agentConfig.model}"...`);
