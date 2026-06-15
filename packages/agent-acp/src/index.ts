@@ -11,6 +11,7 @@ import {
   type CreateTerminalResponse,
   type KillTerminalRequest,
   type KillTerminalResponse,
+  type McpServer,
   type ReadTextFileRequest,
   type ReadTextFileResponse,
   type ReleaseTerminalRequest,
@@ -30,6 +31,7 @@ import type {
   AgentAdapter,
   AgentConfig,
   AgentResult,
+  McpServerConfig,
   SandboxHandle,
   StepEvent,
 } from "@agentgrader/core";
@@ -132,6 +134,37 @@ export function buildPromptBlocks(
   }
   blocks.push({ type: "text", text: prompt });
   return blocks;
+}
+
+/**
+ * Converts `config.mcp_servers` - the same map agent-openrouter connects to
+ * directly and merges into its tool set - into ACP's
+ * `NewSessionRequest.mcpServers` shape, so an agent config's MCP servers
+ * (e.g. a toolkit exposed as an MCP server) are also available to ACP
+ * agents. Previously `newSession` always passed `mcpServers: []`, silently
+ * dropping any `mcp_servers` entries for ACP runs even though the same
+ * config worked for agent-openrouter.
+ */
+export function convertMcpServersForAcp(mcpServers: Record<string, McpServerConfig> | undefined): McpServer[] {
+  if (!mcpServers) return [];
+
+  return Object.entries(mcpServers).map(([name, server]) => {
+    if ("command" in server) {
+      return {
+        name,
+        command: server.command,
+        args: server.args ?? [],
+        env: Object.entries(server.env ?? {}).map(([envName, value]) => ({ name: envName, value })),
+      };
+    }
+
+    return {
+      type: server.type === "sse" ? "sse" : "http",
+      name,
+      url: server.url,
+      headers: Object.entries(server.headers ?? {}).map(([headerName, value]) => ({ name: headerName, value })),
+    };
+  });
 }
 
 class SandboxAcpClient implements Client {
@@ -535,7 +568,7 @@ export class AcpAgentAdapter implements AgentAdapter {
 
       const session = await connection.newSession({
         cwd: workspaceRoot,
-        mcpServers: [],
+        mcpServers: convertMcpServersForAcp(config.mcp_servers),
       });
 
       const stepTimeoutMs = config.step_timeout_ms ?? 120_000;
