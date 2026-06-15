@@ -78,4 +78,33 @@ describe("aggregateResults", () => {
     const [result] = aggregateResults(runs, configs);
     expect(result!.avgQuality).toBeUndefined();
   });
+
+  test("averages llm-judge scores merged with static-quality metrics", () => {
+    const runs: RunRecord[] = [
+      {
+        agentConfigId: "cfg-a",
+        passed: true,
+        metrics: {
+          "static-quality": { quality: { diffLines: 4, filesModified: 1 } },
+          "llm-judge": { quality: { llmJudgeScore: 0.8 } },
+        },
+      },
+      {
+        agentConfigId: "cfg-a",
+        passed: true,
+        metrics: {
+          "static-quality": { quality: { diffLines: 6, filesModified: 2 } },
+          "llm-judge": { quality: { llmJudgeScore: 0.6 } },
+        },
+      },
+    ];
+
+    const [result] = aggregateResults(runs, configs);
+
+    expect(result!.avgQuality).toEqual({
+      diffLines: 5,
+      filesModified: 1.5,
+      llmJudgeScore: 0.7,
+    });
+  });
 });

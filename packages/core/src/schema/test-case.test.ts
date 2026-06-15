@@ -80,4 +80,18 @@ describe("TestCaseSchema", () => {
     });
     expect(result.success).toHaveLength(2);
   });
+
+  test("accepts optional llm-judge rubrics", () => {
+    const result = TestCaseSchema.parse({
+      ...minimal,
+      rubrics: [
+        { id: "correctness", prompt: "Is the patch correct?", scale: "0-1", weight: 2 },
+        { id: "style", prompt: "Is the code style acceptable?" },
+      ],
+    });
+    expect(result.rubrics).toEqual([
+      { id: "correctness", prompt: "Is the patch correct?", scale: "0-1", weight: 2 },
+      { id: "style", prompt: "Is the code style acceptable?", scale: "0-1", weight: 1 },
+    ]);
+  });
 });
