@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import type { AgentConfig } from "@agentgrader/core";
 import {
   buildPromptBlocks,
@@ -243,5 +243,26 @@ describe("convertMcpServersForAcp", () => {
       remote: { url: "https://example.com/mcp" },
     });
     expect(servers.map((s) => s.name)).toEqual(["local", "remote"]);
+  });
+
+  test("skips a stdio server with sandboxed: true and warns, rather than forwarding sandbox-only paths", () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const servers = convertMcpServersForAcp({
+      "jetbrains-tools": { command: "bun", args: ["/app/mcp-server.ts"], sandboxed: true },
+    });
+    expect(servers).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("jetbrains-tools"));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("sandboxed: true"));
+    warnSpy.mockRestore();
+  });
+
+  test("keeps non-sandboxed stdio servers alongside a skipped sandboxed one", () => {
+    const warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+    const servers = convertMcpServersForAcp({
+      local: { command: "local-mcp" },
+      "jetbrains-tools": { command: "bun", args: ["/app/mcp-server.ts"], sandboxed: true },
+    });
+    expect(servers.map((s) => s.name)).toEqual(["local"]);
+    warnSpy.mockRestore();
   });
 });

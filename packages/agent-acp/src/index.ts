@@ -144,27 +144,46 @@ export function buildPromptBlocks(
  * agents. Previously `newSession` always passed `mcpServers: []`, silently
  * dropping any `mcp_servers` entries for ACP runs even though the same
  * config worked for agent-openrouter.
+ *
+ * A stdio entry with `sandboxed: true` is skipped (with a warning) instead
+ * of being forwarded as-is: that flag tells agent-openrouter to spawn
+ * `command` inside the Docker sandbox via `SandboxHandle.spawnStdio`, so its
+ * `command`/`args` reference sandbox-only paths (e.g. `/app/...`). ACP agent
+ * subprocesses spawn `mcpServers` entries on the host, where those paths
+ * don't exist - forwarding them as-is would trade a clear "dropped" gap for
+ * a confusing host-side spawn failure. See docs/advanced/acp-agent.md's
+ * "Sandbox caveat".
  */
 export function convertMcpServersForAcp(mcpServers: Record<string, McpServerConfig> | undefined): McpServer[] {
   if (!mcpServers) return [];
 
-  return Object.entries(mcpServers).map(([name, server]) => {
+  const servers: McpServer[] = [];
+  for (const [name, server] of Object.entries(mcpServers)) {
     if ("command" in server) {
-      return {
+      if (server.sandboxed) {
+        console.warn(
+          `[agent-acp] mcp_servers.${name} has sandboxed: true, which ACP agents don't support yet ` +
+            `(its command/args reference sandbox-only paths). Skipping this server for this run.`,
+        );
+        continue;
+      }
+      servers.push({
         name,
         command: server.command,
         args: server.args ?? [],
         env: Object.entries(server.env ?? {}).map(([envName, value]) => ({ name: envName, value })),
-      };
+      });
+      continue;
     }
 
-    return {
+    servers.push({
       type: server.type === "sse" ? "sse" : "http",
       name,
       url: server.url,
       headers: Object.entries(server.headers ?? {}).map(([headerName, value]) => ({ name: headerName, value })),
-    };
-  });
+    });
+  }
+  return servers;
 }
 
 class SandboxAcpClient implements Client {
