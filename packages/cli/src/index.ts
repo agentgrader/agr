@@ -7,7 +7,7 @@ import { importPrCommand } from "./commands/import-pr";
 import { initCommand } from "./commands/init";
 import { listCommand } from "./commands/list";
 import { runSingleCommand } from "./commands/run";
-import { toolkitAddCommand } from "./commands/toolkit";
+import { toolkitAddCommand, toolkitListCommand } from "./commands/toolkit";
 import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
 
@@ -234,6 +234,20 @@ cli
       await toolkitAddCommand(name, options);
     } catch (err: any) {
       console.error(`Error executing toolkit-add: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("toolkit-list <dir>", "List a toolkit's bin/ tools and their SKILL.md descriptions")
+  .option("--check-config <file>", "Diff the toolkit's bin/ tools against an agent config's track_tools")
+  .example("agr toolkit-list ./toolkits/jetbrains-tools")
+  .example("agr toolkit-list ./toolkits/jetbrains-tools --check-config matrix-jetbrains-toolkits.yaml")
+  .action(async (dir, options) => {
+    try {
+      await toolkitListCommand(dir, options);
+    } catch (err: any) {
+      console.error(`Error executing toolkit-list: ${err.message}`);
       process.exit(1);
     }
   });

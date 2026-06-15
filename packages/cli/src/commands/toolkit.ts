@@ -1,5 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { discoverSkills } from "@agentgrader/core";
+import { parse as parseYaml } from "yaml";
 
 function binTemplate(name: string): string {
   return `#!/bin/sh
@@ -101,4 +103,85 @@ export async function toolkitAddCommand(name: string, opts: { dir?: string }) {
   console.log(`  1. Implement the tool in ${binPath}.`);
   console.log(`  2. Fill in the description and usage in ${skillPath}.`);
   console.log(`  3. Reference "${toolkitDir}" from \`toolkits:\` in an agent config or test case.`);
+}
+
+/**
+ * `agr toolkit-list <dir> [--check-config <agent.yaml>]`
+ *
+ * Lists every `bin/<name>` script in a toolkit directory alongside its
+ * `.claude/skills/<name>/SKILL.md` description (if any), so a toolkit
+ * author can audit what's actually shippable from `<dir>` before
+ * referencing it via `toolkits:`.
+ *
+ * With `--check-config <agent.yaml>`, also diffs the toolkit's `bin/`
+ * scripts against that config's `track_tools` (and
+ * `require_tools_before_submit`) lists - this is the gap that bit
+ * `matrix-jetbrains-toolkits.yaml` repeatedly (new tools like `add-import`
+ * and `find-test-file` were added to `bin/` and to one agent config's
+ * `track_tools`, but not to every config that references the same
+ * toolkit).
+ */
+export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig?: string }) {
+  const dir = resolve(toolkitDir);
+  const binDir = resolve(dir, "bin");
+
+  if (!existsSync(binDir)) {
+    throw new Error(`${binDir} does not exist - is "${toolkitDir}" a toolkit directory (with a bin/ subdir)?`);
+  }
+
+  const toolNames = readdirSync(binDir)
+    .filter((entry) => {
+      const stat = statSync(resolve(binDir, entry));
+      // Executable bit excludes non-tool files that happen to live in bin/
+      // (e.g. tools.test.ts).
+      return stat.isFile() && (stat.mode & 0o111) !== 0;
+    })
+    .sort();
+
+  const skills = discoverSkills(dir);
+  const descriptionByName = new Map(skills.map((skill) => [skill.frontmatter.name, skill.frontmatter.description]));
+
+  console.log(`Tools in ${toolkitDir}:`);
+  for (const name of toolNames) {
+    const description = descriptionByName.get(name);
+    if (description) {
+      console.log(`  ${name.padEnd(22)} ${description}`);
+    } else {
+      console.log(`  ${name.padEnd(22)} (no .claude/skills/${name}/SKILL.md)`);
+    }
+  }
+  const withSkill = toolNames.filter((name) => descriptionByName.has(name)).length;
+  console.log("");
+  console.log(`${toolNames.length} tool(s), ${withSkill} with SKILL.md.`);
+
+  if (!opts.checkConfig) return;
+
+  const configContent = readFileSync(resolve(opts.checkConfig), "utf-8");
+  const config = parseYaml(configContent) as {
+    track_tools?: string[];
+    require_tools_before_submit?: string[];
+    // --matrix files nest agent-config fields under `base:` instead of at
+    // the top level.
+    base?: { track_tools?: string[]; require_tools_before_submit?: string[] };
+  };
+  const tracked = new Set([
+    ...(config.track_tools ?? []),
+    ...(config.require_tools_before_submit ?? []),
+    ...(config.base?.track_tools ?? []),
+    ...(config.base?.require_tools_before_submit ?? []),
+  ]);
+
+  const untracked = toolNames.filter((name) => !tracked.has(name));
+  const trackedButMissing = [...tracked].filter((name) => !toolNames.includes(name));
+
+  console.log("");
+  console.log(`Checking against ${opts.checkConfig} (track_tools + require_tools_before_submit):`);
+  if (untracked.length > 0) {
+    console.log(`  In ${toolkitDir}/bin/ but not tracked: ${untracked.join(", ")}`);
+  } else {
+    console.log("  All toolkit tools are tracked.");
+  }
+  if (trackedButMissing.length > 0) {
+    console.log(`  Tracked but not in ${toolkitDir}/bin/: ${trackedButMissing.join(", ")}`);
+  }
 }
