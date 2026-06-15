@@ -6,7 +6,7 @@ import { resolveSandbox } from "../lib/resolve-sandbox";
 import { initDb, saveTestCase, saveAgentConfig } from "@agentgrader/store";
 import { loadAgentConfig } from "../lib/load-agent-config";
 import { resolveAdapter } from "../lib/resolve-adapters";
-import { loadTestCase, testCaseToDbRow } from "../lib/load-test-case";
+import { loadTestCase, resolveTestCasePath, testCaseToDbRow } from "../lib/load-test-case";
 import { buildExtraScorers } from "../lib/extra-scorers";
 import { buildReportFromRunIds } from "../lib/report/build-report";
 import { writeReport, type ReportFormat } from "../lib/report/write-report";
@@ -30,7 +30,7 @@ export async function runSingleCommand(
     judgeMinScore?: number;
   },
 ) {
-  const testCase = loadTestCase(testCasePath);
+  const testCase = loadTestCase(resolveTestCasePath(testCasePath));
 
   let agentConfig: AgentConfig = {
     id: "baseline",

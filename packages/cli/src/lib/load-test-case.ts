@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { type TestCase, TestCaseSchema } from "@agentgrader/core";
 import { parse } from "yaml";
 import { ZodError } from "zod";
@@ -127,6 +127,72 @@ export function testCaseToDbRow(testCase: TestCase) {
     testPatch: testCase.test_patch ?? null,
     sourceCreatedAt: testCase.created_at ?? null,
   };
+}
+
+export interface TestCaseSummary {
+  path: string;
+  name: string;
+  description?: string;
+}
+
+/**
+ * Parses just the `name`/`description` fields from every test case file
+ * found by `findTestCaseYamlFiles`, skipping files that don't look like
+ * test cases (no `name` + `success`).
+ */
+export function findAllTestCases(dir: string): TestCaseSummary[] {
+  const summaries: TestCaseSummary[] = [];
+  for (const path of findTestCaseYamlFiles(dir)) {
+    try {
+      const raw = parse(readFileSync(path, "utf-8"));
+      if (raw && typeof raw.name === "string" && Array.isArray(raw.success)) {
+        summaries.push({ path, name: raw.name, description: raw.description });
+      }
+    } catch {
+      // not a valid test case file, skip
+    }
+  }
+  return summaries;
+}
+
+/**
+ * Resolves a `agr run`/`agr bench` test case argument that may be:
+ * - a path to an `agr.yaml` file (with or without extension)
+ * - a path to a directory containing `agr.yaml`
+ * - a test case's `name:` or its directory's basename, looked up by
+ *   recursively searching `searchDir` (default: cwd)
+ */
+export function resolveTestCasePath(input: string, searchDir: string = process.cwd()): string {
+  const direct = resolve(input);
+  if (existsSync(direct)) {
+    if (statSync(direct).isDirectory()) {
+      const inDir = resolve(direct, "agr.yaml");
+      if (existsSync(inDir)) return inDir;
+    } else {
+      return direct;
+    }
+  }
+  for (const ext of [".yaml", ".yml"]) {
+    if (existsSync(direct + ext)) return direct + ext;
+  }
+
+  const candidates = findAllTestCases(searchDir).filter(
+    (tc) => tc.name === input || basename(dirname(tc.path)) === input,
+  );
+
+  if (candidates.length === 1) {
+    return candidates[0].path;
+  }
+  if (candidates.length > 1) {
+    throw new Error(
+      `Multiple test cases match "${input}":\n` +
+        candidates.map((c) => `  - ${c.path} (name: ${c.name})`).join("\n") +
+        `\nUse a path to disambiguate.`,
+    );
+  }
+  throw new Error(
+    `No test case found for "${input}". Run \`agr list-tests\` to see available test cases, or pass a path to an agr.yaml file.`,
+  );
 }
 
 /** Recursively finds `agr.yaml` (and other non-config `.yaml`) files under `dir`. */

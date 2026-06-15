@@ -3,9 +3,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  findAllTestCases,
   findTestCaseYamlFiles,
   loadTestCase,
   resolveSharedAgentConfigFromTestCases,
+  resolveTestCasePath,
   testCaseToDbRow,
 } from "./load-test-case";
 
@@ -307,6 +309,102 @@ success: []
     expect(row.solution).toBeNull();
     expect(row.testPatch).toBeNull();
     expect(row.sourceCreatedAt).toBeNull();
+  });
+});
+
+describe("findAllTestCases", () => {
+  test("collects name/path/description from valid test case files and skips others", () => {
+    mkdirSync(join(dir, "task-a"), { recursive: true });
+    mkdirSync(join(dir, "task-b"), { recursive: true });
+
+    writeFileSync(
+      join(dir, "task-a", "agr.yaml"),
+      `
+name: fix-greeting
+description: greet() is missing the exclamation mark
+fixture: ./fixture
+prompt: do it
+success:
+  - run: npm test
+    expect: { exit_code: 0 }
+`,
+    );
+    writeFileSync(
+      join(dir, "task-b", "agr.yaml"),
+      `
+name: hello-world
+prompt: do it
+success:
+  - run: node --test math.test.js
+    expect: { exit_code: 0 }
+`,
+    );
+    writeFileSync(join(dir, "task-a", "agent.yaml"), "model: claude-haiku-4-5\n");
+    writeFileSync(join(dir, "not-a-test-case.yaml"), "foo: bar\n");
+
+    const summaries = findAllTestCases(dir).sort((a, b) => a.name.localeCompare(b.name));
+    expect(summaries).toEqual([
+      { path: join(dir, "task-a", "agr.yaml"), name: "fix-greeting", description: "greet() is missing the exclamation mark" },
+      { path: join(dir, "task-b", "agr.yaml"), name: "hello-world", description: undefined },
+    ]);
+  });
+});
+
+describe("resolveTestCasePath", () => {
+  test("resolves a direct path to an existing agr.yaml file", () => {
+    const path = writeYaml("agr.yaml", "name: direct\nprompt: do it\nsuccess: []\n");
+    expect(resolveTestCasePath(path)).toBe(resolve(path));
+  });
+
+  test("resolves a path without an extension by trying .yaml/.yml", () => {
+    const path = writeYaml("my-case.yaml", "name: ext\nprompt: do it\nsuccess: []\n");
+    expect(resolveTestCasePath(join(dir, "my-case"))).toBe(path);
+  });
+
+  test("resolves a directory containing agr.yaml", () => {
+    mkdirSync(join(dir, "task"), { recursive: true });
+    const path = join(dir, "task", "agr.yaml");
+    writeFileSync(path, "name: in-dir\nprompt: do it\nsuccess: []\n");
+    expect(resolveTestCasePath(join(dir, "task"))).toBe(path);
+  });
+
+  test("resolves a bare test case name to its agr.yaml", () => {
+    mkdirSync(join(dir, "hello-world"), { recursive: true });
+    const path = join(dir, "hello-world", "agr.yaml");
+    writeFileSync(
+      path,
+      "name: hello-world\nprompt: do it\nsuccess:\n  - run: node --test\n    expect: { exit_code: 0 }\n",
+    );
+    expect(resolveTestCasePath("hello-world", dir)).toBe(path);
+  });
+
+  test("resolves by directory basename when it differs from name", () => {
+    mkdirSync(join(dir, "fix-greeting-dir"), { recursive: true });
+    const path = join(dir, "fix-greeting-dir", "agr.yaml");
+    writeFileSync(
+      path,
+      "name: fix-greeting\nprompt: do it\nsuccess:\n  - run: npm test\n    expect: { exit_code: 0 }\n",
+    );
+    expect(resolveTestCasePath("fix-greeting-dir", dir)).toBe(path);
+  });
+
+  test("throws a helpful error when nothing matches", () => {
+    expect(() => resolveTestCasePath("does-not-exist", dir)).toThrow(/No test case found for "does-not-exist"/);
+  });
+
+  test("throws when multiple test cases match the same name", () => {
+    mkdirSync(join(dir, "a"), { recursive: true });
+    mkdirSync(join(dir, "b"), { recursive: true });
+    writeFileSync(
+      join(dir, "a", "agr.yaml"),
+      "name: dup\nprompt: do it\nsuccess:\n  - run: echo\n    expect: { exit_code: 0 }\n",
+    );
+    writeFileSync(
+      join(dir, "b", "agr.yaml"),
+      "name: dup\nprompt: do it\nsuccess:\n  - run: echo\n    expect: { exit_code: 0 }\n",
+    );
+
+    expect(() => resolveTestCasePath("dup", dir)).toThrow(/Multiple test cases match "dup"/);
   });
 });
 
