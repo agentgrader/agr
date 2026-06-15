@@ -1,7 +1,7 @@
 import { type ValidationCheck, validateTestCase, auditToolkitDirectory, hasAuditErrors } from "@agentgrader/core";
 import { resolve } from "node:path";
 import { resolveSandbox } from "../lib/resolve-sandbox";
-import { loadTestCase } from "../lib/load-test-case";
+import { loadTestCase, resolveTestCasePath } from "../lib/load-test-case";
 
 function isSkippedCheck(check: ValidationCheck): boolean {
   return (
@@ -30,7 +30,8 @@ export async function validateCommand(
   testCasePath: string,
   opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
 ) {
-  const testCase = loadTestCase(testCasePath);
+  const resolvedPath = resolveTestCasePath(testCasePath);
+  const testCase = loadTestCase(resolvedPath);
 
   if (opts?.strict) {
     const missing: string[] = [];
@@ -45,10 +46,10 @@ export async function validateCommand(
     }
   }
 
-  console.log(`Validating "${testCase.name}" (${testCasePath})...\n`);
+  console.log(`Validating "${testCase.name}" (${resolvedPath})...\n`);
 
   if (opts?.auditToolkits && testCase.toolkits?.length) {
-    const yamlDir = resolve(testCasePath, "..");
+    const yamlDir = resolve(resolvedPath, "..");
     for (const toolkit of testCase.toolkits) {
       const findings = auditToolkitDirectory(resolve(yamlDir, toolkit));
       for (const finding of findings) {
