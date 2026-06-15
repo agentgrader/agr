@@ -77,7 +77,7 @@ cli
   });
 
 cli
-  .command("bench", "Run a benchmark matrix of multiple test cases and configs")
+  .command("bench [...testCases]", "Run a benchmark matrix of multiple test cases and configs")
   .option("--configs <configs>", "Comma-separated paths to AgentConfig YAML files")
   .option("--config <config>", "Alias for --configs (single config path)")
   .option(
@@ -113,14 +113,18 @@ cli
   .option("--llm-judge-model <model>", "LLM judge model slug")
   .option("--judge-gate", "Fail runs when the LLM judge score is below --judge-min-score")
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
+  .example("agr bench hello-world --matrix matrix.yaml")
+  .example("agr bench task-a task-b --configs agent.yaml")
   .example("agr bench --manifest bench.yaml")
   .example("agr bench --suite tasks --configs-dir ./agents")
   .example("agr bench --suite tasks --configs agent.yaml,agent-openrouter.yaml")
   .example("agr bench --suite tasks --matrix optimizer-matrix.yaml")
-  .action(async (options) => {
+  .action(async (testCases, options) => {
     if (!options.configs && options.config) {
       options.configs = options.config;
     }
+
+    const hasPositional = testCases && testCases.length > 0;
 
     const agentSourceCount = [
       options.configs,
@@ -136,9 +140,9 @@ cli
         );
         process.exit(1);
       }
-    } else if (!options.suite) {
+    } else if (!options.suite && !hasPositional) {
       console.error(
-        "Error: provide --manifest, or --suite with one of --configs, --config, --configs-dir, --matrix, or a shared agent_config in every agr.yaml.",
+        "Error: provide --manifest, test case names as arguments, or --suite with one of --configs, --config, --configs-dir, --matrix, or a shared agent_config in every agr.yaml.",
       );
       process.exit(1);
     } else if (agentSourceCount > 1) {
@@ -171,6 +175,7 @@ cli
         llmJudgeModel: options.llmJudgeModel,
         judgeGate: options.judgeGate,
         judgeMinScore: options.judgeMinScore !== undefined ? Number(options.judgeMinScore) : undefined,
+        testCaseArgs: hasPositional ? testCases : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
