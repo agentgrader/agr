@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
 import type { PatchApplyResult, SandboxHandle, SandboxProvider } from "@agentgrader/core";
 import Docker from "dockerode";
@@ -85,31 +86,22 @@ export class DockerSandboxHandle implements SandboxHandle {
 
   async writeFile(path: string, content: string): Promise<void> {
     // make sure the directory exists before writing
-    await this.exec(`mkdir -p $(dirname "${path}")`);
+    const dir = dirname(path);
+    await this.exec(`mkdir -p "${dir}"`);
 
-    const exec = await this.container.exec({
-      Cmd: ["sh", "-c", `cat > "${path}"`],
-      AttachStdin: true,
-      AttachStdout: false,
-      AttachStderr: false,
-      WorkingDir: "/app",
-    });
-
-    const stream = await exec.start({ hijack: true, stdin: true });
-
-    await new Promise<void>((resolve, reject) => {
-      stream.write(content, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          stream.end();
-          resolve();
-        }
-      });
-    });
-
-    // small delay so the container actually flushes the write
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // write via tar + putArchive (like copyFileToContainer) rather than a
+    // hijacked exec stdin stream: under Bun, `exec.start({hijack: true,
+    // stdin: true})` never receives the HTTP upgrade response and hangs
+    // forever, since docker-modem's hijack path relies on a raw socket
+    // `upgrade` event that Bun's http client doesn't emit.
+    const localDir = mkdtempSync(join(tmpdir(), "agr-write-"));
+    try {
+      const localFile = join(localDir, basename(path));
+      writeFileSync(localFile, content);
+      await copyFileToContainer(this.container, localFile, dir);
+    } finally {
+      rmSync(localDir, { recursive: true, force: true });
+    }
   }
 
   async readFile(path: string): Promise<string> {
@@ -163,19 +155,19 @@ export class DockerSandboxHandle implements SandboxHandle {
 
   async destroy(): Promise<void> {
     try {
-      await this.container.stop();
-    } catch (e: any) {
-      // "container already stopped" (HTTP 304) is expected; anything else
-      // is worth surfacing, since a swallowed error here is how containers
-      // silently pile up instead of being removed below.
-      if (e?.statusCode !== 304) {
-        console.error(`Failed to stop sandbox container: ${e.message || e}`);
-      }
-    }
-    try {
+      // `remove({force: true})` is equivalent to `docker rm -f`: it SIGKILLs
+      // a running container immediately and removes it in one call. A
+      // separate `stop()` first would send SIGTERM and wait out Docker's
+      // ~10s default grace period before SIGKILL - pointless for these
+      // short-lived, disposable sandboxes.
       await this.container.remove({ force: true });
     } catch (e: any) {
-      console.error(`Failed to remove sandbox container: ${e.message || e}`);
+      // "no such container" (HTTP 404) is expected if it's already gone;
+      // anything else is worth surfacing, since a swallowed error here is
+      // how containers silently pile up instead of being removed.
+      if (e?.statusCode !== 404) {
+        console.error(`Failed to remove sandbox container: ${e.message || e}`);
+      }
     }
   }
 }
