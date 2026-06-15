@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { bucketToolName, countToolCalls, mergeToolCounts, wasCommandUsed } from "./tool-usage";
+import { bucketToolName, countToolCalls, getCommandUsageSource, mergeToolCounts, wasCommandUsed } from "./tool-usage";
 
 describe("bucketToolName", () => {
   test("falls back to '(unknown)' when tool is missing", () => {
@@ -105,5 +105,42 @@ describe("wasCommandUsed", () => {
       { kind: "tool_result", tool: "readFile", content: "def foo(): ..." },
     ];
     expect(wasCommandUsed(steps, "run-tests")).toBe(false);
+  });
+});
+
+describe("getCommandUsageSource", () => {
+  test("returns 'direct' for a direct tool_call name", () => {
+    const steps = [{ kind: "tool_call", tool: "run-tests" }];
+    expect(getCommandUsageSource(steps, "run-tests")).toBe("direct");
+  });
+
+  test("returns 'direct' for a tool_<name> first-class entry", () => {
+    const steps = [{ kind: "tool_call", tool: "tool_rename_symbol", content: "{}" }];
+    expect(getCommandUsageSource(steps, "rename-symbol")).toBe("direct");
+  });
+
+  test("returns 'wrapped' when only credited via a '<commandName>: ' marker", () => {
+    const steps = [
+      { kind: "tool_call", tool: "terminal/create", content: "show-diff src/mathutils.py" },
+      {
+        kind: "tool_result",
+        tool: "terminal/output",
+        content: "show-diff: summary of changes\ninspect-code: found issue(s) in changed file(s):\nmathutils.py:2: ...",
+      },
+    ];
+    expect(getCommandUsageSource(steps, "inspect-code")).toBe("wrapped");
+  });
+
+  test("prefers 'direct' over 'wrapped' when both occur", () => {
+    const steps = [
+      { kind: "tool_call", tool: "run-tests" },
+      { kind: "tool_result", tool: "terminal/output", content: "run-tests: running 2 file(s)\n2 passed" },
+    ];
+    expect(getCommandUsageSource(steps, "run-tests")).toBe("direct");
+  });
+
+  test("returns undefined when the command never appears", () => {
+    const steps = [{ kind: "tool_call", tool: "readFile", content: "src/foo.py" }];
+    expect(getCommandUsageSource(steps, "run-tests")).toBeUndefined();
   });
 });

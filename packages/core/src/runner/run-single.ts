@@ -15,7 +15,7 @@ import { LocalizationScorer } from "../scorers/localization-scorer";
 import { RegressionScorer } from "../scorers/regression-scorer";
 import { getOrComputeBaseline } from "./baseline";
 import { buildSkillsPromptAddendum, discoverSkillsForToolkits } from "./skills";
-import { wasCommandUsed } from "./tool-usage";
+import { type CommandUsageSource, getCommandUsageSource } from "./tool-usage";
 
 export interface RunSingleInput {
   testCase: TestCase;
@@ -229,7 +229,12 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       // "configured but unused" toolkit tools.
       if (agentConfig.require_tools_before_submit && agentConfig.require_tools_before_submit.length > 0) {
         const required = agentConfig.require_tools_before_submit;
-        const missing = required.filter((name) => !wasCommandUsed(emittedSteps, name));
+        const usedVia: Record<string, CommandUsageSource> = {};
+        for (const name of required) {
+          const source = getCommandUsageSource(emittedSteps, name);
+          if (source) usedVia[name] = source;
+        }
+        const missing = required.filter((name) => !(name in usedVia));
         metrics["tool-adoption"] = {
           passed: missing.length === 0,
           detail:
@@ -238,6 +243,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
               : `Missing required tool(s) before submit: ${missing.join(", ")}`,
           required,
           missing,
+          usedVia,
         };
       }
 
@@ -247,12 +253,18 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       // without affecting metrics["tool-adoption"] or pass/fail.
       if (agentConfig.track_tools && agentConfig.track_tools.length > 0) {
         const tracked = agentConfig.track_tools;
-        const used = tracked.filter((name) => wasCommandUsed(emittedSteps, name));
+        const usedVia: Record<string, CommandUsageSource> = {};
+        for (const name of tracked) {
+          const source = getCommandUsageSource(emittedSteps, name);
+          if (source) usedVia[name] = source;
+        }
+        const used = tracked.filter((name) => name in usedVia);
         const unused = tracked.filter((name) => !used.includes(name));
         metrics["tool-usage"] = {
           tracked,
           used,
           unused,
+          usedVia,
           detail: `Used ${used.length}/${tracked.length} tracked tool(s): ${used.join(", ") || "(none)"}`,
         };
       }
