@@ -94,6 +94,11 @@ describe("wasCommandUsed", () => {
     expect(wasCommandUsed(steps, "run-tests")).toBe(true);
   });
 
+  test("matches a first-class tool_<name> entry registered for a toolkit skill", () => {
+    const steps = [{ kind: "tool_call", tool: "tool_rename_symbol", content: "{}" }];
+    expect(wasCommandUsed(steps, "rename-symbol")).toBe(true);
+  });
+
   test("returns false when the command never appears", () => {
     const steps = [
       { kind: "tool_call", tool: "readFile", content: "src/foo.py" },
