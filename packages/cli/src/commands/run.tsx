@@ -30,7 +30,8 @@ export async function runSingleCommand(
     judgeMinScore?: number;
   },
 ) {
-  const testCase = loadTestCase(resolveTestCasePath(testCasePath));
+  const resolvedPath = resolveTestCasePath(testCasePath);
+  const testCase = loadTestCase(resolvedPath);
 
   let agentConfig: AgentConfig = {
     id: "baseline",
@@ -48,7 +49,7 @@ export async function runSingleCommand(
     );
   }
 
-  console.log(`Starting run for "${testCase.name}" using model "${agentConfig.model}"...`);
+  console.log(`Starting run for "${testCase.name}" (${resolvedPath}) using model "${agentConfig.model}"...`);
 
   const sandboxProvider = resolveSandbox(opts.sandbox ?? "docker");
   const adapter = resolveAdapter(opts.adapter ?? "ai-sdk");
