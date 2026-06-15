@@ -75,7 +75,25 @@ export async function traceCommand(runId: string, opts: { quality?: boolean; too
   }
 }
 
-function printQualityBreakdown(metricsJson: string | null) {
+/**
+ * Renders a `CommandUsageSource` (see `@agentgrader/core`'s `tool-usage.ts`)
+ * for `agr trace --quality`'s tool-adoption/tool-usage breakdown, so the
+ * *mechanism* of adoption is visible alongside pass/fail - e.g. distinguishing
+ * a tool the agent called directly from one only credited via another tool's
+ * folded-in output (like `inspect-code` findings folded into `show-diff`).
+ *
+ * `usedFallback` covers runs recorded before `usedVia` was tracked: if the
+ * tool was used but its mechanism wasn't recorded, say so rather than
+ * misreporting it as MISSING.
+ */
+export function describeUsage(source: "direct" | "wrapped" | undefined, usedFallback: boolean): string {
+  if (source === "direct") return "OK (called directly)";
+  if (source === "wrapped") return "OK (via another tool's output)";
+  if (usedFallback) return "OK (mechanism not recorded for this run)";
+  return "MISSING";
+}
+
+export function printQualityBreakdown(metricsJson: string | null) {
   const metrics = metricsJson ? safeParseJson(metricsJson) : undefined;
 
   console.log("\n================ QUALITY BREAKDOWN ================");
@@ -120,11 +138,18 @@ function printQualityBreakdown(metricsJson: string | null) {
     const mark = toolAdoption.passed ? "OK" : "MISSING";
     console.log(`Tool adoption (require_tools_before_submit): ${mark}`);
     console.log(`  ${toolAdoption.detail}`);
+    for (const name of toolAdoption.required ?? []) {
+      const usedFallback = !(toolAdoption.missing ?? []).includes(name);
+      console.log(`    ${name}: ${describeUsage(toolAdoption.usedVia?.[name], usedFallback)}`);
+    }
   }
 
   if (toolUsage) {
     if (staticQuality || llmJudge || diff || localization || toolAdoption) console.log("");
     console.log(`Tool usage (track_tools): ${toolUsage.detail}`);
+    for (const name of toolUsage.used ?? []) {
+      console.log(`    ${name}: ${describeUsage(toolUsage.usedVia?.[name], true)}`);
+    }
     if (toolUsage.unused?.length > 0) {
       console.log(`  Not used: ${toolUsage.unused.join(", ")}`);
     }
