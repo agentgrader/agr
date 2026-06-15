@@ -3,6 +3,7 @@ import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { AgentAdapter, AgentResult, McpServerConfig, StepEvent } from "@agentgrader/core";
+import { discoverSkillsForToolkits } from "@agentgrader/core";
 import { z } from "zod";
 
 /** a connected mcp client, narrowed to the bits we use (so we can close it again). */
@@ -156,6 +157,35 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       }),
     };
 
+    // register each toolkit's skills (bin/<name> + .claude/skills/<name>/
+    // SKILL.md) as its own first-class tool, alongside readFile/writeFile/
+    // executeCommand. Models reliably reach for tools that appear in their
+    // actual tool list but, per JETBRAINS_FEEDBACK.md iteration 76, rarely
+    // invoke toolkit commands that are only *described* in the system
+    // prompt and run via executeCommand - giving each one a real tool
+    // entry addresses that gap directly. `args` is passed through verbatim
+    // since each toolkit script defines its own argument convention.
+    const skillTools: Record<string, unknown> = {};
+    for (const skill of discoverSkillsForToolkits(config.toolkits ?? [])) {
+      const { name, description } = skill.frontmatter;
+      const toolName = `tool_${name.replace(/-/g, "_")}`;
+      if (toolName in localTools || toolName in skillTools) continue;
+
+      skillTools[toolName] = tool({
+        description: `${description}\n\n(Runs \`${name} <args>\` in the sandbox.)`,
+        parameters: z.object({
+          args: z
+            .string()
+            .optional()
+            .describe(`Arguments for '${name}', exactly as you'd type them on the command line.`),
+        }),
+        execute: async ({ args }) => {
+          const res = await sandbox.exec(`${name}${args ? ` ${args}` : ""}`);
+          return { stdout: res.stdout, stderr: res.stderr, exitCode: res.exitCode };
+        },
+      });
+    }
+
     // connect to any configured MCP servers and merge their tools in,
     // namespaced by server name to avoid collisions with local tools or
     // tools from other servers
@@ -188,7 +218,7 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       }
     }
 
-    const allTools = { ...localTools, ...mcpTools } as typeof localTools;
+    const allTools = { ...localTools, ...skillTools, ...mcpTools } as typeof localTools;
     let tools = allTools;
 
     if (config.tools?.length) {
