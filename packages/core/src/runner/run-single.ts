@@ -150,18 +150,22 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       // surface bundled toolkits' skills (name + description) to the agent,
       // mirroring the "progressive disclosure" model: the full SKILL.md is
       // read on demand once the agent decides a skill is relevant.
+      //
+      // also pass the merged toolkit list (agentConfig.toolkits +
+      // testCase.toolkits, deduplicated) through on `effectiveConfig.toolkits`
+      // - adapters that can register dynamic per-skill tools (e.g.
+      // agent-openrouter) use this to discover skills independently of
+      // whether the prompt addendum below was built successfully.
       let effectiveConfig = agentConfig;
       if (toolkits.length > 0) {
+        effectiveConfig = { ...agentConfig, toolkits };
         try {
           const skills = discoverSkillsForToolkits(toolkits);
           const addendum = buildSkillsPromptAddendum(skills);
           if (addendum) {
-            effectiveConfig = {
-              ...agentConfig,
-              system_prompt: agentConfig.system_prompt
-                ? `${agentConfig.system_prompt}\n\n${addendum}`
-                : addendum,
-            };
+            effectiveConfig.system_prompt = agentConfig.system_prompt
+              ? `${agentConfig.system_prompt}\n\n${addendum}`
+              : addendum;
           }
         } catch (e: any) {
           console.error(`Failed to build skills prompt addendum: ${e.message}`);
