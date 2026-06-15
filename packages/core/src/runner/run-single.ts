@@ -149,7 +149,7 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
 
       // surface bundled toolkits' skills (name + description) to the agent,
       // mirroring the "progressive disclosure" model: the full SKILL.md is
-      // read on demand via the agent's readFile tool.
+      // read on demand once the agent decides a skill is relevant.
       let effectiveConfig = agentConfig;
       if (toolkits.length > 0) {
         try {
