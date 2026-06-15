@@ -5,12 +5,37 @@ export interface TraceStepLike {
 }
 
 /**
+ * A leading `cd <dir> &&` or `cd <dir>;` prefix (possibly chained, e.g.
+ * `cd a && cd b && pytest`) on an `executeCommand`/`terminal/create` command.
+ * Agents commonly `cd` into the project before running the real command, but
+ * the first word of the whole string is then always `cd` - masking the
+ * actual command from `bucketToolName`.
+ */
+const CD_PREFIX = /^cd\s+\S+\s*(?:&&|;)\s*/;
+
+/**
+ * Returns the first word of `command`, skipping past any leading
+ * `cd <dir> &&`/`cd <dir>;` prefix(es) so e.g. `cd /app && pytest -q`
+ * yields `pytest` instead of `cd`.
+ */
+function firstCommandWord(command: string): string {
+  let rest = command.trim();
+  let prefix = rest.match(CD_PREFIX);
+  while (prefix) {
+    rest = rest.slice(prefix[0].length).trim();
+    prefix = rest.match(CD_PREFIX);
+  }
+  return rest.split(/\s+/)[0] ?? "";
+}
+
+/**
  * `executeCommand`/`terminal/create` calls all collapse into one bucket,
  * hiding which actual binary ran - so a custom toolkit's CLI tools (e.g.
  * `find-usages`, `view-structure`) are indistinguishable from generic shell
  * exploration (`find`, `grep`, `cat`, ...) in tool-usage breakdowns. Split
- * each by the first word of its command so toolkit adoption shows up as its
- * own row (e.g. `executeCommand:find-usages`, `terminal/create:pytest`).
+ * each by the first word of its command (skipping a leading `cd <dir> &&`)
+ * so toolkit adoption shows up as its own row (e.g.
+ * `executeCommand:find-usages`, `terminal/create:pytest`).
  */
 export function bucketToolName(step: TraceStepLike): string {
   const name = step.tool ?? "(unknown)";
@@ -19,7 +44,7 @@ export function bucketToolName(step: TraceStepLike): string {
   if (name === "executeCommand") {
     try {
       const args = JSON.parse(step.content);
-      const firstWord = typeof args?.command === "string" ? args.command.trim().split(/\s+/)[0] : "";
+      const firstWord = typeof args?.command === "string" ? firstCommandWord(args.command) : "";
       return firstWord ? `executeCommand:${firstWord}` : name;
     } catch {
       return name;
@@ -27,7 +52,7 @@ export function bucketToolName(step: TraceStepLike): string {
   }
 
   if (name === "terminal/create") {
-    const firstWord = step.content.trim().split(/\s+/)[0];
+    const firstWord = firstCommandWord(step.content);
     return firstWord ? `terminal/create:${firstWord}` : name;
   }
 
