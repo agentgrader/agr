@@ -79,6 +79,14 @@ describe("McpServerConfigSchema", () => {
     expect(() => McpServerConfigSchema.parse({ command: "my-mcp-server" })).not.toThrow();
   });
 
+  test("accepts a stdio server config with sandboxed: true", () => {
+    const result = McpServerConfigSchema.parse({
+      command: "my-mcp-server",
+      sandboxed: true,
+    });
+    expect(result).toEqual({ command: "my-mcp-server", sandboxed: true });
+  });
+
   test("accepts an http/sse server config (url + optional type/headers)", () => {
     const result = McpServerConfigSchema.parse({
       type: "sse",

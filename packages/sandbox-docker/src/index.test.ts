@@ -71,6 +71,28 @@ maybeDescribe("DockerSandboxProvider", () => {
     TIMEOUT,
   );
 
+  test(
+    "spawnStdio() bridges stdio to a process running inside the container",
+    async () => {
+      handle = await provider.create({ image: IMAGE });
+      if (!handle.spawnStdio) throw new Error("spawnStdio not implemented");
+
+      const proc = await handle.spawnStdio("cat");
+
+      const chunks: string[] = [];
+      proc.onStdout((chunk) => chunks.push(chunk));
+      const exitCode = new Promise<number | null>((resolve) => proc.onExit(resolve));
+
+      proc.write("hello sandbox\n");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      proc.close();
+
+      expect(await exitCode).toBe(0);
+      expect(chunks.join("")).toContain("hello sandbox");
+    },
+    TIMEOUT,
+  );
+
   describe("toolkit injection", () => {
     let toolkitDir: string | undefined;
 
