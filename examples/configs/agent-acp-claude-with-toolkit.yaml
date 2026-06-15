@@ -1,0 +1,17 @@
+id: acp-claude-with-toolkit
+name: Claude Code (ACP) with toolkit
+model: acp
+max_steps: 30
+step_timeout_ms: 300000
+acp_command: claude
+acp_args:
+  - --acp
+acp_cwd: /app
+
+# Toolkit directories (relative to this file) to inject into the sandbox
+# before the ACP agent's prompt turn starts. Their bin/ scripts land on PATH
+# and their .claude/skills/*/SKILL.md docs are summarized in the system
+# prompt that agentgrader sends as a leading text block (ACP has no
+# dedicated system-prompt field). See /advanced/acp-agent.md.
+toolkits:
+  - ../toolkits/code-search
