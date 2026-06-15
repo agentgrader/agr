@@ -114,6 +114,26 @@ export function buildTerminalShellCommand(params: {
   ].join(" && ");
 }
 
+/**
+ * Builds the ACP prompt-turn content blocks for a run. ACP has no dedicated
+ * system-prompt field (NewSessionRequest/PromptRequest carry no such slot),
+ * so `config.system_prompt` - including the toolkits skills addendum
+ * run-single.ts appends to it - is sent as a leading text block ahead of the
+ * task prompt. Extracted so this toolkits-forwarding mechanism is covered by
+ * a direct unit test, not just indirectly via a full ACP subprocess run.
+ */
+export function buildPromptBlocks(
+  config: { system_prompt?: string },
+  prompt: string,
+): { type: "text"; text: string }[] {
+  const blocks: { type: "text"; text: string }[] = [];
+  if (config.system_prompt) {
+    blocks.push({ type: "text", text: config.system_prompt });
+  }
+  blocks.push({ type: "text", text: prompt });
+  return blocks;
+}
+
 class SandboxAcpClient implements Client {
   private readonly terminals = new Map<string, TerminalState>();
   private stepIndex = 0;
@@ -521,15 +541,7 @@ export class AcpAgentAdapter implements AgentAdapter {
       const stepTimeoutMs = config.step_timeout_ms ?? 120_000;
       let timedOut = false;
 
-      // ACP has no dedicated system-prompt field (NewSessionRequest/PromptRequest
-      // carry no such slot), so `config.system_prompt` - including the
-      // toolkits skills addendum run-single.ts appends to it - is sent as a
-      // leading text block in the same prompt turn, ahead of the task prompt.
-      const promptBlocks: { type: "text"; text: string }[] = [];
-      if (config.system_prompt) {
-        promptBlocks.push({ type: "text", text: config.system_prompt });
-      }
-      promptBlocks.push({ type: "text", text: prompt });
+      const promptBlocks = buildPromptBlocks(config, prompt);
 
       let promptResponse;
       try {

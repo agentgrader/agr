@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AgentConfig } from "@agentgrader/core";
 import {
+  buildPromptBlocks,
   buildTerminalShellCommand,
   extractTextContent,
   resolveAcpSpawn,
@@ -158,5 +159,28 @@ describe("buildTerminalShellCommand", () => {
     });
     expect(cmd).toContain("cd '/app/it'\\''s'");
     expect(cmd).toContain("(MSG='can'\\''t' 'echo' 'it'\\''s a test') >");
+  });
+});
+
+describe("buildPromptBlocks", () => {
+  test("sends only the task prompt when system_prompt is unset", () => {
+    expect(buildPromptBlocks({}, "Fix the bug in mathutils.py")).toEqual([
+      { type: "text", text: "Fix the bug in mathutils.py" },
+    ]);
+  });
+
+  test("sends system_prompt as a leading text block ahead of the task prompt", () => {
+    const blocks = buildPromptBlocks(
+      { system_prompt: "You are a professional developer.\n\nAvailable tools: find-usages, rename-symbol" },
+      "Rename multiply to times.",
+    );
+    expect(blocks).toEqual([
+      { type: "text", text: "You are a professional developer.\n\nAvailable tools: find-usages, rename-symbol" },
+      { type: "text", text: "Rename multiply to times." },
+    ]);
+  });
+
+  test("omits an empty-string system_prompt rather than sending a blank leading block", () => {
+    expect(buildPromptBlocks({ system_prompt: "" }, "task")).toEqual([{ type: "text", text: "task" }]);
   });
 });
