@@ -90,4 +90,17 @@ describe("buildSkillsPromptAddendum", () => {
     expect(addendum).toContain("**find-usages**: Find all usages of a symbol.");
     expect(addendum).toContain("/app/.claude/skills/find-usages/SKILL.md");
   });
+
+  test("does not name a specific file-reading tool, so it reads naturally for both agent-openrouter and ACP-backed agents", () => {
+    const skills = [
+      parseSkillMarkdown(
+        `---\nname: find-usages\ndescription: Find all usages of a symbol.\n---\nbody\n`,
+        "SKILL.md",
+        ".",
+      ),
+    ];
+
+    const addendum = buildSkillsPromptAddendum(skills);
+    expect(addendum).not.toContain("readFile");
+  });
 });

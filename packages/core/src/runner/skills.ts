@@ -64,8 +64,11 @@ export function discoverSkillsForToolkits(toolkitDirs: string[]): Skill[] {
  * Builds a system-prompt addendum that tells the agent which skills are
  * available, mirroring the "progressive disclosure" model used by Claude
  * Agent Skills: only the skill's `name` + `description` are injected up
- * front, and the full SKILL.md body is read on demand (via the agent's
- * `readFile` tool) once the agent decides a skill is relevant.
+ * front, and the full SKILL.md body is read on demand once the agent
+ * decides a skill is relevant. The addendum deliberately doesn't name a
+ * specific tool (e.g. "readFile") for this, since it's sent verbatim to
+ * both agent-openrouter (tool named `readFile`) and ACP-backed agents
+ * (which have their own file-reading tools).
  *
  * Assumes toolkits are injected into the sandbox at `/app`, so a skill at
  * `<toolkitDir>/.claude/skills/<name>/SKILL.md` is readable at
@@ -81,7 +84,7 @@ export function buildSkillsPromptAddendum(skills: Skill[]): string {
     .map((skill) => {
       const { name, description } = skill.frontmatter;
       const sandboxPath = `/app/.claude/skills/${name}/SKILL.md`;
-      return `- **${name}**: ${description}\n  Read \`${sandboxPath}\` (e.g. via your readFile tool) for full instructions before using this skill.`;
+      return `- **${name}**: ${description}\n  Read \`${sandboxPath}\` for full instructions before using this skill.`;
     })
     .join("\n");
 
