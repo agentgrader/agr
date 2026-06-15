@@ -131,6 +131,9 @@ export async function runBenchCommand(opts: {
       }
       yamlFiles = pairs.map(p => p.yaml);
       testCases = pairs.map(p => p.tc);
+      console.log(
+        `Filtered suite to ${testCases.length} of ${allTestCases.length} test case(s): ${testCases.map(tc => tc.name).join(", ")}`,
+      );
     } else {
       yamlFiles = allYamlFiles;
       testCases = allTestCases;
@@ -138,6 +141,7 @@ export async function runBenchCommand(opts: {
   } else {
     yamlFiles = opts.testCaseArgs!.map(arg => resolveTestCasePath(arg));
     testCases = yamlFiles.map(f => loadTestCase(f));
+    console.log(`Loaded ${testCases.length} test case(s): ${testCases.map(tc => tc.name).join(", ")}`);
   }
 
   if (agentConfigs.length === 0) {
