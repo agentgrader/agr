@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
@@ -129,4 +129,26 @@ some_future_field: 42
     expect(warnCalls).toHaveLength(1);
     expect(warnCalls[0]?.[0]).toContain('"some_future_field"');
   });
+});
+
+describe("loadAgentConfig on examples/configs", () => {
+  const examplesDir = resolve(import.meta.dir, "../../../../examples/configs");
+  const yamlFiles = readdirSync(examplesDir).filter((f) => f.endsWith(".yaml"));
+
+  // The configs under examples/configs are referenced directly from the docs
+  // and README as copy-paste starting points, so a schema typo there would
+  // only surface when a user actually tries the example. Loading each one
+  // here (with the same warnUnrecognizedKeys check as a real `agr run`)
+  // catches that drift in CI instead.
+  test("found example configs to check", () => {
+    expect(yamlFiles.length).toBeGreaterThan(0);
+  });
+
+  for (const file of yamlFiles) {
+    test(`${file} loads without error or unrecognized-key warnings`, () => {
+      const config = loadAgentConfig(resolve(examplesDir, file));
+      expect(config.id).toBeTruthy();
+      expect(warnCalls).toEqual([]);
+    });
+  }
 });
