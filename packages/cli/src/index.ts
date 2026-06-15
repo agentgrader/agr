@@ -8,6 +8,7 @@ import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
 import { initCommand } from "./commands/init";
 import { listCommand } from "./commands/list";
+import { listTestsCommand } from "./commands/list-tests";
 import { runSingleCommand } from "./commands/run";
 import { toolkitAddCommand, toolkitListCommand } from "./commands/toolkit";
 import { traceCommand } from "./commands/trace";
@@ -19,8 +20,10 @@ const cli = cac("agr");
 cli
   .command("init [dir]", "Scaffold a minimal, runnable agentgrader project (agent config + sample test case)")
   .option("--force", "Overwrite agent.yaml if it already exists")
+  .option("--blank", "Only write agent.yaml and an empty tasks/ dir, without the hello-world sample test case")
   .example("agr init")
   .example("agr init my-project")
+  .example("agr init --blank")
   .action(async (dir, options) => {
     try {
       await initCommand(dir, options);
@@ -31,7 +34,23 @@ cli
   });
 
 cli
-  .command("run <testCase>", "Run a single agent test case")
+  .command("list-tests [dir]", "List test cases (agr.yaml files) found under dir (default: cwd)")
+  .example("agr list-tests")
+  .example("agr list-tests tasks/")
+  .action(async (dir, _options) => {
+    try {
+      await listTestsCommand(dir);
+    } catch (err: any) {
+      console.error(`Error executing list-tests: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command(
+    "run <testCase>",
+    "Run a single agent test case (path to agr.yaml, a directory containing one, or a test case name from `agr list-tests`)",
+  )
   .option("--config <config>", "Path to an AgentConfig YAML file")
   .option("--adapter <adapter>", "Agent adapter to use (ai-sdk, acp)", { default: "ai-sdk" })
   .option(

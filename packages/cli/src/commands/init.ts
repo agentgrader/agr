@@ -63,7 +63,7 @@ test("add() returns the sum of its two arguments", () => {
  * Mirrors `git init`: refuses to overwrite an existing `<dir>/agent.yaml`
  * unless `--force` is passed.
  */
-export async function initCommand(dir: string | undefined, opts: { force?: boolean }) {
+export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean }) {
   const root = resolve(dir || ".");
   const agentConfigPath = resolve(root, "agent.yaml");
 
@@ -73,12 +73,30 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     );
   }
 
+  writeFileSync(agentConfigPath, AGENT_CONFIG_YAML);
+
+  if (opts.blank) {
+    mkdirSync(resolve(root, "tasks"), { recursive: true });
+
+    console.log(`Scaffolded a blank agentgrader project in ${root}`);
+    console.log("");
+    console.log("Created:");
+    console.log("  agent.yaml  - agent config (claude-haiku-4-5, provider: anthropic)");
+    console.log("  tasks/      - put your own test cases here, e.g. tasks/<name>/agr.yaml");
+    console.log("");
+    console.log("Next steps:");
+    console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
+    console.log("  2. Add a test case under tasks/<name>/agr.yaml (see");
+    console.log("     https://agentgrader.dev/guide/concepts for the schema).");
+    console.log("  3. Run `agr list-tests` to confirm it's found, then `agr run <name>`.");
+    return;
+  }
+
   const taskDir = resolve(root, "tasks/hello-world");
   const fixtureDir = resolve(taskDir, "fixture");
 
   mkdirSync(fixtureDir, { recursive: true });
 
-  writeFileSync(agentConfigPath, AGENT_CONFIG_YAML);
   writeFileSync(resolve(taskDir, "agr.yaml"), TEST_CASE_YAML);
   writeFileSync(resolve(fixtureDir, "math.js"), FIXTURE_MATH_JS);
   writeFileSync(resolve(fixtureDir, "math.test.js"), FIXTURE_MATH_TEST_JS);
@@ -94,7 +112,7 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
   console.log("  2. Try it out:");
   console.log("");
-  console.log("       agr run tasks/hello-world/agr.yaml --config agent.yaml --verbose");
+  console.log("       agr run hello-world --verbose");
   console.log("");
   console.log("  3. Inspect the trace afterwards with `agr trace <runId>` (the run ID is");
   console.log("     printed at the end of the run summary).");
