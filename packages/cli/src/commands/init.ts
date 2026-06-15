@@ -88,6 +88,8 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
     console.log("  2. Add a test case under tasks/<name>/agr.yaml (see");
     console.log("     https://agentgrader.dev/guide/concepts for the schema).");
+    console.log("     Tip: include `agent_config: ../../agent.yaml` in each agr.yaml so");
+    console.log("     `agr run <name>` works without --config, or always pass --config agent.yaml.");
     console.log("  3. Run `agr list-tests` to confirm it's found, then `agr run <name>`.");
     return;
   }
