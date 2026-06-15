@@ -3,6 +3,7 @@ import type { AgentConfig } from "@agentgrader/core";
 import {
   buildPromptBlocks,
   buildTerminalShellCommand,
+  convertMcpServersForAcp,
   extractTextContent,
   resolveAcpSpawn,
   resolveSandboxPath,
@@ -182,5 +183,65 @@ describe("buildPromptBlocks", () => {
 
   test("omits an empty-string system_prompt rather than sending a blank leading block", () => {
     expect(buildPromptBlocks({ system_prompt: "" }, "task")).toEqual([{ type: "text", text: "task" }]);
+  });
+});
+
+describe("convertMcpServersForAcp", () => {
+  test("returns an empty array when mcp_servers is undefined", () => {
+    expect(convertMcpServersForAcp(undefined)).toEqual([]);
+  });
+
+  test("converts a stdio server, defaulting args/env to empty arrays", () => {
+    const servers = convertMcpServersForAcp({
+      "my-toolkit": { command: "my-toolkit-mcp" },
+    });
+    expect(servers).toEqual([{ name: "my-toolkit", command: "my-toolkit-mcp", args: [], env: [] }]);
+  });
+
+  test("converts a stdio server's args and env map to ACP's name/value list", () => {
+    const servers = convertMcpServersForAcp({
+      "my-toolkit": {
+        command: "my-toolkit-mcp",
+        args: ["--verbose"],
+        env: { API_KEY: "secret" },
+      },
+    });
+    expect(servers).toEqual([
+      {
+        name: "my-toolkit",
+        command: "my-toolkit-mcp",
+        args: ["--verbose"],
+        env: [{ name: "API_KEY", value: "secret" }],
+      },
+    ]);
+  });
+
+  test("converts an http server, defaulting to type 'http' and an empty headers list", () => {
+    const servers = convertMcpServersForAcp({
+      remote: { url: "https://example.com/mcp" },
+    });
+    expect(servers).toEqual([{ type: "http", name: "remote", url: "https://example.com/mcp", headers: [] }]);
+  });
+
+  test("converts an sse server's headers map to ACP's name/value list", () => {
+    const servers = convertMcpServersForAcp({
+      remote: { type: "sse", url: "https://example.com/sse", headers: { Authorization: "Bearer xyz" } },
+    });
+    expect(servers).toEqual([
+      {
+        type: "sse",
+        name: "remote",
+        url: "https://example.com/sse",
+        headers: [{ name: "Authorization", value: "Bearer xyz" }],
+      },
+    ]);
+  });
+
+  test("converts multiple servers, preserving config key order", () => {
+    const servers = convertMcpServersForAcp({
+      local: { command: "local-mcp" },
+      remote: { url: "https://example.com/mcp" },
+    });
+    expect(servers.map((s) => s.name)).toEqual(["local", "remote"]);
   });
 });
