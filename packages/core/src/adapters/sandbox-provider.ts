@@ -7,6 +7,24 @@ export interface PatchApplyResult {
   output: string;
 }
 
+/**
+ * A long-lived stdio process spawned inside the sandbox (e.g. via `docker
+ * exec -i`), used to bridge an MCP stdio server's stdin/stdout to a process
+ * running alongside the task's fixture files rather than on the host.
+ */
+export interface SandboxStdioProcess {
+  /** Writes raw bytes to the process's stdin. */
+  write(data: string): void;
+  /** Registers a handler called with each chunk written to stdout. */
+  onStdout(handler: (chunk: string) => void): void;
+  /** Registers a handler called with each chunk written to stderr. */
+  onStderr(handler: (chunk: string) => void): void;
+  /** Registers a handler called once when the process exits. */
+  onExit(handler: (code: number | null) => void): void;
+  /** Closes stdin, signaling the process to exit. */
+  close(): void;
+}
+
 export interface SandboxHandle {
   /**
    * Runs `cmd` in the sandbox. If it hasn't finished after `timeoutMs`
@@ -32,6 +50,14 @@ export interface SandboxHandle {
    * Implementations should report whether a fallback ("repair") was needed.
    */
   applyPatch(diff: string): Promise<PatchApplyResult>;
+  /**
+   * Spawns `cmd` (a shell command string, run via `sh -c`) inside the
+   * sandbox and returns a handle to its stdio streams, for bridging a
+   * stdio MCP server's transport into the sandbox container instead of the
+   * host. Optional - only implemented by providers that support exec'd
+   * processes with attached stdin (currently `@agentgrader/sandbox-docker`).
+   */
+  spawnStdio?(cmd: string): Promise<SandboxStdioProcess>;
   destroy(): Promise<void>;
 }
 

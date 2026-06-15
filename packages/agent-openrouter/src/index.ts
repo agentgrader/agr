@@ -1,8 +1,15 @@
 import { experimental_createMCPClient, generateText, NoSuchToolError, tool } from "ai";
 import { Experimental_StdioMCPTransport } from "ai/mcp-stdio";
+import type { JSONRPCMessage, MCPTransport } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
-import type { AgentAdapter, AgentResult, McpServerConfig, StepEvent } from "@agentgrader/core";
+import type {
+  AgentAdapter,
+  AgentResult,
+  McpServerConfig,
+  SandboxHandle,
+  StepEvent,
+} from "@agentgrader/core";
 import { discoverSkillsForToolkits } from "@agentgrader/core";
 import { z } from "zod";
 
@@ -10,6 +17,77 @@ import { z } from "zod";
 interface McpClientHandle {
   tools(): Promise<Record<string, unknown>>;
   close(): Promise<void>;
+}
+
+/** shell-quotes a single argument for use in an `sh -c` command string. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/** builds the `sh -c` command string for a sandboxed stdio MCP server. */
+export function buildSandboxedMcpCommand(server: {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+}): string {
+  const envPrefix = Object.entries(server.env ?? {})
+    .map(([key, value]) => `${key}=${shellQuote(value)}`)
+    .join(" ");
+  const command = [server.command, ...(server.args ?? [])].map(shellQuote).join(" ");
+  return envPrefix ? `${envPrefix} ${command}` : command;
+}
+
+/**
+ * An `MCPTransport` that runs a stdio MCP server inside the sandbox
+ * container (via `SandboxHandle.spawnStdio`, e.g. `docker exec -i`) instead
+ * of on the host, so the server's `command` sees the task's sandboxed
+ * `/app` fixture files rather than the host filesystem. Frames messages as
+ * newline-delimited JSON, matching the MCP stdio transport's wire format.
+ */
+export class SandboxStdioMcpTransport implements MCPTransport {
+  onclose?: () => void;
+  onerror?: (error: Error) => void;
+  onmessage?: (message: JSONRPCMessage) => void;
+
+  private process?: Awaited<ReturnType<NonNullable<SandboxHandle["spawnStdio"]>>>;
+  private buffer = "";
+
+  constructor(
+    private sandbox: SandboxHandle,
+    private command: string,
+  ) {}
+
+  async start(): Promise<void> {
+    if (!this.sandbox.spawnStdio) {
+      throw new Error("sandbox provider does not implement spawnStdio()");
+    }
+    const process = await this.sandbox.spawnStdio(this.command);
+    this.process = process;
+
+    process.onStdout((chunk) => {
+      this.buffer += chunk;
+      let newlineIndex: number;
+      while ((newlineIndex = this.buffer.indexOf("\n")) >= 0) {
+        const line = this.buffer.slice(0, newlineIndex);
+        this.buffer = this.buffer.slice(newlineIndex + 1);
+        if (!line.trim()) continue;
+        try {
+          this.onmessage?.(JSON.parse(line) as JSONRPCMessage);
+        } catch (err) {
+          this.onerror?.(err as Error);
+        }
+      }
+    });
+    process.onExit(() => this.onclose?.());
+  }
+
+  async send(message: JSONRPCMessage): Promise<void> {
+    this.process?.write(`${JSON.stringify(message)}\n`);
+  }
+
+  async close(): Promise<void> {
+    this.process?.close();
+  }
 }
 
 export function resolveProvider(config: { provider?: string; model?: string }): string {
@@ -197,11 +275,13 @@ export class AiSdkAgentAdapter implements AgentAdapter {
       try {
         const transport =
           "command" in serverConfig
-            ? new Experimental_StdioMCPTransport({
-                command: serverConfig.command,
-                args: serverConfig.args,
-                env: serverConfig.env,
-              })
+            ? serverConfig.sandboxed
+              ? new SandboxStdioMcpTransport(sandbox, buildSandboxedMcpCommand(serverConfig))
+              : new Experimental_StdioMCPTransport({
+                  command: serverConfig.command,
+                  args: serverConfig.args,
+                  env: serverConfig.env,
+                })
             : // note: the installed AI SDK version only supports "sse" as a
               // remote transport type, regardless of the configured `type`
               { type: "sse" as const, url: serverConfig.url, headers: serverConfig.headers };

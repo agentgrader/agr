@@ -1,9 +1,14 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { Readable, Writable } from "node:stream";
-import type { PatchApplyResult, SandboxHandle, SandboxProvider } from "@agentgrader/core";
+import type {
+  PatchApplyResult,
+  SandboxHandle,
+  SandboxProvider,
+  SandboxStdioProcess,
+} from "@agentgrader/core";
 import Docker from "dockerode";
 
 export class DockerSandboxHandle implements SandboxHandle {
@@ -151,6 +156,43 @@ export class DockerSandboxHandle implements SandboxHandle {
 
     await this.exec(`rm -f "${patchPath}"`);
     return { applied: false, repaired: false, output: log.join("\n\n") };
+  }
+
+  /**
+   * Spawns `cmd` via `docker exec -i <container> sh -c <cmd>` as a host
+   * child process talking to the container's attached stdio, rather than
+   * via dockerode's `exec.start({hijack: true})`: under Bun, the hijacked
+   * exec stream never receives the HTTP upgrade response and hangs forever
+   * (see `writeFile`'s comment for the same root cause), since
+   * docker-modem's hijack path relies on a raw socket `upgrade` event that
+   * Bun's http client doesn't emit. Shelling out to the `docker` CLI avoids
+   * dockerode's HTTP transport entirely.
+   */
+  async spawnStdio(cmd: string): Promise<SandboxStdioProcess> {
+    const child = spawn("docker", ["exec", "-i", this.container.id, "sh", "-c", cmd], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let exitHandler: ((code: number | null) => void) | undefined;
+    child.on("exit", (code) => exitHandler?.(code));
+
+    return {
+      write(data: string) {
+        child.stdin?.write(data);
+      },
+      onStdout(handler: (chunk: string) => void) {
+        child.stdout?.on("data", (chunk: Buffer) => handler(chunk.toString()));
+      },
+      onStderr(handler: (chunk: string) => void) {
+        child.stderr?.on("data", (chunk: Buffer) => handler(chunk.toString()));
+      },
+      onExit(handler: (code: number | null) => void) {
+        exitHandler = handler;
+      },
+      close() {
+        child.stdin?.end();
+      },
+    };
   }
 
   async destroy(): Promise<void> {

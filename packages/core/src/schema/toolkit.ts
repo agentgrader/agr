@@ -54,6 +54,14 @@ export const McpServerConfigSchema = z.union([
     command: z.string(),
     args: z.array(z.string()).optional(),
     env: z.record(z.string()).optional(),
+    /**
+     * If true, spawn this stdio server *inside* the sandbox container (via
+     * `SandboxHandle.spawnStdio`, e.g. `docker exec -i`) instead of on the
+     * host - so `command` sees the task's sandboxed `/app` fixture files
+     * rather than the host filesystem. Requires a sandbox provider that
+     * implements `spawnStdio` (currently only `@agentgrader/sandbox-docker`).
+     */
+    sandboxed: z.boolean().optional(),
   }),
   z.object({
     type: z.enum(["http", "sse"]).optional(),
