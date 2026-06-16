@@ -35,11 +35,13 @@ cli
 
 cli
   .command("list-tests [dir]", "List test cases (agr.yaml files) found under dir (default: cwd)")
+  .option("--json", "Print results as a JSON array instead of a human-readable table")
   .example("agr list-tests")
   .example("agr list-tests tasks/")
-  .action(async (dir, _options) => {
+  .example("agr list-tests --json")
+  .action(async (dir, options) => {
     try {
-      await listTestsCommand(dir);
+      await listTestsCommand(dir, { json: options.json });
     } catch (err: any) {
       console.error(`Error executing list-tests: ${err.message}`);
       process.exit(1);
@@ -187,8 +189,8 @@ cli
 
 cli
   .command(
-    "validate <testCase>",
-    "Validate a test case definition (fixture, fail_to_pass/pass_to_pass, gold patch)",
+    "validate [...testCases]",
+    "Validate one or more test case definitions (fixture, fail_to_pass/pass_to_pass, gold patch)",
   )
   .option(
     "--strict",
@@ -196,9 +198,16 @@ cli
   )
   .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
   .option("--audit-toolkits", "Run security audit on toolkits referenced by the test case")
-  .action(async (testCase, options) => {
+  .example("agr validate fix-greeting")
+  .example("agr validate fix-greeting --strict")
+  .example("agr validate task-a task-b task-c --strict")
+  .action(async (testCases, options) => {
     try {
-      await validateCommand(testCase, options);
+      if (!testCases || testCases.length === 0) {
+        console.error("No test case specified. Usage: agr validate <testCase> [testCase...]");
+        process.exit(1);
+      }
+      await validateCommand(testCases, options);
     } catch (err: any) {
       console.error(`Error executing validate: ${err.message}`);
       process.exit(1);

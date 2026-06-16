@@ -17,23 +17,27 @@ function checkIcon(check: ValidationCheck): string {
 }
 
 /**
- * `agr validate <testCase>`
+ * `agr validate [...testCases]`
  *
- * Runs the SWE-bench-style validation pipeline against a test case
- * definition: static field checks, then (if a `test_command` is
+ * Runs the SWE-bench-style validation pipeline against one or more test
+ * case definitions: static field checks, then (if a `test_command` is
  * configured) a pre-patch run verifying FAIL_TO_PASS tests currently fail
  * and PASS_TO_PASS tests currently pass, and - if a gold `solution` patch
  * is provided - a post-patch run verifying the gold patch actually fixes
  * FAIL_TO_PASS without breaking PASS_TO_PASS.
+ *
+ * When multiple test cases are given, each is validated in turn and the
+ * command exits 1 if any failed.
  */
-export async function validateCommand(
-  testCasePath: string,
-  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
-) {
-  const resolvedPath = resolveTestCasePath(testCasePath);
+async function validateOne(
+  input: string,
+  opts: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
+  sandboxProvider: ReturnType<typeof resolveSandbox>,
+): Promise<boolean> {
+  const resolvedPath = resolveTestCasePath(input);
   const testCase = loadTestCase(resolvedPath);
 
-  if (opts?.strict) {
+  if (opts.strict) {
     const missing: string[] = [];
     if (!testCase.test_command) missing.push("test_command");
     if (!testCase.fail_to_pass?.length) missing.push("fail_to_pass");
@@ -42,13 +46,11 @@ export async function validateCommand(
       console.error(
         `Strict validation requires: ${missing.join(", ")}. Fill these fields before running in CI.`,
       );
-      process.exit(1);
+      return false;
     }
   }
 
-  console.log(`Validating "${testCase.name}" (${resolvedPath})...\n`);
-
-  if (opts?.auditToolkits && testCase.toolkits?.length) {
+  if (opts.auditToolkits && testCase.toolkits?.length) {
     const yamlDir = resolve(resolvedPath, "..");
     for (const toolkit of testCase.toolkits) {
       const findings = auditToolkitDirectory(resolve(yamlDir, toolkit));
@@ -56,13 +58,10 @@ export async function validateCommand(
         const label = finding.severity === "error" ? "[FAIL]" : "[WARN]";
         console.log(`${label} toolkit ${toolkit}: ${finding.message} (${finding.rule})`);
       }
-      if (hasAuditErrors(findings)) {
-        process.exit(1);
-      }
+      if (hasAuditErrors(findings)) return false;
     }
   }
 
-  const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
   const report = await validateTestCase({ testCase, sandboxProvider });
 
   const hadExecutionSkip = report.checks.some((c) =>
@@ -85,7 +84,7 @@ export async function validateCommand(
     console.log(
       "Note: this was a static-only validation (no test_command configured) - Docker/patch execution checks were skipped.",
     );
-    if (report.ok && !opts?.strict) {
+    if (report.ok && !opts.strict) {
       console.log(
         "Tip: run with --strict to enforce test_command, fail_to_pass, and pass_to_pass as a CI gate.",
       );
@@ -94,5 +93,44 @@ export async function validateCommand(
 
   console.log("");
   console.log(report.ok ? "Validation passed." : "Validation failed.");
-  process.exit(report.ok ? 0 : 1);
+  return report.ok;
+}
+
+export async function validateCommand(
+  testCasePaths: string | string[],
+  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
+) {
+  const inputs = Array.isArray(testCasePaths) ? testCasePaths : [testCasePaths];
+  if (inputs.length === 0) {
+    console.error("No test case specified. Usage: agr validate <testCase> [testCase...]");
+    process.exit(1);
+  }
+
+  const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
+  const safeOpts = opts ?? {};
+
+  if (inputs.length === 1) {
+    const resolvedPath = resolveTestCasePath(inputs[0]!);
+    const testCase = loadTestCase(resolvedPath);
+    console.log(`Validating "${testCase.name}" (${resolvedPath})...\n`);
+    const ok = await validateOne(inputs[0]!, safeOpts, sandboxProvider);
+    process.exit(ok ? 0 : 1);
+  }
+
+  let passCount = 0;
+  for (const input of inputs) {
+    const resolvedPath = resolveTestCasePath(input);
+    const testCase = loadTestCase(resolvedPath);
+    console.log(`\n--- ${testCase.name} (${resolvedPath}) ---\n`);
+    const ok = await validateOne(input, safeOpts, sandboxProvider);
+    if (ok) passCount++;
+  }
+
+  const failCount = inputs.length - passCount;
+  console.log(
+    failCount === 0
+      ? `\nAll ${inputs.length} validations passed.`
+      : `\n${passCount}/${inputs.length} validations passed, ${failCount} failed.`,
+  );
+  process.exit(failCount > 0 ? 1 : 0);
 }
