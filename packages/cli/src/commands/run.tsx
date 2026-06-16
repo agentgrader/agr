@@ -18,6 +18,7 @@ export async function runSingleCommand(
   opts: {
     config?: string;
     model?: string;
+    maxSteps?: number;
     verbose?: boolean;
     adapter?: string;
     failOnFailure?: boolean;
@@ -55,6 +56,11 @@ export async function runSingleCommand(
   if (opts.model) {
     console.log(`Overriding model: ${agentConfig.model} -> ${opts.model}`);
     agentConfig = { ...agentConfig, model: opts.model };
+  }
+
+  if (opts.maxSteps !== undefined) {
+    console.log(`Overriding max_steps: ${agentConfig.maxSteps ?? agentConfig.max_steps ?? "default"} -> ${opts.maxSteps}`);
+    agentConfig = { ...agentConfig, max_steps: opts.maxSteps, maxSteps: opts.maxSteps };
   }
 
   const sandboxProvider = resolveSandbox(opts.sandbox ?? "docker");

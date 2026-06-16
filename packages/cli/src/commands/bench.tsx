@@ -66,6 +66,7 @@ export async function runBenchCommand(opts: {
   onlyFailed?: boolean;
   shuffle?: boolean;
   model?: string;
+  maxSteps?: number;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -232,6 +233,12 @@ export async function runBenchCommand(opts: {
     const overrideModel = opts.model;
     console.log(`Overriding model for all agent config(s): ${overrideModel}`);
     agentConfigs = agentConfigs.map((ac) => ({ ...ac, model: overrideModel }));
+  }
+
+  if (opts.maxSteps !== undefined) {
+    const overrideSteps = opts.maxSteps;
+    console.log(`Overriding max_steps for all agent config(s): ${overrideSteps}`);
+    agentConfigs = agentConfigs.map((ac) => ({ ...ac, max_steps: overrideSteps, maxSteps: overrideSteps }));
   }
 
   if (opts.dryRun) {

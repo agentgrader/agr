@@ -62,6 +62,7 @@ cli
   )
   .option("--config <config>", "Path to an AgentConfig YAML file")
   .option("--model <model>", "Override the model from the agent config for this run (e.g. claude-opus-4-8)")
+  .option("--max-steps <n>", "Override the max_steps from the agent config for this run")
   .option("--adapter <adapter>", "Agent adapter to use (ai-sdk, acp)", { default: "ai-sdk" })
   .option(
     "--verbose",
@@ -85,7 +86,7 @@ cli
   .example("agr run tasks/fix-bug/agr.yaml --fail-on-failure")
   .action(async (testCase, options) => {
     try {
-      await runSingleCommand(testCase, { ...options, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined });
+      await runSingleCommand(testCase, { ...options, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined });
     } catch (err: any) {
       console.error(`Error executing run: ${err.message}`);
       process.exit(1);
@@ -135,6 +136,7 @@ cli
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
+  .option("--max-steps <n>", "Override the max_steps for all agent configs in this bench run")
   .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
@@ -205,6 +207,7 @@ cli
         onlyFailed: options.onlyFailed,
         shuffle: options.shuffle,
         model: options.model,
+        maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
