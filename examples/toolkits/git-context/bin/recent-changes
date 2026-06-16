@@ -1,0 +1,51 @@
+#!/bin/sh
+# recent-changes - show which files were most recently modified in git,
+# optionally filtered to a subdirectory. Useful for understanding what
+# areas of the codebase have been changing and which files to focus on.
+#
+# Usage: recent-changes [path] [--limit N]
+#
+# Output: one line per file, format: "<relative-date>  <file>"
+
+set -e
+
+LIMIT=20
+TARGET="."
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --limit)
+      LIMIT="$2"
+      shift 2
+      ;;
+    --limit=*)
+      LIMIT="${1#--limit=}"
+      shift
+      ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      exit 1
+      ;;
+    *)
+      TARGET="$1"
+      shift
+      ;;
+  esac
+done
+
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "recent-changes: not inside a git repository" >&2
+  exit 1
+fi
+
+git log --pretty=format: --name-only --diff-filter=ACM \
+  -- "$TARGET" \
+  | grep -v '^$' \
+  | awk '!seen[$0]++' \
+  | head -n "$LIMIT" \
+  | while IFS= read -r file; do
+      if [ -f "$file" ]; then
+        date=$(git log -1 --format="%ar" -- "$file" 2>/dev/null || echo "unknown")
+        printf "%-20s %s\n" "$date" "$file"
+      fi
+    done
