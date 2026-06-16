@@ -74,6 +74,7 @@ export async function runSingleCommand(
   );
 
   let exitCode = 0;
+  let summary: RunSummary | undefined;
   try {
     const result = await runSingle({
       testCase,
@@ -109,7 +110,7 @@ export async function runSingleCommand(
       totalTokensIn += step.tokensIn || 0;
     }
 
-    const summary: RunSummary = {
+    summary = {
       passed: result.passed,
       stepsCount: result.stepsCount,
       costUsd: result.costUsd,
@@ -142,11 +143,11 @@ export async function runSingleCommand(
     }
 
     if (opts.report && opts.output) {
-      const summary = computeBenchmarkSummary([result], [agentConfig.id || agentConfig.name]);
+      const benchSummary = computeBenchmarkSummary([result], [agentConfig.id || agentConfig.name]);
       const report = await buildReportFromRunIds(
         db,
         [runId],
-        summary,
+        benchSummary,
         [agentConfig],
         !!opts.reportIncludeTraces,
       );
@@ -169,7 +170,12 @@ export async function runSingleCommand(
   unmount();
   await waitUntilExit();
 
-  console.log(`\nInspect: agr trace --last  |  agr trace --last --quality  |  agr trace --last --tools`);
+  const passed = summary?.passed;
+  if (passed === true) {
+    console.log(`\nNext: agr bench ${testCase.name}  |  agr trace --last  |  agr trace --last --quality`);
+  } else {
+    console.log(`\nInspect: agr trace --last  |  agr trace --last --quality  |  agr trace --last --tools`);
+  }
 
   process.exit(exitCode);
 }
