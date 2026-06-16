@@ -57,6 +57,7 @@ const sampleReport: BenchReport = {
       solveRate: 0.5,
       avgCostUsd: 0.015,
       avgDurationMs: 150,
+      avgStepsCount: 4,
       totalRuns: 2,
       passedRuns: 1,
     },

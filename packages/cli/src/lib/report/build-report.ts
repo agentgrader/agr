@@ -69,6 +69,7 @@ export async function buildReportFromRunIds(
     passed: r.passed,
     costUsd: r.costUsd,
     durationMs: r.durationMs,
+    stepsCount: r.stepsCount,
     tokensIn: r.tokensIn,
     tokensOut: r.tokensOut,
     metrics: r.metrics,
@@ -79,6 +80,7 @@ export async function buildReportFromRunIds(
     solveRate: a.solveRate,
     avgCostUsd: a.avgCostUsd,
     avgDurationMs: a.avgDurationMs,
+    avgStepsCount: a.avgStepsCount,
     totalRuns: a.totalRuns,
     passedRuns: a.passedRuns,
   }));

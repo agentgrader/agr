@@ -37,6 +37,7 @@ export interface BenchReport {
     solveRate: number;
     avgCostUsd: number;
     avgDurationMs: number;
+    avgStepsCount: number;
     totalRuns: number;
     passedRuns: number;
   }>;
