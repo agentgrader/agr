@@ -142,6 +142,9 @@ export async function validateCommand(
     const testCase = loadTestCase(resolvedPaths[0]!);
     console.log(`Validating "${testCase.name}" (${resolvedPaths[0]})...\n`);
     const ok = await validateOne(resolvedPaths[0]!, safeOpts, sandboxProvider);
+    if (ok) {
+      console.log(`\nNext: agr run ${testCase.name}  |  agr bench ${testCase.name}`);
+    }
     process.exit(ok ? 0 : 1);
   }
 
@@ -159,5 +162,12 @@ export async function validateCommand(
       ? `\nAll ${resolvedPaths.length} validations passed.`
       : `\n${passCount}/${resolvedPaths.length} validations passed, ${failCount} failed.`,
   );
+  if (failCount === 0) {
+    if (opts?.suite) {
+      console.log(`\nNext: agr bench --suite ${opts.suite}  |  agr bench --suite ${opts.suite} --matrix matrix.yaml`);
+    } else {
+      console.log(`\nNext: agr bench [...testCases] --config agent.yaml`);
+    }
+  }
   process.exit(failCount > 0 ? 1 : 0);
 }
