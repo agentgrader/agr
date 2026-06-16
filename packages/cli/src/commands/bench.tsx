@@ -351,7 +351,8 @@ export async function runBenchCommand(opts: {
     const configCount = Object.keys(summary.byConfig).length;
     if (configCount > 1) {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
-      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
+      const avgCostNote = summary.totalRuns > 1 ? `  avg: $${(totalCost / summary.totalRuns).toFixed(4)}/run` : "";
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}${avgCostNote}  elapsed: ${elapsedSec}s`);
       const costByConfig = new Map<string, number>();
       for (const r of Object.values(runStates)) {
         costByConfig.set(r.agentConfigId, (costByConfig.get(r.agentConfigId) ?? 0) + (r.costUsd || 0));
@@ -360,7 +361,8 @@ export async function runBenchCommand(opts: {
       for (const [configId, stats] of Object.entries(summary.byConfig)) {
         const pct = stats.totalRuns > 0 ? ((stats.solveRate) * 100).toFixed(0) : "0";
         const cost = costByConfig.get(configId) ?? 0;
-        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}`);
+        const avgConfigNote = stats.totalRuns > 1 ? `  avg: $${(cost / stats.totalRuns).toFixed(4)}/run` : "";
+        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}${avgConfigNote}`);
         const configRuns = Object.values(runStates).filter(r => r.agentConfigId === configId);
         const failedCases = configRuns.filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
         const erroredRuns = configRuns.filter(r => r.status === "failed");
@@ -378,7 +380,8 @@ export async function runBenchCommand(opts: {
       }
     } else {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
-      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
+      const avgCostNote = summary.totalRuns > 1 ? `  avg: $${(totalCost / summary.totalRuns).toFixed(4)}/run` : "";
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}${avgCostNote}  elapsed: ${elapsedSec}s`);
       const crashedRuns = Object.values(runStates).filter(r => r.status === "failed");
       const testFailedCases = Object.values(runStates).filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
       if (testFailedCases.length > 10) {
