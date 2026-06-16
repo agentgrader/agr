@@ -60,6 +60,7 @@ export async function runBenchCommand(opts: {
   judgeMinScore?: number;
   testCaseArgs?: string[];
   dryRun?: boolean;
+  tags?: string[];
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -121,24 +122,37 @@ export async function runBenchCommand(opts: {
     }
     const allTestCases = allYamlFiles.map(f => loadTestCase(f));
 
+    let pairs = allTestCases.map((tc, i) => ({ tc, yaml: allYamlFiles[i]! }));
+
     if (opts.testCaseArgs?.length) {
       const filter = new Set(opts.testCaseArgs);
-      const pairs = allTestCases
-        .map((tc, i) => ({ tc, yaml: allYamlFiles[i]! }))
-        .filter(({ tc, yaml }) => filter.has(tc.name) || filter.has(basename(dirname(yaml))));
+      pairs = pairs.filter(({ tc, yaml }) => filter.has(tc.name) || filter.has(basename(dirname(yaml))));
       if (pairs.length === 0) {
         console.error(`No test cases matched: ${opts.testCaseArgs.join(", ")}`);
         process.exit(1);
       }
-      yamlFiles = pairs.map(p => p.yaml);
-      testCases = pairs.map(p => p.tc);
       console.log(
-        `Filtered suite to ${testCases.length} of ${allTestCases.length} test case(s): ${testCases.map(tc => tc.name).join(", ")}`,
+        `Filtered suite to ${pairs.length} of ${allTestCases.length} test case(s): ${pairs.map(p => p.tc.name).join(", ")}`,
       );
-    } else {
-      yamlFiles = allYamlFiles;
-      testCases = allTestCases;
     }
+
+    if (opts.tags?.length) {
+      const tagSet = new Set(opts.tags);
+      const beforeCount = pairs.length;
+      pairs = pairs.filter(({ tc }) => (tc.tags ?? []).some(t => tagSet.has(t)));
+      if (pairs.length === 0) {
+        console.error(`No test cases found with tags: ${opts.tags.join(", ")}`);
+        process.exit(1);
+      }
+      if (pairs.length < beforeCount) {
+        console.log(
+          `Tag filter [${opts.tags.join(", ")}]: ${pairs.length} of ${beforeCount} test case(s) matched`,
+        );
+      }
+    }
+
+    yamlFiles = pairs.map(p => p.yaml);
+    testCases = pairs.map(p => p.tc);
   } else {
     yamlFiles = opts.testCaseArgs!.map(arg => resolveTestCasePath(arg));
     testCases = yamlFiles.map(f => loadTestCase(f));
