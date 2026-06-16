@@ -274,15 +274,18 @@ cli
   .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
   .option("--limit <n>", "Maximum number of runs to load", { default: 100 })
   .option("--plain", "Print a plain text list instead of the interactive UI")
+  .option("--since <duration|date>", "Only show runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .example("agr list")
   .example("agr list --limit 20")
   .example("agr list --plain")
+  .example("agr list --plain --since 24h")
   .action(async (options) => {
     try {
       await listCommand({
         db: options.db,
         limit: Number(options.limit),
         plain: options.plain,
+        since: options.since,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);

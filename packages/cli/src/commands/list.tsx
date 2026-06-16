@@ -5,24 +5,28 @@ import { loadEnrichedRuns, formatRunStatus, shortRunId } from "../lib/load-run-l
 import { formatRunWhen, formatDuration } from "../lib/format-relative-time";
 import { clearTerminalScreen, enterAlternateScreen, leaveAlternateScreen } from "../lib/list-table-layout";
 import { RunListApp, type TracePreviewStep } from "../ui/RunListApp";
+import { parseSince } from "../lib/parse-since";
 
 export interface ListCommandOptions {
   db?: string;
   limit?: number;
   plain?: boolean;
+  since?: string;
 }
 
 function printPlainList(
   runs: Awaited<ReturnType<typeof loadEnrichedRuns>>,
   dbPath: string,
+  sinceLabel?: string,
 ): void {
   if (runs.length === 0) {
-    console.log(`No runs found in ${dbPath}.`);
+    console.log(`No runs found in ${dbPath}${sinceLabel ? ` since ${sinceLabel}` : ""}.`);
     console.log("Run `agr run` or `agr bench` first.");
     return;
   }
 
-  console.log(`Runs in ${dbPath} (${runs.length} shown):\n`);
+  const sinceNote = sinceLabel ? `  [since ${sinceLabel}]` : "";
+  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}:\n`);
   for (const run of runs) {
     const status = formatRunStatus(run);
     const when = formatRunWhen(run.createdAt);
@@ -47,10 +51,12 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const dbPath = options.db ?? ".agr/db.sqlite";
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
-  const runs = await loadEnrichedRuns(db, limit);
+  const sinceTs = options.since ? parseSince(options.since) : undefined;
+  const runs = await loadEnrichedRuns(db, limit, sinceTs);
 
+  const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   if (options.plain || !process.stdout.isTTY) {
-    printPlainList(runs, dbPath);
+    printPlainList(runs, dbPath, sinceLabel);
     return;
   }
 

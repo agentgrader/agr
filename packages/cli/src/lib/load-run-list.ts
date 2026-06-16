@@ -22,9 +22,10 @@ export interface EnrichedRun {
   completedAt: number | null;
 }
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number): Promise<EnrichedRun[]> {
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
-  const limited = limit ? rows.slice(0, limit) : rows;
+  const filtered = sinceTs !== undefined ? rows.filter((r) => r.createdAt >= sinceTs) : rows;
+  const limited = limit ? filtered.slice(0, limit) : filtered;
   if (limited.length === 0) return [];
 
   const [tcRows, cfgRows] = await Promise.all([
