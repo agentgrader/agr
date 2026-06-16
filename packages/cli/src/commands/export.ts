@@ -18,6 +18,7 @@ export async function exportCommand(
     since?: string;
     testCase?: string;
     config?: string;
+    passed?: boolean;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -68,6 +69,15 @@ export async function exportCommand(
         process.exit(1);
       }
       console.log(`Filtering to ${runs.length} run(s) since ${opts.since} (${new Date(sinceTs * 1000).toISOString()})`);
+    }
+    if (opts.passed !== undefined) {
+      runs = runs.filter((r) => r.passed === opts.passed);
+      if (runs.length === 0) {
+        const label = opts.passed ? "passed" : "failed";
+        console.error(`No ${label} runs found. Check \`agr status\` for current DB contents.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} ${opts.passed ? "passed" : "failed"} run(s)`);
     }
     if (opts.testCase) {
       const tc = opts.testCase;

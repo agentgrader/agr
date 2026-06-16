@@ -334,14 +334,22 @@ cli
   .option("--since <duration|date>", "Only export runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .option("--test-case <id>", "Filter exported runs to those with a matching testCaseId (substring match)")
   .option("--config <id>", "Filter exported runs to those with a matching agentConfigId (substring match)")
+  .option("--passed", "Export only runs that passed")
+  .option("--failed", "Export only runs that failed")
   .example("agr export runs --format jsonl --output runs.jsonl")
   .example("agr export runs --since 24h --format jsonl --output today.jsonl")
   .example("agr export runs --last-matrix --format jsonl --output sweep.jsonl")
   .example("agr export runs --test-case hello-world --format jsonl --output hello.jsonl")
+  .example("agr export runs --failed --output failed-runs.json")
   .example("agr export traces --run-id <runId> --format otlp --output trace.json")
   .example("agr export traces --last --format otlp --output last-trace.json")
   .action(async (subcommand, options) => {
     try {
+      if (options.passed && options.failed) {
+        console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const passedFilter = options.passed ? true : options.failed ? false : undefined;
       await exportCommand(subcommand, {
         format: options.format,
         output: options.output,
@@ -354,6 +362,7 @@ cli
         since: options.since,
         testCase: options.testCase,
         config: options.config,
+        passed: passedFilter,
       });
     } catch (err: any) {
       console.error(`Error executing export: ${err.message}`);
