@@ -357,6 +357,10 @@ export async function runBenchCommand(opts: {
     }
   }
 
+  if (opts.report && !opts.output) {
+    console.warn(`Warning: --report ${opts.report} has no effect without --output <path>.`);
+  }
+
   if (opts.report && opts.output) {
     const runIds = Object.values(runStates)
       .map((r) => r.runId)
