@@ -1,4 +1,5 @@
 import type { BenchReport } from "./types";
+import { formatDuration } from "../format-relative-time";
 
 function escapeHtml(value: string): string {
   return value
@@ -13,7 +14,7 @@ export function formatReportAsHtml(report: BenchReport): string {
   const rows = report.runs
     .map(
       (r) =>
-        `<tr><td>${escapeHtml(r.runId.slice(0, 8))}</td><td>${escapeHtml(r.testCaseId)}</td><td>${escapeHtml(r.agentConfigId)}</td><td>${r.passed ? "PASS" : "FAIL"}</td><td>$${r.costUsd.toFixed(4)}</td><td>${r.durationMs}ms</td></tr>`,
+        `<tr><td>${escapeHtml(r.runId.slice(0, 8))}</td><td>${escapeHtml(r.testCaseId)}</td><td>${escapeHtml(r.agentConfigId)}</td><td>${r.passed ? "PASS" : "FAIL"}</td><td>$${r.costUsd.toFixed(4)}</td><td>${escapeHtml(formatDuration(r.durationMs))}</td></tr>`,
     )
     .join("\n");
 

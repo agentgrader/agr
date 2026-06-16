@@ -1,4 +1,5 @@
 import type { BenchReport } from "./types";
+import { formatDuration } from "../format-relative-time";
 
 export function formatReportAsMarkdown(report: BenchReport): string {
   const lines: string[] = [];
@@ -17,7 +18,7 @@ export function formatReportAsMarkdown(report: BenchReport): string {
   lines.push("| --- | --- | --- | --- | --- |");
   for (const run of report.runs) {
     lines.push(
-      `| ${run.testCaseId} | ${run.agentConfigId} | ${run.passed ? "PASS" : "FAIL"} | $${run.costUsd.toFixed(4)} | ${run.durationMs}ms |`,
+      `| ${run.testCaseId} | ${run.agentConfigId} | ${run.passed ? "PASS" : "FAIL"} | $${run.costUsd.toFixed(4)} | ${formatDuration(run.durationMs)} |`,
     );
   }
 
