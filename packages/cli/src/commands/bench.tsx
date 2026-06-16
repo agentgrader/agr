@@ -361,6 +361,16 @@ export async function runBenchCommand(opts: {
         const pct = stats.totalRuns > 0 ? ((stats.solveRate) * 100).toFixed(0) : "0";
         const cost = costByConfig.get(configId) ?? 0;
         console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}`);
+        const configRuns = Object.values(runStates).filter(r => r.agentConfigId === configId);
+        const failedCases = configRuns.filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
+        const erroredRuns = configRuns.filter(r => r.status === "failed");
+        if (failedCases.length > 0 && failedCases.length <= 10) {
+          console.log(`  ${" ".repeat(nameWidth)}  Failed: ${failedCases.join(", ")}`);
+        }
+        if (erroredRuns.length > 0 && erroredRuns.length <= 10) {
+          const crashedList = erroredRuns.map(r => r.error ? `${r.testCaseId} (${r.error.slice(0, 60)})` : r.testCaseId).join(", ");
+          console.log(`  ${" ".repeat(nameWidth)}  Errored: ${crashedList}`);
+        }
       }
     } else {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
