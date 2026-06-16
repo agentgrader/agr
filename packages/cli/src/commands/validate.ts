@@ -149,18 +149,25 @@ export async function validateCommand(
     const ok = await validateOne(resolvedPaths[0]!, safeOpts, sandboxProvider);
     if (ok) {
       console.log(`\nNext: agr run ${testCase.name}  |  agr bench ${testCase.name}`);
+    } else {
+      console.log(`\nFix the failing checks above, then re-run: agr validate ${testCase.name}`);
     }
     process.exit(ok ? 0 : 1);
   }
 
   let passCount = 0;
   const testCaseNames: string[] = [];
+  const failedNames: string[] = [];
   for (const path of resolvedPaths) {
     const testCase = loadTestCase(path);
     testCaseNames.push(testCase.name);
     console.log(`\n--- ${testCase.name} (${path}) ---\n`);
     const ok = await validateOne(path, safeOpts, sandboxProvider);
-    if (ok) passCount++;
+    if (ok) {
+      passCount++;
+    } else {
+      failedNames.push(testCase.name);
+    }
   }
 
   const failCount = resolvedPaths.length - passCount;
@@ -175,6 +182,11 @@ export async function validateCommand(
     } else {
       console.log(`\nNext: agr bench ${testCaseNames.join(" ")} --config agent.yaml`);
     }
+  } else {
+    const rerunArgs = opts?.suite && failedNames.length === resolvedPaths.length
+      ? `--suite ${opts.suite}`
+      : failedNames.join(" ");
+    console.log(`\nFix the failing checks above, then re-run: agr validate ${rerunArgs}`);
   }
   process.exit(failCount > 0 ? 1 : 0);
 }
