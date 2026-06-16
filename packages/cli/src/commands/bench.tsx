@@ -170,8 +170,9 @@ export async function runBenchCommand(opts: {
       explicitPaths: [sharedAgentConfig],
     });
     agentConfigs = loadAgentConfigsFromPaths(configPaths);
+    const acLabel = agentConfigs.length === 1 ? "config" : "configs";
     console.log(
-      `Using shared agent_config from agr.yaml: ${sharedAgentConfig} (${agentConfigs.length} config).`,
+      `Using shared agent_config from agr.yaml: ${sharedAgentConfig} (${agentConfigs.length} ${acLabel}).`,
     );
   }
 
@@ -326,6 +327,12 @@ export async function runBenchCommand(opts: {
   }
 
   const summary = summaryFromRunStates(runStates, configIds);
+
+  if (!matrixId) {
+    const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
+    const totalCost = Object.values(runStates).reduce((acc, r) => acc + (r.costUsd || 0), 0);
+    console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}`);
+  }
 
   if (opts.report && opts.output) {
     const runIds = Object.values(runStates)
