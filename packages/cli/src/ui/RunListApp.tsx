@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Text, useApp, useInput, useStdout } from "ink";
 import type { EnrichedRun } from "../lib/load-run-list";
 import { formatRunStatus, shortRunId } from "../lib/load-run-list";
-import { formatAbsoluteTime, formatCompactWhen, formatRunWhen } from "../lib/format-relative-time";
+import { formatAbsoluteTime, formatCompactWhen, formatRunWhen, formatDuration } from "../lib/format-relative-time";
 import {
   clearTerminalScreen,
   computeListColumnLayout,
@@ -461,7 +461,7 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
             <DetailRow
               label="Status"
               lines={[
-                `${formatRunStatus(detailRun)}  |  $${detailRun.costUsd.toFixed(4)}  |  ${(detailRun.durationMs / 1000).toFixed(1)}s  |  ${detailRun.stepsCount} steps`,
+                `${formatRunStatus(detailRun)}  |  $${detailRun.costUsd.toFixed(4)}  |  ${formatDuration(detailRun.durationMs)}  |  ${detailRun.stepsCount} steps`,
               ]}
               valueColor={statusColor(formatRunStatus(detailRun))}
               bold
