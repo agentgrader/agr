@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/mcp-sandbox-proxy",
   "version": "1.0.0",
-  "description": "Host-side stdio MCP proxy that bridges into an Agentgrader sandbox",
+  "description": "Host-side stdio MCP proxy that bridges external agents into an Agentgrader sandbox",
   "license": "MIT",
   "type": "module",
   "bin": {

@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/optimizer",
-  "version": "2.0.2",
-  "description": "Architecture optimizer for the Agentgrader framework: agent-config matrix expansion, result aggregation, and Pareto-front analysis",
+  "version": "3.0.0",
+  "description": "Agent config matrix expansion, result aggregation, and Pareto-front analysis for Agentgrader optimization sweeps",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,13 +22,13 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "@agentgrader/core": "^1.3.2",
+    "@agentgrader/core": "^1.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^1.3.2"
+    "@agentgrader/core": "^1.4.0"
   }
 }

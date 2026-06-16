@@ -1,7 +1,7 @@
 {
   "name": "agentgrader",
-  "version": "1.6.0",
-  "description": "CLI for the Agentgrader benchmarking framework — run and bench coding agents",
+  "version": "1.7.0",
+  "description": "CLI for Agentgrader, the coding agent optimizer. Evaluate, compare, and improve agents on real tasks with agr.",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -20,13 +20,13 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "@agentgrader/agent-acp": "^2.0.3",
-    "@agentgrader/agent-openrouter": "^4.1.0",
-    "@agentgrader/core": "^1.3.2",
-    "@agentgrader/optimizer": "^2.0.2",
-    "@agentgrader/sandbox-docker": "^4.2.0",
+    "@agentgrader/agent-acp": "^3.0.0",
+    "@agentgrader/agent-openrouter": "^5.0.0",
+    "@agentgrader/core": "^1.4.0",
+    "@agentgrader/optimizer": "^3.0.0",
+    "@agentgrader/sandbox-docker": "^5.0.0",
     "@agentgrader/sandbox-e2b": "workspace:*",
-    "@agentgrader/scorer-static": "^2.0.0",
+    "@agentgrader/scorer-static": "^3.0.0",
     "@agentgrader/scorer-llm-judge": "workspace:*",
     "@agentgrader/mcp-sandbox-proxy": "workspace:*",
     "@agentgrader/store": "^1.1.0",

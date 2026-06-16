@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/store",
   "version": "1.1.0",
-  "description": "SQLite + Drizzle persistence layer for Agentgrader runs and traces",
+  "description": "SQLite and Drizzle persistence for Agentgrader runs and traces",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",

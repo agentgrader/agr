@@ -414,7 +414,7 @@ export async function runBenchCommand(opts: {
       matrixId,
     });
   } catch (err) {
-    console.error("Benchmark runner encountered an error:", err);
+    console.error("Comparison sweep runner encountered an error:", err);
   }
 
   // re-render one last time with isFinished so the dashboard shows the final state
@@ -591,7 +591,7 @@ export async function runBenchCommand(opts: {
   });
 
   if (reasons.length > 0) {
-    console.error("\n[FAIL] Benchmark gate failed:");
+    console.error("\n[FAIL] Comparison sweep gate failed:");
     for (const reason of reasons) {
       console.error(`  - ${reason}`);
     }

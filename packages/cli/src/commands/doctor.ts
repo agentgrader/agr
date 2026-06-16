@@ -24,7 +24,7 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const suiteDir = opts.suite ?? "tasks";
 
-  if (!opts.json) console.log("agr doctor — checking environment\n");
+  if (!opts.json) console.log("agr doctor: checking environment\n");
 
   const results: CheckResult[] = [];
 
@@ -34,7 +34,7 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
       execSync("docker info --format '{{.ServerVersion}}'", { stdio: "pipe" });
       return "pass";
     } catch {
-      return { status: "fail", detail: "Docker not running or not installed — required for sandbox execution" };
+      return { status: "fail", detail: "Docker not running or not installed (required for sandbox execution)" };
     }
   }));
 
@@ -45,7 +45,7 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
       const preview = `${key.slice(0, 8)}...${key.slice(-4)}`;
       return { status: "pass", detail: preview };
     }
-    return { status: "warn", detail: "not set — required for provider: anthropic" };
+    return { status: "warn", detail: "not set (required for provider: anthropic)" };
   }));
 
   // 3. OPENAI_API_KEY (optional)
@@ -67,7 +67,7 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
   // 5. Database
   results.push(check(`Database (${dbPath})`, () => {
     if (existsSync(resolve(dbPath))) return "pass";
-    return { status: "warn", detail: "not found — will be created on first run" };
+    return { status: "warn", detail: "not found (will be created on first run)" };
   }));
 
   // 6. Agent config
@@ -75,13 +75,13 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
   results.push(check("Agent config (agent.yaml)", () => {
     const found = agentConfigPaths.find(p => existsSync(resolve(p)));
     if (found) return { status: "pass", detail: resolve(found) };
-    return { status: "warn", detail: "not found in cwd — pass --config <path> to agr run/bench, or run `agr init`" };
+    return { status: "warn", detail: "not found in cwd (pass --config <path> to agr run/bench, or run `agr init`)" };
   }));
 
   // 7. Test cases
   results.push(check(`Test cases (${suiteDir}/)`, () => {
     if (!existsSync(resolve(suiteDir))) {
-      return { status: "warn", detail: `directory not found — create ${suiteDir}/ and add agr.yaml files, or run \`agr init\`` };
+      return { status: "warn", detail: `directory not found (create ${suiteDir}/ and add agr.yaml files, or run \`agr init\`)` };
     }
     try {
       const found = execSync(
@@ -89,7 +89,7 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
         { stdio: "pipe" }
       ).toString().trim();
       if (found) return { status: "pass", detail: `found at least one agr.yaml under ${suiteDir}/` };
-      return { status: "warn", detail: `no agr.yaml found under ${suiteDir}/ — add test cases or run \`agr init\`` };
+      return { status: "warn", detail: `no agr.yaml found under ${suiteDir}/ (add test cases or run \`agr init\`)` };
     } catch {
       return { status: "warn", detail: `could not scan ${suiteDir}/` };
     }
@@ -125,6 +125,6 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
     console.log(`${failures.length} check(s) failed. Fix the issues above and re-run \`agr doctor\`.`);
     process.exit(1);
   } else {
-    console.log(`${warnings.length} warning(s). Review the items above before running benchmarks.`);
+    console.log(`${warnings.length} warning(s). Review the items above before running comparison sweeps.`);
   }
 }

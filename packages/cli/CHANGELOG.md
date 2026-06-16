@@ -1,5 +1,23 @@
 # agentgrader
 
+## 1.7.0
+
+### Minor Changes
+
+- patch descriptions
+
+### Patch Changes
+
+- Updated dependencies
+  - @agentgrader/core@1.4.0
+  - @agentgrader/agent-acp@3.0.0
+  - @agentgrader/agent-openrouter@5.0.0
+  - @agentgrader/optimizer@3.0.0
+  - @agentgrader/sandbox-docker@5.0.0
+  - @agentgrader/sandbox-e2b@2.0.0
+  - @agentgrader/scorer-llm-judge@3.0.0
+  - @agentgrader/scorer-static@3.0.0
+
 ## 1.6.0
 
 ### Minor Changes

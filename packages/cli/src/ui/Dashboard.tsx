@@ -166,7 +166,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
       {isFinished && (
         <Box marginTop={1} flexDirection="column" borderStyle="double" borderColor="green" padding={1}>
           <Text color="green" bold>
-            Benchmark finished successfully!
+            Comparison sweep finished successfully!
           </Text>
           <Text>Total runs executed: {totalRuns}</Text>
           <Text>
