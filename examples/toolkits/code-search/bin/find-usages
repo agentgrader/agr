@@ -1,0 +1,23 @@
+#!/bin/sh
+# find-usages - find all references to a symbol in the project.
+#
+# Usage: find-usages <symbol> [path]
+#   symbol  name to search for (e.g. a function, class, or variable name)
+#   path    optional directory to search (defaults to the current directory)
+#
+# Outputs file:line:match lines; exits 0 even if nothing is found.
+
+set -e
+
+if [ -z "$1" ]; then
+  echo "Usage: find-usages <symbol> [path]" >&2
+  exit 1
+fi
+
+symbol="$1"
+target="${2:-.}"
+
+grep -rn --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=.git \
+  "$symbol" "$target" \
+  || echo "No references to '$symbol' found in $target"
