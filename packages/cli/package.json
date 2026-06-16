@@ -3,6 +3,11 @@
   "version": "1.7.2",
   "description": "CLI for Agentgrader, the coding agent optimizer. Evaluate, compare, and improve agents on real tasks with agr.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/cli"
+  },
   "type": "module",
   "bin": {
     "agr": "dist/index.js",
