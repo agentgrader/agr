@@ -165,5 +165,7 @@ export async function runSingleCommand(
   unmount();
   await waitUntilExit();
 
+  console.log(`\nInspect: agr trace --last  |  agr trace --last --quality  |  agr trace --last --tools`);
+
   process.exit(exitCode);
 }
