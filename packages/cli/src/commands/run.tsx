@@ -81,14 +81,12 @@ export async function runSingleCommand(
       createdAt: Math.floor(Date.now() / 1000),
     });
 
-    console.log(`Repeating "${testCase.name}" x${repeat} using model "${agentConfig.model}"...\n`);
-    const results: Array<{ passed: boolean | null; costUsd: number; durationMs: number; runId: string }> = [];
-    let lastRunId = "";
+    if (!opts.json) console.log(`Repeating "${testCase.name}" x${repeat} using model "${agentConfig.model}"...\n`);
+    const results: Array<{ passed: boolean | null; costUsd: number; durationMs: number; runId: string; error?: string }> = [];
 
     for (let i = 0; i < repeat; i++) {
       const runId = randomUUID();
-      lastRunId = runId;
-      process.stdout.write(`  [${i + 1}/${repeat}] running...`);
+      if (!opts.json) process.stdout.write(`  [${i + 1}/${repeat}] running...`);
       try {
         const result = await runSingle({
           testCase,
@@ -105,12 +103,14 @@ export async function runSingleCommand(
             judgeMinScore: opts.judgeMinScore,
           }),
         });
-        const status = result.passed === true ? "PASS" : result.passed === false ? "FAIL" : "ERROR";
-        process.stdout.write(`\r  [${i + 1}/${repeat}] ${status.padEnd(5)} $${result.costUsd.toFixed(4)}  ${formatDuration(result.durationMs)}  ${runId.slice(0, 8)}\n`);
+        if (!opts.json) {
+          const status = result.passed === true ? "PASS" : result.passed === false ? "FAIL" : "ERROR";
+          process.stdout.write(`\r  [${i + 1}/${repeat}] ${status.padEnd(5)} $${result.costUsd.toFixed(4)}  ${formatDuration(result.durationMs)}  ${runId.slice(0, 8)}\n`);
+        }
         results.push({ passed: result.passed, costUsd: result.costUsd, durationMs: result.durationMs, runId });
       } catch (err: any) {
-        process.stdout.write(`\r  [${i + 1}/${repeat}] ERROR ${err.message}\n`);
-        results.push({ passed: null, costUsd: 0, durationMs: 0, runId });
+        if (!opts.json) process.stdout.write(`\r  [${i + 1}/${repeat}] ERROR ${err.message}\n`);
+        results.push({ passed: null, costUsd: 0, durationMs: 0, runId, error: err.message });
       }
     }
 
@@ -118,10 +118,28 @@ export async function runSingleCommand(
     const totalCost = results.reduce((s, r) => s + r.costUsd, 0);
     const avgCost = totalCost / results.length;
     const avgDuration = results.reduce((s, r) => s + r.durationMs, 0) / results.length;
-    const solveRate = ((passed / results.length) * 100).toFixed(1);
+    const solveRate = passed / results.length;
+
+    if (opts.json) {
+      console.log(JSON.stringify({
+        testCaseId: testCase.name,
+        agentConfigId: agentConfig.id || agentConfig.name,
+        model: agentConfig.model,
+        repeat,
+        passedRuns: passed,
+        totalRuns: results.length,
+        solveRate,
+        totalCostUsd: totalCost,
+        avgCostUsd: avgCost,
+        avgDurationMs: avgDuration,
+        runs: results,
+      }));
+      if (opts.failOnFailure && passed < results.length) process.exit(1);
+      process.exit(0);
+    }
 
     console.log(`\nRepeat summary (${repeat} runs):`);
-    console.log(`  Result: ${passed}/${repeat} PASS (${solveRate}%)`);
+    console.log(`  Result: ${passed}/${repeat} PASS (${(solveRate * 100).toFixed(1)}%)`);
     console.log(`  Cost:   $${totalCost.toFixed(4)} total  avg: $${avgCost.toFixed(4)}/run`);
     console.log(`  Duration: avg ${formatDuration(avgDuration)}`);
 
