@@ -179,10 +179,12 @@ export async function runBenchCommand(opts: {
     );
     console.log("Test cases:");
     const tcNameWidth = Math.max(...testCases.map(tc => tc.name.length));
+    const anyTags = testCases.some(tc => tc.tags?.length);
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i]!;
       const rel = relative(cwd, yamlFiles[i]!);
-      console.log(`  ${tc.name.padEnd(tcNameWidth)}  ${rel}`);
+      const tagSuffix = anyTags && tc.tags?.length ? `  [${tc.tags.join(", ")}]` : "";
+      console.log(`  ${tc.name.padEnd(tcNameWidth)}  ${rel}${tagSuffix}`);
     }
     console.log("");
     if (agentConfigs.length > 0) {

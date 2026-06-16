@@ -116,6 +116,6 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   console.log("");
   console.log("       agr run hello-world --verbose");
   console.log("");
-  console.log("  3. Inspect the trace afterwards with `agr trace <runId>` (the run ID is");
-  console.log("     printed at the end of the run summary).");
+  console.log("  3. Inspect the trace afterwards with `agr trace --last` (or");
+  console.log("     `agr trace <runId>` if you want to reference a specific run).");
 }
