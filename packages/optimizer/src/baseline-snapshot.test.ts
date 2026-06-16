@@ -49,5 +49,19 @@ describe("baseline snapshot", () => {
     expect(md).toContain("a / agent: PASS -> FAIL");
     expect(md).toContain("Baseline: main");
     expect(md).toContain("Current: pr-42");
+    expect(md).toContain("Avg duration");
+    expect(md).toContain("Avg steps");
+  });
+
+  test("createBaselineSnapshot computes avgDurationMs and avgStepsCount", () => {
+    const snapshot = createBaselineSnapshot({
+      configs: ["agent"],
+      runs: [
+        { testCaseId: "a", agentConfigId: "agent", passed: true, costUsd: 0.01, durationMs: 1000, stepsCount: 4, metrics: null },
+        { testCaseId: "b", agentConfigId: "agent", passed: true, costUsd: 0.02, durationMs: 3000, stepsCount: 8, metrics: null },
+      ],
+    });
+    expect(snapshot.aggregates.avgDurationMs).toBe(2000);
+    expect(snapshot.aggregates.avgStepsCount).toBe(6);
   });
 });
