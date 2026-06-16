@@ -18,6 +18,8 @@ export interface BaselineSnapshot {
   aggregates: {
     solveRate: number;
     avgCostUsd: number;
+    avgDurationMs: number;
+    avgStepsCount: number;
     totalRuns: number;
     passedRuns: number;
     toolUsage?: Record<string, Record<string, number>>;
@@ -53,6 +55,10 @@ export function createBaselineSnapshot(input: {
   const passedRuns = input.runs.filter((r) => r.passed).length;
   const avgCostUsd =
     totalRuns > 0 ? input.runs.reduce((sum, r) => sum + r.costUsd, 0) / totalRuns : 0;
+  const avgDurationMs =
+    totalRuns > 0 ? input.runs.reduce((sum, r) => sum + r.durationMs, 0) / totalRuns : 0;
+  const avgStepsCount =
+    totalRuns > 0 ? input.runs.reduce((sum, r) => sum + r.stepsCount, 0) / totalRuns : 0;
 
   return {
     version: 1,
@@ -64,6 +70,8 @@ export function createBaselineSnapshot(input: {
     aggregates: {
       solveRate: totalRuns > 0 ? passedRuns / totalRuns : 0,
       avgCostUsd,
+      avgDurationMs,
+      avgStepsCount,
       totalRuns,
       passedRuns,
       toolUsage: input.toolUsage,
@@ -167,6 +175,24 @@ export function formatBaselineDiffMarkdown(
   lines.push(
     `| Avg cost | $${baseline.aggregates.avgCostUsd.toFixed(4)} | $${current.aggregates.avgCostUsd.toFixed(4)} | ${diff.costDeltaPct >= 0 ? "+" : ""}${diff.costDeltaPct.toFixed(1)}% |`,
   );
+  if (baseline.aggregates.avgDurationMs !== undefined && current.aggregates.avgDurationMs !== undefined) {
+    const durationDeltaPct =
+      baseline.aggregates.avgDurationMs > 0
+        ? ((current.aggregates.avgDurationMs - baseline.aggregates.avgDurationMs) / baseline.aggregates.avgDurationMs) * 100
+        : 0;
+    lines.push(
+      `| Avg duration | ${(baseline.aggregates.avgDurationMs / 1000).toFixed(1)}s | ${(current.aggregates.avgDurationMs / 1000).toFixed(1)}s | ${durationDeltaPct >= 0 ? "+" : ""}${durationDeltaPct.toFixed(1)}% |`,
+    );
+  }
+  if (baseline.aggregates.avgStepsCount !== undefined && current.aggregates.avgStepsCount !== undefined) {
+    const stepsDeltaPct =
+      baseline.aggregates.avgStepsCount > 0
+        ? ((current.aggregates.avgStepsCount - baseline.aggregates.avgStepsCount) / baseline.aggregates.avgStepsCount) * 100
+        : 0;
+    lines.push(
+      `| Avg steps | ${Math.round(baseline.aggregates.avgStepsCount)} | ${Math.round(current.aggregates.avgStepsCount)} | ${stepsDeltaPct >= 0 ? "+" : ""}${stepsDeltaPct.toFixed(1)}% |`,
+    );
+  }
 
   const regressions = diff.perCaseDeltas.filter((d) => d.status === "regressed");
   if (regressions.length > 0) {
