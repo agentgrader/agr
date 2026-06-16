@@ -14,11 +14,11 @@ export function formatReportAsMarkdown(report: BenchReport): string {
   lines.push("");
   lines.push("## Runs");
   lines.push("");
-  lines.push("| Test case | Config | Result | Cost | Duration |");
-  lines.push("| --- | --- | --- | --- | --- |");
+  lines.push("| Test case | Config | Result | Cost | Duration | Steps |");
+  lines.push("| --- | --- | --- | --- | --- | --- |");
   for (const run of report.runs) {
     lines.push(
-      `| ${run.testCaseId} | ${run.agentConfigId} | ${run.passed ? "PASS" : "FAIL"} | $${run.costUsd.toFixed(4)} | ${formatDuration(run.durationMs)} |`,
+      `| ${run.testCaseId} | ${run.agentConfigId} | ${run.passed ? "PASS" : "FAIL"} | $${run.costUsd.toFixed(4)} | ${formatDuration(run.durationMs)} | ${run.stepsCount} |`,
     );
   }
 

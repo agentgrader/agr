@@ -14,7 +14,7 @@ export function formatReportAsHtml(report: BenchReport): string {
   const rows = report.runs
     .map(
       (r) =>
-        `<tr><td>${escapeHtml(r.runId.slice(0, 8))}</td><td>${escapeHtml(r.testCaseId)}</td><td>${escapeHtml(r.agentConfigId)}</td><td>${r.passed ? "PASS" : "FAIL"}</td><td>$${r.costUsd.toFixed(4)}</td><td>${escapeHtml(formatDuration(r.durationMs))}</td></tr>`,
+        `<tr><td>${escapeHtml(r.runId.slice(0, 8))}</td><td>${escapeHtml(r.testCaseId)}</td><td>${escapeHtml(r.agentConfigId)}</td><td>${r.passed ? "PASS" : "FAIL"}</td><td>$${r.costUsd.toFixed(4)}</td><td>${escapeHtml(formatDuration(r.durationMs))}</td><td>${r.stepsCount}</td></tr>`,
     )
     .join("\n");
 
@@ -43,7 +43,7 @@ th{background:#f5f5f5}
 </ul>
 <h2>Runs</h2>
 <table>
-<thead><tr><th>Run</th><th>Test case</th><th>Config</th><th>Result</th><th>Cost</th><th>Duration</th></tr></thead>
+<thead><tr><th>Run</th><th>Test case</th><th>Config</th><th>Result</th><th>Cost</th><th>Duration</th><th>Steps</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
 </body>
