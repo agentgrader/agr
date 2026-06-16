@@ -62,6 +62,7 @@ export async function runBenchCommand(opts: {
   testCaseArgs?: string[];
   dryRun?: boolean;
   tags?: string[];
+  limit?: number;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -170,6 +171,12 @@ export async function runBenchCommand(opts: {
     testCases = yamlFiles.map(f => loadTestCase(f));
     const tcLabel = testCases.length === 1 ? "test case" : "test cases";
     console.log(`Loaded ${testCases.length} ${tcLabel}: ${testCases.map(tc => tc.name).join(", ")}`);
+  }
+
+  if (opts.limit && opts.limit < testCases.length) {
+    console.log(`--limit ${opts.limit}: running first ${opts.limit} of ${testCases.length} test case(s)`);
+    testCases = testCases.slice(0, opts.limit);
+    yamlFiles = yamlFiles.slice(0, opts.limit);
   }
 
   if (agentConfigs.length === 0) {
