@@ -1,4 +1,5 @@
 import { getRun, getTraces, initDb, listRuns } from "@agentgrader/store";
+import { formatDuration } from "../lib/format-relative-time";
 
 type TraceRow = Awaited<ReturnType<typeof getTraces>>[number];
 
@@ -66,7 +67,7 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
   console.log(`  status:       ${formatRunStatus(run)}`);
   console.log(`  steps:        ${run.stepsCount}`);
   console.log(`  cost:         $${run.costUsd.toFixed(4)}`);
-  console.log(`  duration:     ${run.durationMs}ms`);
+  console.log(`  duration:     ${formatDuration(run.durationMs)}`);
   if (run.error) console.log(`  error:        ${run.error}`);
 }
 
