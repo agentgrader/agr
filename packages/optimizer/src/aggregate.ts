@@ -10,6 +10,7 @@ export interface RunRecord {
   passed?: boolean | null;
   costUsd?: number | null;
   durationMs?: number | null;
+  stepsCount?: number | null;
   tokensIn?: number | null;
   tokensOut?: number | null;
   metrics?: string | Record<string, any> | null;
@@ -31,6 +32,7 @@ export interface AggregateResult {
   solveRate: number;
   avgCostUsd: number;
   avgDurationMs: number;
+  avgStepsCount: number;
   avgTokensIn: number;
   avgTokensOut: number;
   /** only set when every run for this config has `metrics["static-quality"].quality` */
@@ -90,6 +92,7 @@ export function aggregateResults(runs: RunRecord[], configs: AgentConfig[]): Agg
       solveRate: total > 0 ? passed / total : 0,
       avgCostUsd: total > 0 ? sum((r) => r.costUsd ?? 0) / total : 0,
       avgDurationMs: total > 0 ? sum((r) => r.durationMs ?? 0) / total : 0,
+      avgStepsCount: total > 0 ? sum((r) => r.stepsCount ?? 0) / total : 0,
       avgTokensIn: total > 0 ? sum((r) => r.tokensIn ?? 0) / total : 0,
       avgTokensOut: total > 0 ? sum((r) => r.tokensOut ?? 0) / total : 0,
       avgQuality,
