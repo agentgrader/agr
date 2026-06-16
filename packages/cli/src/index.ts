@@ -22,9 +22,12 @@ cli
   .command("init [dir]", "Scaffold a minimal, runnable agentgrader project (agent config + sample test case)")
   .option("--force", "Overwrite agent.yaml if it already exists")
   .option("--blank", "Only write agent.yaml and an empty tasks/ dir, without the hello-world sample test case")
+  .option("--ci", "Also write a GitHub Actions workflow (.github/workflows/agr.yml) that runs agr bench on push and pull_request")
   .example("agr init")
   .example("agr init my-project")
   .example("agr init --blank")
+  .example("agr init --ci")
+  .example("agr init --blank --ci")
   .action(async (dir, options) => {
     try {
       await initCommand(dir, options);
