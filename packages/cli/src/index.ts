@@ -243,11 +243,13 @@ cli
   .option("--audit-toolkits", "Run security audit on toolkits referenced by the test case")
   .option("--suite <dir>", "Validate every test case found under this directory")
   .option("--tags <tags>", "Comma-separated list of tags; only validate matching test cases (requires --suite)")
+  .option("--json", "Output validation results as a single JSON object; suppresses per-check console output")
   .example("agr validate fix-greeting")
   .example("agr validate fix-greeting --strict")
   .example("agr validate task-a task-b task-c --strict")
   .example("agr validate --suite tasks/ --strict")
   .example("agr validate --suite tasks/ --tags python --strict")
+  .example("agr validate fix-greeting --json")
   .action(async (testCases, options) => {
     try {
       if ((!testCases || testCases.length === 0) && !options.suite) {
@@ -255,7 +257,7 @@ cli
         process.exit(1);
       }
       const tags = options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
-      await validateCommand(testCases ?? [], { ...options, suite: options.suite, tags });
+      await validateCommand(testCases ?? [], { ...options, suite: options.suite, tags, json: options.json });
     } catch (err: any) {
       console.error(`Error executing validate: ${err.message}`);
       process.exit(1);
