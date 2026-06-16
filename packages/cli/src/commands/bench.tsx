@@ -64,6 +64,7 @@ export async function runBenchCommand(opts: {
   tags?: string[];
   limit?: number;
   onlyFailed?: boolean;
+  shuffle?: boolean;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -178,6 +179,17 @@ export async function runBenchCommand(opts: {
     console.log(`--limit ${opts.limit}: running first ${opts.limit} of ${testCases.length} test case(s)`);
     testCases = testCases.slice(0, opts.limit);
     yamlFiles = yamlFiles.slice(0, opts.limit);
+  }
+
+  if (opts.shuffle && testCases.length > 1) {
+    const indices = testCases.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j]!, indices[i]!];
+    }
+    testCases = indices.map((i) => testCases[i]!);
+    yamlFiles = indices.map((i) => yamlFiles[i]!);
+    console.log(`--shuffle: randomized order of ${testCases.length} test case(s)`);
   }
 
   if (opts.onlyFailed) {

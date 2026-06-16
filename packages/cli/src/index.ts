@@ -128,6 +128,7 @@ cli
   .option("--tags <tags>", "Comma-separated list of tags; only test cases with at least one matching tag are run (requires --suite)")
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
+  .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
@@ -196,6 +197,7 @@ cli
         tags: options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined,
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
         onlyFailed: options.onlyFailed,
+        shuffle: options.shuffle,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
@@ -267,6 +269,7 @@ cli
   .option("--failed", "Restrict stats to runs that failed")
   .option("--by-config", "Show a per-config breakdown (solve rate, avg cost, avg duration), sorted by solve rate")
   .option("--by-test-case", "Show a per-test-case breakdown (solve rate, avg cost, avg duration), sorted by solve rate ascending (hardest first)")
+  .option("--top <n>", "With --by-config or --by-test-case, show only the top N entries")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
@@ -283,7 +286,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, passed, byConfig: options.byConfig, byTestCase: options.byTestCase });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, top: options.top !== undefined ? Number(options.top) : undefined });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);

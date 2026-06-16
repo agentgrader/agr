@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; top?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -98,16 +98,18 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgTokensOut: cfgRuns.length > 0 ? to / cfgRuns.length : 0,
       };
     }).sort((a, b) => b.solveRate - a.solveRate);
+    const cfgStatsCapped = opts.top ? cfgStats.slice(0, opts.top) : cfgStats;
 
     if (opts.json) {
-      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, testCase: opts.testCase ?? null, byConfig: cfgStats }, null, 2));
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, testCase: opts.testCase ?? null, byConfig: cfgStatsCapped }, null, 2));
       return;
     }
 
     const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
+    const topNote = opts.top && opts.top < cfgStats.length ? ` (top ${opts.top} of ${cfgStats.length})` : "";
     console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}\n`);
-    console.log(`Per-config breakdown (${cfgStats.length} config(s), sorted by solve rate):\n`);
-    for (const cfg of cfgStats) {
+    console.log(`Per-config breakdown (${cfgStatsCapped.length} config(s)${topNote}, sorted by solve rate):\n`);
+    for (const cfg of cfgStatsCapped) {
       const hasTokens = cfg.avgTokensIn > 0 || cfg.avgTokensOut > 0;
       const tokLine = hasTokens ? `  avg tok: ${Math.round(cfg.avgTokensIn)}in/${Math.round(cfg.avgTokensOut)}out` : "";
       console.log(`  ${cfg.configId}`);
@@ -140,16 +142,18 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgDurationMs: tcRuns.length > 0 ? dur / tcRuns.length : 0,
       };
     }).sort((a, b) => a.solveRate - b.solveRate);
+    const tcStatsCapped = opts.top ? tcStats.slice(0, opts.top) : tcStats;
 
     if (opts.json) {
-      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, config: opts.config ?? null, byTestCase: tcStats }, null, 2));
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, config: opts.config ?? null, byTestCase: tcStatsCapped }, null, 2));
       return;
     }
 
     const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
+    const topNote = opts.top && opts.top < tcStats.length ? ` (top ${opts.top} of ${tcStats.length})` : "";
     console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${cfgScope}\n`);
-    console.log(`Per-test-case breakdown (${tcStats.length} test case(s), sorted by solve rate asc):\n`);
-    for (const tc of tcStats) {
+    console.log(`Per-test-case breakdown (${tcStatsCapped.length} test case(s)${topNote}, sorted by solve rate asc):\n`);
+    for (const tc of tcStatsCapped) {
       console.log(`  ${tc.testCaseId}`);
       console.log(`    runs: ${tc.total}  (${tc.passed} passed, ${tc.failed} failed)  solve rate: ${tc.solveRate.toFixed(1)}%`);
       console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(tc.avgDurationMs)}`);
