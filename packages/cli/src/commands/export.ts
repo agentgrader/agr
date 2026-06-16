@@ -64,6 +64,9 @@ export async function exportCommand(
       passed: r.passed,
       costUsd: r.costUsd,
       durationMs: r.durationMs,
+      stepsCount: r.stepsCount,
+      tokensIn: r.tokensIn,
+      tokensOut: r.tokensOut,
       matrixId: r.matrixId,
       metrics: r.metrics ? JSON.parse(r.metrics) : null,
     }));
