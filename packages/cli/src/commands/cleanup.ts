@@ -43,4 +43,5 @@ export async function cleanupCommand(opts: { yes?: boolean }) {
       console.error(`Failed to remove ${sandbox.id.slice(0, 12)}: ${err.message}`);
     }
   }
+  console.log("\nNext: agr bench  |  agr list");
 }

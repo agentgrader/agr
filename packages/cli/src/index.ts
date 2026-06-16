@@ -253,10 +253,12 @@ cli
 cli
   .command("status", "Show a quick summary of the local run database (.agr/db.sqlite)")
   .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .option("--json", "Output as JSON (for scripts and CI)")
   .example("agr status")
+  .example("agr status --json")
   .action(async (options) => {
     try {
-      await statusCommand({ db: options.db });
+      await statusCommand({ db: options.db, json: options.json });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);

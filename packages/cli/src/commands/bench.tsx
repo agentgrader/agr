@@ -366,10 +366,13 @@ export async function runBenchCommand(opts: {
         const finishedRuns = configRuns.filter(r => r.status !== "running");
         const totalDurMs = finishedRuns.reduce((acc, r) => acc + (r.durationMs || 0), 0);
         const totalSteps = finishedRuns.reduce((acc, r) => acc + (r.stepsCount || 0), 0);
+        const totalTokensIn = finishedRuns.reduce((acc, r) => acc + (r.tokensIn || 0), 0);
+        const totalTokensOut = finishedRuns.reduce((acc, r) => acc + (r.tokensOut || 0), 0);
         const avgCostNote = stats.totalRuns > 1 ? `  avg: $${(cost / stats.totalRuns).toFixed(4)}/run` : "";
         const avgDurNote = finishedRuns.length > 1 ? `  avg: ${formatDuration(Math.round(totalDurMs / finishedRuns.length))}/run` : "";
         const avgStepsNote = finishedRuns.length > 1 ? `  avg: ${Math.round(totalSteps / finishedRuns.length)} steps/run` : "";
-        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}${avgCostNote}${avgDurNote}${avgStepsNote}`);
+        const avgTokensNote = finishedRuns.length > 1 && (totalTokensIn > 0 || totalTokensOut > 0) ? `  avg: ${Math.round(totalTokensIn / finishedRuns.length)}in/${Math.round(totalTokensOut / finishedRuns.length)}out tok/run` : "";
+        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}${avgCostNote}${avgDurNote}${avgStepsNote}${avgTokensNote}`);
         const failedCases = configRuns.filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
         const erroredRuns = configRuns.filter(r => r.status === "failed");
         if (failedCases.length > 10) {
@@ -389,10 +392,13 @@ export async function runBenchCommand(opts: {
       const allFinished = Object.values(runStates).filter(r => r.status !== "running");
       const totalDurMs = allFinished.reduce((acc, r) => acc + (r.durationMs || 0), 0);
       const totalSteps = allFinished.reduce((acc, r) => acc + (r.stepsCount || 0), 0);
+      const totalTokensIn = allFinished.reduce((acc, r) => acc + (r.tokensIn || 0), 0);
+      const totalTokensOut = allFinished.reduce((acc, r) => acc + (r.tokensOut || 0), 0);
       const avgCostNote = summary.totalRuns > 1 ? `  avg: $${(totalCost / summary.totalRuns).toFixed(4)}/run` : "";
       const avgDurNote = allFinished.length > 1 ? `  avg: ${formatDuration(Math.round(totalDurMs / allFinished.length))}/run` : "";
       const avgStepsNote = allFinished.length > 1 ? `  avg: ${Math.round(totalSteps / allFinished.length)} steps/run` : "";
-      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}${avgCostNote}${avgDurNote}${avgStepsNote}  elapsed: ${elapsedSec}s`);
+      const avgTokensNote = allFinished.length > 1 && (totalTokensIn > 0 || totalTokensOut > 0) ? `  avg: ${Math.round(totalTokensIn / allFinished.length)}in/${Math.round(totalTokensOut / allFinished.length)}out tok/run` : "";
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}${avgCostNote}${avgDurNote}${avgStepsNote}${avgTokensNote}  elapsed: ${elapsedSec}s`);
       const crashedRuns = Object.values(runStates).filter(r => r.status === "failed");
       const testFailedCases = Object.values(runStates).filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
       if (testFailedCases.length > 10) {
