@@ -68,6 +68,9 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
   console.log(`  steps:        ${run.stepsCount}`);
   console.log(`  cost:         $${run.costUsd.toFixed(4)}`);
   console.log(`  duration:     ${formatDuration(run.durationMs)}`);
+  if (run.tokensIn || run.tokensOut) {
+    console.log(`  tokens:       ${run.tokensIn} in / ${run.tokensOut} out`);
+  }
   if (run.error) console.log(`  error:        ${run.error}`);
 }
 
