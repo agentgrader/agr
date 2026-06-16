@@ -115,6 +115,10 @@ export async function runBenchCommand(opts: {
     }
   }
 
+  if (opts.tags?.length && !suiteDir) {
+    console.warn(`Warning: --tags has no effect without --suite (tags: ${opts.tags.join(", ")})`);
+  }
+
   let yamlFiles: string[];
   let testCases: TestCase[];
 
