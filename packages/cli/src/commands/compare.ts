@@ -186,4 +186,5 @@ export async function compareCommand(
     console.log("No divergence detected.");
   }
   console.log("");
+  console.log(`Next: agr trace ${runIdA}  |  agr trace ${runIdB}`);
 }
