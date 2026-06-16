@@ -104,6 +104,7 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     console.log("     Tip: include `agent_config: ../../agent.yaml` in each agr.yaml so");
     console.log("     `agr run <name>` works without --config, or always pass --config agent.yaml.");
     console.log("  3. Run `agr list-tests` to confirm it's found, then `agr run <name>`.");
+    console.log("  4. Check your DB summary any time with `agr status`.");
     return;
   }
 
@@ -132,4 +133,5 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   console.log("");
   console.log("  3. Inspect the trace afterwards with `agr trace --last` (or");
   console.log("     `agr trace <runId>` if you want to reference a specific run).");
+  console.log("  4. Check your DB summary any time with `agr status`.");
 }
