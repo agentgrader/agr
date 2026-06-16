@@ -172,14 +172,24 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
         }
       }
 
-      const result = await adapter.solve({
-        prompt: testCase.prompt,
-        sandbox,
-        config: effectiveConfig,
-        onStep: onStepCallback,
-      });
+      let result;
+      try {
+        result = await adapter.solve({
+          prompt: testCase.prompt,
+          sandbox,
+          config: effectiveConfig,
+          onStep: onStepCallback,
+        });
+      } catch (err: any) {
+        agentResult = {
+          finished: false,
+          finalDiff: "",
+          error: err.message,
+        };
+        metrics.agentError = err.message;
+        return { result: agentResult };
+      }
 
-      // capture the agent's own diff before we apply any test_patch
       try {
         agentDiff = await sandbox.gitDiff();
       } catch (e: any) {
@@ -187,17 +197,10 @@ export async function runSingle(input: RunSingleInput): Promise<RunSingleResult>
       }
       agentResult = { ...result, finalDiff: agentDiff || result.finalDiff };
 
-      // surface agent-loop errors (e.g. a step_timeout_ms abort) so `agr
-      // trace` can distinguish "the agent itself errored before submit"
-      // from "the agent finished but its solution failed scoring" - both
-      // otherwise look identical (`finished: false`, no score detail).
       if (agentResult.error) {
         metrics.agentError = agentResult.error;
       }
 
-      // apply the (gold) test patch, if configured, so the regression
-      // scorer can run against the up-to-date test suite. The agent never
-      // sees this patch, it's evaluation-only, mirroring SWE-bench.
       if (testCase.test_patch) {
         try {
           const patchResult = await sandbox.applyPatch(testCase.test_patch);

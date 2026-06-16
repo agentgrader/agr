@@ -26,6 +26,7 @@ function projectSlug(root: string): string {
 function fileRows(opts: InitOutputOptions): FileRow[] {
   const rows: FileRow[] = [
     { path: "agent.yaml", hint: "claude-haiku-4-5 · anthropic · 15 steps" },
+    { path: ".env.example", hint: "copy to .env and add your API key" },
     { path: ".gitignore", hint: ".agr/ history · .env secrets" },
   ];
 
@@ -99,13 +100,13 @@ export function formatInitOutput(opts: InitOutputOptions): string {
   lines.push("");
 
   if (opts.kind === "blank") {
-    lines.push(paint("  1", ANSI.magenta, colors) + paint("  set ANTHROPIC_API_KEY (or add it to .env)", ANSI.dim, colors));
+    lines.push(paint("  1", ANSI.magenta, colors) + paint("  set ANTHROPIC_API_KEY in .env (see .env.example)", ANSI.dim, colors));
     lines.push(paint("  2", ANSI.magenta, colors) + paint("  author tasks/<name>/agr.yaml + fixture/", ANSI.dim, colors));
     lines.push(paint("  3", ANSI.magenta, colors) + paint("  agr list-tests", ANSI.cyan, colors) + paint("  then  ", ANSI.dim, colors) + paint("agr run <name>", ANSI.cyan, colors));
     lines.push(paint("  4", ANSI.magenta, colors) + paint("  agr status", ANSI.cyan, colors) + paint("  to watch runs accumulate", ANSI.dim, colors));
   } else {
     const task = opts.taskName ?? (opts.kind === "python" ? "hello-world-python" : "hello-world");
-    lines.push(paint("  1", ANSI.magenta, colors) + paint("  export ANTHROPIC_API_KEY=…", ANSI.dim, colors));
+    lines.push(paint("  1", ANSI.magenta, colors) + paint("  cp .env.example .env  and set ANTHROPIC_API_KEY", ANSI.dim, colors));
     lines.push(
       paint("  2", ANSI.magenta, colors)
         + paint("  agr run ", ANSI.dim, colors)

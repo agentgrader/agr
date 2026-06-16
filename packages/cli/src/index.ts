@@ -1,4 +1,7 @@
-import "dotenv/config";
+import { loadProjectEnv } from "./lib/load-env";
+
+loadProjectEnv();
+
 import { cac } from "cac";
 import { cleanupCommand } from "./commands/cleanup";
 import { compareCommand } from "./commands/compare";
