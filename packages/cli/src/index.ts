@@ -304,17 +304,19 @@ cli
     "Show only a tool-usage breakdown (call count per tool name) instead of the full trace",
   )
   .option("--last", "Trace the most recent run in .agr/db.sqlite (no runId needed)")
+  .option("--test-case <name>", "With --last, trace the most recent run for this specific test case (substring match)")
   .example("agr trace <runId>")
   .example("agr trace <runId> --tools")
   .example("agr trace --last")
   .example("agr trace --last --quality")
+  .example("agr trace --last --test-case hello-world")
   .action(async (runId, options) => {
     try {
       if (!runId && !options.last) {
         console.error("Provide a run ID or use --last to trace the most recent run.");
         process.exit(1);
       }
-      await traceCommand(runId, options);
+      await traceCommand(runId, { ...options, testCase: options.testCase });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);
