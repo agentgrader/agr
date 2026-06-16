@@ -2,7 +2,7 @@ import { render } from "ink";
 import React from "react";
 import { getTraces, initDb } from "@agentgrader/store";
 import { loadEnrichedRuns, formatRunStatus, shortRunId } from "../lib/load-run-list";
-import { formatRunWhen } from "../lib/format-relative-time";
+import { formatRunWhen, formatDuration } from "../lib/format-relative-time";
 import { clearTerminalScreen, enterAlternateScreen, leaveAlternateScreen } from "../lib/list-table-layout";
 import { RunListApp, type TracePreviewStep } from "../ui/RunListApp";
 
@@ -30,7 +30,7 @@ function printPlainList(
     console.log(`         agent: ${run.agentConfigName} (${run.agentModel})`);
     console.log(`         when:  ${when}`);
     console.log(
-      `         cost: $${run.costUsd.toFixed(4)}  steps: ${run.stepsCount}  sandbox: ${run.sandboxProvider}`,
+      `         cost: $${run.costUsd.toFixed(4)}  steps: ${run.stepsCount}  duration: ${formatDuration(run.durationMs)}  sandbox: ${run.sandboxProvider}`,
     );
     if (run.matrixId) console.log(`         matrix: ${run.matrixId}`);
     if (run.error) console.log(`         error: ${run.error}`);
