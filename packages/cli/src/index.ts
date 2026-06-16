@@ -116,6 +116,7 @@ cli
   .option("--judge-gate", "Fail runs when the LLM judge score is below --judge-min-score")
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .option("--dry-run", "Print the test case x config matrix without executing any runs")
+  .option("--tags <tags>", "Comma-separated list of tags; only test cases with at least one matching tag are run (requires --suite)")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
   .example("agr bench --manifest bench.yaml")
@@ -180,6 +181,7 @@ cli
         judgeMinScore: options.judgeMinScore !== undefined ? Number(options.judgeMinScore) : undefined,
         testCaseArgs: hasPositional ? testCases : undefined,
         dryRun: options.dryRun,
+        tags: options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
