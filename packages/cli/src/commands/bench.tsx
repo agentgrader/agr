@@ -364,10 +364,14 @@ export async function runBenchCommand(opts: {
         const configRuns = Object.values(runStates).filter(r => r.agentConfigId === configId);
         const failedCases = configRuns.filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
         const erroredRuns = configRuns.filter(r => r.status === "failed");
-        if (failedCases.length > 0 && failedCases.length <= 10) {
+        if (failedCases.length > 10) {
+          console.log(`  ${" ".repeat(nameWidth)}  Failed: ${failedCases.length} cases (see \`agr list\`)`);
+        } else if (failedCases.length > 0) {
           console.log(`  ${" ".repeat(nameWidth)}  Failed: ${failedCases.join(", ")}`);
         }
-        if (erroredRuns.length > 0 && erroredRuns.length <= 10) {
+        if (erroredRuns.length > 10) {
+          console.log(`  ${" ".repeat(nameWidth)}  Errored: ${erroredRuns.length} cases`);
+        } else if (erroredRuns.length > 0) {
           const crashedList = erroredRuns.map(r => r.error ? `${r.testCaseId} (${r.error.slice(0, 60)})` : r.testCaseId).join(", ");
           console.log(`  ${" ".repeat(nameWidth)}  Errored: ${crashedList}`);
         }
@@ -377,10 +381,14 @@ export async function runBenchCommand(opts: {
       console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
       const crashedRuns = Object.values(runStates).filter(r => r.status === "failed");
       const testFailedCases = Object.values(runStates).filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
-      if (testFailedCases.length > 0 && testFailedCases.length <= 10) {
+      if (testFailedCases.length > 10) {
+        console.log(`  Failed: ${testFailedCases.length} cases (see \`agr list\`)`);
+      } else if (testFailedCases.length > 0) {
         console.log(`  Failed: ${testFailedCases.join(", ")}`);
       }
-      if (crashedRuns.length > 0 && crashedRuns.length <= 10) {
+      if (crashedRuns.length > 10) {
+        console.log(`  Errored: ${crashedRuns.length} cases`);
+      } else if (crashedRuns.length > 0) {
         const crashedList = crashedRuns.map(r => r.error ? `${r.testCaseId} (${r.error.slice(0, 60)})` : r.testCaseId).join(", ");
         console.log(`  Errored: ${crashedList}`);
       }
