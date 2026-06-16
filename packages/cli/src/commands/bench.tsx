@@ -362,9 +362,14 @@ export async function runBenchCommand(opts: {
     } else {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
       console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
-      const failedCases = Object.values(runStates).filter(r => !r.passed).map(r => r.testCaseId);
-      if (failedCases.length > 0 && failedCases.length <= 10) {
-        console.log(`  Failed: ${failedCases.join(", ")}`);
+      const crashedRuns = Object.values(runStates).filter(r => r.status === "failed");
+      const testFailedCases = Object.values(runStates).filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
+      if (testFailedCases.length > 0 && testFailedCases.length <= 10) {
+        console.log(`  Failed: ${testFailedCases.join(", ")}`);
+      }
+      if (crashedRuns.length > 0 && crashedRuns.length <= 10) {
+        const crashedList = crashedRuns.map(r => r.error ? `${r.testCaseId} (${r.error.slice(0, 60)})` : r.testCaseId).join(", ");
+        console.log(`  Errored: ${crashedList}`);
       }
     }
   }
