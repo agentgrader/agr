@@ -145,6 +145,7 @@ cli
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
   .option("--max-steps <n>", "Override the max_steps for all agent configs in this bench run")
+  .option("--json", "Output bench results as a single JSON object and suppress the live dashboard; useful for scripting and CI pipelines")
   .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
@@ -217,6 +218,7 @@ cli
         shuffle: options.shuffle,
         model: options.model,
         maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
+        json: options.json,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);

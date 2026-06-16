@@ -68,6 +68,7 @@ export async function runBenchCommand(opts: {
   model?: string;
   maxSteps?: number;
   skipTags?: string[];
+  json?: boolean;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -342,30 +343,34 @@ export async function runBenchCommand(opts: {
     opts.adapters ? opts.adapters.split(",") : ["ai-sdk"],
   );
 
-  // 5. render the live dashboard
+  // 5. render the live dashboard (or skip in --json mode)
   const totalRuns = testCases.length * Math.max(agentConfigs.length, 1);
   const runBreakdown = agentConfigs.length > 1
     ? `${testCases.length} test case(s) x ${agentConfigs.length} config(s) = ${totalRuns} run(s)`
     : `${totalRuns} run(s)`;
-  console.log(`Starting ${runBreakdown}, concurrency: ${concurrency}`);
+  if (!opts.json) console.log(`Starting ${runBreakdown}, concurrency: ${concurrency}`);
   const benchStartMs = Date.now();
   const runStates: Record<string, RunState> = {};
   const testCaseIds = testCases.map((tc) => tc.id || tc.name);
   const configIds = agentConfigs.map((ac) => ac.id || ac.name);
 
-  const { rerender, waitUntilExit } = render(
-    <Dashboard
-      runs={runStates}
-      testCases={testCaseIds}
-      configs={configIds}
-      isFinished={false}
-    />
-  );
+  let rerender: ((node: React.ReactNode) => void) | undefined;
+  if (!opts.json) {
+    const rendered = render(
+      <Dashboard
+        runs={runStates}
+        testCases={testCaseIds}
+        configs={configIds}
+        isFinished={false}
+      />
+    );
+    rerender = rendered.rerender;
+  }
 
   const onRunUpdate = (run: any) => {
     const key = `${run.testCaseId}_${run.agentConfigId}`;
     runStates[key] = run;
-    rerender(
+    rerender?.(
       <Dashboard
         runs={runStates}
         testCases={testCaseIds}
@@ -399,7 +404,7 @@ export async function runBenchCommand(opts: {
   }
 
   // re-render one last time with isFinished so the dashboard shows the final state
-  rerender(
+  rerender?.(
     <Dashboard
       runs={runStates}
       testCases={testCaseIds}
@@ -407,6 +412,46 @@ export async function runBenchCommand(opts: {
       isFinished={true}
     />
   );
+
+  if (opts.json) {
+    const allRuns = Object.values(runStates);
+    const summary = summaryFromRunStates(runStates, configIds);
+    const totalCostUsd = allRuns.reduce((acc, r) => acc + (r.costUsd || 0), 0);
+    const elapsedMs = Date.now() - benchStartMs;
+    const { exitCode, reasons } = evaluateBenchExit(summary, {
+      failOnFailure: opts.failOnFailure,
+      minSolveRate: opts.minSolveRate,
+      minSolveRateScope: opts.minSolveRateScope,
+    });
+    console.log(JSON.stringify({
+      passed: summary.passedRuns === summary.totalRuns && summary.totalRuns > 0,
+      passedRuns: summary.passedRuns,
+      totalRuns: summary.totalRuns,
+      solveRate: summary.solveRate,
+      totalCostUsd,
+      elapsedMs,
+      matrixId: matrixId ?? null,
+      gateReasons: reasons,
+      byConfig: Object.entries(summary.byConfig).map(([configId, stats]) => ({
+        configId,
+        passedRuns: stats.passedRuns,
+        totalRuns: stats.totalRuns,
+        solveRate: stats.solveRate,
+        totalCostUsd: allRuns.filter(r => r.agentConfigId === configId).reduce((acc, r) => acc + (r.costUsd || 0), 0),
+      })),
+      runs: allRuns.map(r => ({
+        runId: r.runId ?? null,
+        testCaseId: r.testCaseId,
+        agentConfigId: r.agentConfigId,
+        passed: r.status === "completed" ? r.passed : null,
+        costUsd: r.costUsd ?? 0,
+        durationMs: r.durationMs ?? 0,
+        stepsCount: r.stepsCount ?? 0,
+        error: r.error ?? null,
+      })),
+    }));
+    process.exit(exitCode);
+  }
 
   printTagBreakdown(testCases, agentConfigs, runStates);
 
