@@ -437,6 +437,22 @@ describe("findTestCaseYamlFiles", () => {
     expect(files).toEqual([join(dir, "task", "extra.yaml")]);
   });
 
+  test("returns files in alphabetical order without the caller needing to sort", () => {
+    mkdirSync(join(dir, "z-task"), { recursive: true });
+    mkdirSync(join(dir, "a-task"), { recursive: true });
+    mkdirSync(join(dir, "m-task"), { recursive: true });
+    writeFileSync(join(dir, "z-task", "agr.yaml"), "name: z\n");
+    writeFileSync(join(dir, "a-task", "agr.yaml"), "name: a\n");
+    writeFileSync(join(dir, "m-task", "agr.yaml"), "name: m\n");
+
+    const files = findTestCaseYamlFiles(dir);
+    expect(files).toEqual([
+      join(dir, "a-task", "agr.yaml"),
+      join(dir, "m-task", "agr.yaml"),
+      join(dir, "z-task", "agr.yaml"),
+    ]);
+  });
+
   test("returns an empty array for an unreadable directory", () => {
     expect(findTestCaseYamlFiles(join(dir, "does-not-exist"))).toEqual([]);
   });
