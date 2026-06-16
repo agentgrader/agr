@@ -26,11 +26,11 @@ export function formatReportAsMarkdown(report: BenchReport): string {
     lines.push("");
     lines.push("## By config");
     lines.push("");
-    lines.push("| Config | Solve rate | Avg cost | Passed | Total |");
-    lines.push("| --- | --- | --- | --- | --- |");
+    lines.push("| Config | Solve rate | Avg cost | Avg duration | Passed | Total |");
+    lines.push("| --- | --- | --- | --- | --- | --- |");
     for (const agg of report.aggregatesByConfig) {
       lines.push(
-        `| ${agg.agentConfigId} | ${(agg.solveRate * 100).toFixed(1)}% | $${agg.avgCostUsd.toFixed(4)} | ${agg.passedRuns} | ${agg.totalRuns} |`,
+        `| ${agg.agentConfigId} | ${(agg.solveRate * 100).toFixed(1)}% | $${agg.avgCostUsd.toFixed(4)} | ${formatDuration(agg.avgDurationMs)} | ${agg.passedRuns} | ${agg.totalRuns} |`,
       );
     }
   }

@@ -36,6 +36,7 @@ export interface BenchReport {
     agentConfigId: string;
     solveRate: number;
     avgCostUsd: number;
+    avgDurationMs: number;
     totalRuns: number;
     passedRuns: number;
   }>;
