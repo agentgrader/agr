@@ -11,13 +11,18 @@ import { findAllTestCases } from "../lib/load-test-case";
  * The printed `name` values (and each test case's directory basename) are
  * what `agr run`/`agr bench` accept as a short form instead of a full path.
  */
-export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[]; count?: boolean }) {
+export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[]; count?: boolean; name?: string }) {
   const root = resolve(dir || ".");
   let testCases = findAllTestCases(root);
 
   if (opts?.tags?.length) {
     const tagSet = new Set(opts.tags);
     testCases = testCases.filter(tc => (tc.tags ?? []).some(t => tagSet.has(t)));
+  }
+
+  if (opts?.name) {
+    const nameFilter = opts.name.toLowerCase();
+    testCases = testCases.filter(tc => tc.name.toLowerCase().includes(nameFilter));
   }
 
   if (opts?.count) {
