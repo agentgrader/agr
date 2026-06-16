@@ -37,6 +37,7 @@ export async function statusCommand(opts: { db?: string }) {
   const uniqueConfigs = new Set(runs.map((r) => r.agentConfigId)).size;
   const lastRun = runs[0];
   const lastRunWhen = lastRun ? formatCompactWhen(lastRun.createdAt) : "never";
+  const lastRunDetail = lastRun ? `  (${lastRun.testCaseId} with ${lastRun.agentConfigId})` : "";
   const matrixRuns = runs.filter((r) => r.matrixId).length;
 
   console.log(`Database: ${dbPath}\n`);
@@ -47,7 +48,7 @@ export async function statusCommand(opts: { db?: string }) {
     console.log(`  Matrix:     ${matrixRuns} run(s) from matrix sweeps`);
   }
   console.log(`  Total cost: $${totalCost.toFixed(4)}`);
-  console.log(`  Last run:   ${lastRunWhen}`);
+  console.log(`  Last run:   ${lastRunWhen}${lastRunDetail}`);
   console.log("");
   console.log(`Next: agr list  |  agr trace --last  |  agr export runs --format jsonl --output runs.jsonl`);
 }
