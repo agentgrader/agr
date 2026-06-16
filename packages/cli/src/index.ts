@@ -84,14 +84,16 @@ cli
   .option("--llm-judge-model <model>", "LLM judge model slug")
   .option("--judge-gate", "Fail the run when the LLM judge score is below --judge-min-score")
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
+  .option("--json", "Output run result as a single JSON object (suppresses the live UI; useful for scripting and CI)")
   .example("agr run hello-world")
   .example("agr run hello-world --config agent.yaml --verbose")
   .example("agr run hello-world --model claude-opus-4-8")
   .example("agr run hello-world --repeat 5")
   .example("agr run tasks/fix-bug/agr.yaml --fail-on-failure")
+  .example("agr run hello-world --json")
   .action(async (testCase, options) => {
     try {
-      await runSingleCommand(testCase, { ...options, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined });
+      await runSingleCommand(testCase, { ...options, json: options.json, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined });
     } catch (err: any) {
       console.error(`Error executing run: ${err.message}`);
       process.exit(1);
