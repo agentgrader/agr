@@ -16,6 +16,8 @@ export async function exportCommand(
     lastMatrix?: boolean;
     limit?: number;
     since?: string;
+    testCase?: string;
+    config?: string;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -66,6 +68,24 @@ export async function exportCommand(
         process.exit(1);
       }
       console.log(`Filtering to ${runs.length} run(s) since ${opts.since} (${new Date(sinceTs * 1000).toISOString()})`);
+    }
+    if (opts.testCase) {
+      const tc = opts.testCase;
+      runs = runs.filter((r) => r.testCaseId === tc || r.testCaseId.includes(tc));
+      if (runs.length === 0) {
+        console.error(`No runs found for test case "${tc}". Check the ID with \`agr list --plain\`.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) for test case "${tc}"`);
+    }
+    if (opts.config) {
+      const cfg = opts.config;
+      runs = runs.filter((r) => r.agentConfigId === cfg || r.agentConfigId.includes(cfg));
+      if (runs.length === 0) {
+        console.error(`No runs found for config "${cfg}". Check the ID with \`agr list --plain\`.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) for config "${cfg}"`);
     }
     if (opts.limit) runs = runs.slice(0, opts.limit);
     const payload = runs.map((r) => ({
