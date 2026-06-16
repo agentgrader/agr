@@ -19,6 +19,7 @@ export async function runSingleCommand(
     config?: string;
     model?: string;
     maxSteps?: number;
+    json?: boolean;
     verbose?: boolean;
     adapter?: string;
     failOnFailure?: boolean;
@@ -54,12 +55,12 @@ export async function runSingleCommand(
   }
 
   if (opts.model) {
-    console.log(`Overriding model: ${agentConfig.model} -> ${opts.model}`);
+    if (!opts.json) console.log(`Overriding model: ${agentConfig.model} -> ${opts.model}`);
     agentConfig = { ...agentConfig, model: opts.model };
   }
 
   if (opts.maxSteps !== undefined) {
-    console.log(`Overriding max_steps: ${agentConfig.maxSteps ?? agentConfig.max_steps ?? "default"} -> ${opts.maxSteps}`);
+    if (!opts.json) console.log(`Overriding max_steps: ${agentConfig.maxSteps ?? agentConfig.max_steps ?? "default"} -> ${opts.maxSteps}`);
     agentConfig = { ...agentConfig, max_steps: opts.maxSteps, maxSteps: opts.maxSteps };
   }
 
@@ -132,8 +133,6 @@ export async function runSingleCommand(
     process.exit(0);
   }
 
-  console.log(`Starting run for "${testCase.name}" (${resolvedPath}) using model "${agentConfig.model}"...`);
-
   await saveTestCase(db, testCaseToDbRow(testCase));
   await saveAgentConfig(db, {
     id: agentConfig.id || agentConfig.name,
@@ -145,6 +144,49 @@ export async function runSingleCommand(
   });
 
   const runId = randomUUID();
+
+  // JSON output mode: skip Ink UI and write result as JSON
+  if (opts.json) {
+    try {
+      const result = await runSingle({
+        testCase,
+        agentConfig,
+        adapter,
+        sandboxProvider,
+        db,
+        runId,
+        extraScorers: buildExtraScorers({
+          llmJudge: opts.llmJudge,
+          llmJudgeProvider: opts.llmJudgeProvider,
+          llmJudgeModel: opts.llmJudgeModel,
+          judgeGate: opts.judgeGate,
+          judgeMinScore: opts.judgeMinScore,
+        }),
+      });
+      console.log(
+        JSON.stringify({
+          passed: result.passed,
+          runId,
+          testCaseId: testCase.name,
+          agentConfigId: agentConfig.id || agentConfig.name,
+          model: agentConfig.model,
+          costUsd: result.costUsd,
+          durationMs: result.durationMs,
+          stepsCount: result.stepsCount,
+          metrics: result.metrics ?? null,
+          error: result.error ?? null,
+        }),
+      );
+      if (opts.failOnFailure && !result.passed) process.exit(1);
+    } catch (err: any) {
+      console.log(JSON.stringify({ passed: null, runId, error: err.message }));
+      process.exit(1);
+    }
+    return;
+  }
+
+  console.log(`Starting run for "${testCase.name}" (${resolvedPath}) using model "${agentConfig.model}"...`);
+
   const verbose = !!opts.verbose;
   const steps: StepEvent[] = [];
 
