@@ -238,7 +238,11 @@ export async function runBenchCommand(opts: {
     for (const toolkitPath of toolkitPaths) {
       const findings = auditToolkitDirectory(toolkitPath);
       if (hasAuditErrors(findings)) {
-        console.error(`Toolkit security audit failed for ${toolkitPath}`);
+        console.error(`Toolkit security audit failed for ${toolkitPath}:`);
+        for (const f of findings.filter(f => f.severity === "error")) {
+          console.error(`  [FAIL] ${f.file}: ${f.message} (${f.rule})`);
+        }
+        console.error(`Run \`agr validate-toolkit ${toolkitPath}\` for the full report.`);
         process.exit(1);
       }
     }
