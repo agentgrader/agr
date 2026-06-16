@@ -164,7 +164,14 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
     }
   }
 
-  if (!opts.checkConfig) return;
+  if (!opts.checkConfig) {
+    if (findings.length > 0) {
+      console.log(`\nNext: agr validate-toolkit ${toolkitDir}  |  agr toolkit-list ${toolkitDir} --check-config <agent.yaml>`);
+    } else {
+      console.log(`\nNext: agr toolkit-list ${toolkitDir} --check-config <agent.yaml>  |  agr validate-toolkit ${toolkitDir}`);
+    }
+    return;
+  }
 
   const configContent = readFileSync(resolve(opts.checkConfig), "utf-8");
   const config = parseYaml(configContent) as {
@@ -196,5 +203,11 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
   }
   if (trackedButMissing.length > 0) {
     console.log(`  Tracked but not in ${toolkitDir}/bin/: ${trackedButMissing.join(", ")}`);
+  }
+  const needsFix = untracked.length > 0 || trackedButMissing.length > 0 || findings.length > 0;
+  if (needsFix) {
+    console.log(`\nFix the issues above, then re-run: agr toolkit-list ${toolkitDir} --check-config ${opts.checkConfig}`);
+  } else {
+    console.log(`\nNext: agr validate-toolkit ${toolkitDir}  |  agr bench --suite tasks/ --strict-toolkits`);
   }
 }
