@@ -55,6 +55,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
 
   if (opts.quality) {
     printQualityBreakdown(run.metrics);
+    console.log(`\nNext: agr trace ${resolvedRunId} --tools  |  agr compare --last-two`);
     return;
   }
 
@@ -63,6 +64,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   if (opts.tools) {
     printToolUsageBlock(countToolCalls(steps), { header: "\n================ TOOL USAGE ================" });
     console.log("=============================================\n");
+    console.log(`Next: agr trace ${resolvedRunId} --quality  |  agr compare --last-two`);
     return;
   }
 
@@ -89,6 +91,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
       `\nprompt cache: ${totalCachedTokens}/${totalTokensIn} input tokens served from cache (${cacheHitRate}%)`,
     );
   }
+  console.log(`\nNext: agr trace ${resolvedRunId} --quality  |  agr trace ${resolvedRunId} --tools  |  agr compare --last-two`);
 }
 
 /**
