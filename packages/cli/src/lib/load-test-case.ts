@@ -148,7 +148,7 @@ export function findAllTestCases(dir: string): TestCaseSummary[] {
       const raw = parse(readFileSync(path, "utf-8"));
       if (raw && typeof raw.name === "string" && Array.isArray(raw.success)) {
         const tags = Array.isArray(raw.tags) ? (raw.tags as string[]) : undefined;
-        summaries.push({ path, name: raw.name, description: raw.description, tags });
+        summaries.push({ path, name: raw.name, description: raw.description, ...(tags !== undefined ? { tags } : {}) });
       }
     } catch {
       // not a valid test case file, skip
