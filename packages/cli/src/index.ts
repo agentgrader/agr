@@ -277,10 +277,12 @@ cli
   .option("--limit <n>", "Maximum number of runs to load", { default: 100 })
   .option("--plain", "Print a plain text list instead of the interactive UI")
   .option("--since <duration|date>", "Only show runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
+  .option("--test-case <name>", "Only show runs for this specific test case (substring match)")
   .example("agr list")
   .example("agr list --limit 20")
   .example("agr list --plain")
   .example("agr list --plain --since 24h")
+  .example("agr list --plain --test-case hello-world")
   .action(async (options) => {
     try {
       await listCommand({
@@ -288,6 +290,7 @@ cli
         limit: Number(options.limit),
         plain: options.plain,
         since: options.since,
+        testCase: options.testCase,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);
