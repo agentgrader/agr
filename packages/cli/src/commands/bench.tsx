@@ -146,7 +146,7 @@ export async function runBenchCommand(opts: {
       const beforeCount = pairs.length;
       pairs = pairs.filter(({ tc }) => (tc.tags ?? []).some(t => tagSet.has(t)));
       if (pairs.length === 0) {
-        console.error(`No test cases found with tags: ${opts.tags.join(", ")}`);
+        console.error(`No test cases with tags [${opts.tags.join(", ")}] found in suite: ${suiteDir}`);
         process.exit(1);
       }
       if (pairs.length < beforeCount) {
