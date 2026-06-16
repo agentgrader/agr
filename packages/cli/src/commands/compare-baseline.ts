@@ -68,6 +68,7 @@ function printDiff(
     mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, content, "utf-8");
     console.log(`Comparison written to ${path}`);
+    console.log(`Next: gh pr comment --body-file ${path}  |  agr trace --last --quality`);
   } else {
     console.log(content);
   }
