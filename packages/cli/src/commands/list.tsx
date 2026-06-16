@@ -37,7 +37,9 @@ function printPlainList(
     console.log(`         id: ${run.id}`);
     console.log("");
   }
-  console.log("Open interactively with `agr list`, then Enter on a run to inspect.");
+  console.log("Trace most recent:  agr trace --last  |  agr trace --last --quality");
+  console.log("Compare two runs:   agr compare --last-two");
+  console.log("Browse runs (TUI):  agr list");
 }
 
 export async function listCommand(options: ListCommandOptions = {}): Promise<void> {
