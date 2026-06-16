@@ -264,6 +264,8 @@ export async function runBenchCommand(opts: {
   );
 
   // 5. render the live dashboard
+  const totalRuns = testCases.length * Math.max(agentConfigs.length, 1);
+  console.log(`Starting ${totalRuns} run(s), concurrency: ${concurrency}`);
   const runStates: Record<string, RunState> = {};
   const testCaseIds = testCases.map((tc) => tc.id || tc.name);
   const configIds = agentConfigs.map((ac) => ac.id || ac.name);
