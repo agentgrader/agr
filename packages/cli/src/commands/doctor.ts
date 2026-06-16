@@ -20,11 +20,11 @@ function printResult(r: CheckResult) {
   console.log(line);
 }
 
-export async function doctorCommand(opts: { db?: string; suite?: string }) {
+export async function doctorCommand(opts: { db?: string; suite?: string; json?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const suiteDir = opts.suite ?? "tasks";
 
-  console.log("agr doctor — checking environment\n");
+  if (!opts.json) console.log("agr doctor — checking environment\n");
 
   const results: CheckResult[] = [];
 
@@ -101,11 +101,22 @@ export async function doctorCommand(opts: { db?: string; suite?: string }) {
     return { status: "pass", detail: `Node.js ${version}` };
   }));
 
-  // Print results
-  for (const r of results) printResult(r);
-
   const failures = results.filter(r => r.status === "fail");
   const warnings = results.filter(r => r.status === "warn");
+
+  if (opts.json) {
+    console.log(JSON.stringify({
+      passed: failures.length === 0,
+      failureCount: failures.length,
+      warningCount: warnings.length,
+      checks: results,
+    }));
+    if (failures.length > 0) process.exit(1);
+    return;
+  }
+
+  // Print results
+  for (const r of results) printResult(r);
 
   console.log("");
   if (failures.length === 0 && warnings.length === 0) {

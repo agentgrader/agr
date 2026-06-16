@@ -551,11 +551,13 @@ cli
   .command("doctor", "Check that the local environment is set up correctly for running agentgrader benchmarks")
   .option("--db <path>", "Path to the SQLite database to check", { default: ".agr/db.sqlite" })
   .option("--suite <dir>", "Test suite directory to check for agr.yaml files", { default: "tasks" })
+  .option("--json", "Output check results as a JSON object and suppress human-readable output")
   .example("agr doctor")
   .example("agr doctor --suite my-tasks/")
+  .example("agr doctor --json")
   .action(async (options) => {
     try {
-      await doctorCommand({ db: options.db, suite: options.suite });
+      await doctorCommand({ db: options.db, suite: options.suite, json: options.json });
     } catch (err: any) {
       console.error(`Error executing doctor: ${err.message}`);
       process.exit(1);
