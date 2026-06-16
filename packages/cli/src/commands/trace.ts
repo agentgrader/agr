@@ -58,7 +58,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     return;
   }
 
-  const steps = await getTraces(db, runId);
+  const steps = await getTraces(db, resolvedRunId);
 
   if (opts.tools) {
     printToolUsageBlock(countToolCalls(steps), { header: "\n================ TOOL USAGE ================" });
