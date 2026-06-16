@@ -26,12 +26,11 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Setup Node
+      - name: Setup Node (npm OIDC)
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           registry-url: https://registry.npmjs.org
-          node-auth-token: ${{ secrets.NPM_TOKEN }}
 
       - name: Upgrade npm
         run: npm install -g npm@latest
@@ -53,5 +52,3 @@ jobs:
 
       - name: Publish to npm
         run: bunx changeset publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
