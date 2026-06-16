@@ -11,9 +11,14 @@ import { findAllTestCases } from "../lib/load-test-case";
  * The printed `name` values (and each test case's directory basename) are
  * what `agr run`/`agr bench` accept as a short form instead of a full path.
  */
-export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean }) {
+export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[] }) {
   const root = resolve(dir || ".");
-  const testCases = findAllTestCases(root);
+  let testCases = findAllTestCases(root);
+
+  if (opts?.tags?.length) {
+    const tagSet = new Set(opts.tags);
+    testCases = testCases.filter(tc => (tc.tags ?? []).some(t => tagSet.has(t)));
+  }
 
   if (opts?.json) {
     const output = testCases.map(tc => ({
@@ -21,21 +26,26 @@ export async function listTestsCommand(dir: string | undefined, opts?: { json?: 
       path: tc.path,
       relativePath: relative(root, tc.path),
       ...(tc.description ? { description: tc.description } : {}),
+      ...(tc.tags?.length ? { tags: tc.tags } : {}),
     }));
     console.log(JSON.stringify(output, null, 2));
     return;
   }
 
   if (testCases.length === 0) {
-    console.log(`No test cases found under ${root}.`);
-    console.log("Test cases are .yaml files with a `name:` and `success:` (e.g. agr.yaml).");
+    const tagHint = opts?.tags?.length ? ` with tags [${opts.tags.join(", ")}]` : "";
+    console.log(`No test cases found${tagHint} under ${root}.`);
+    if (!opts?.tags?.length) {
+      console.log("Test cases are .yaml files with a `name:` and `success:` (e.g. agr.yaml).");
+    }
     return;
   }
 
+  const tagSuffix = opts?.tags?.length ? ` [tags: ${opts.tags.join(", ")}]` : "";
   const nameWidth = Math.min(Math.max(...testCases.map(tc => tc.name.length)), 36);
   const pathWidth = Math.min(Math.max(...testCases.map(tc => relative(root, tc.path).length)), 44);
 
-  console.log(`Test cases under ${root} (${testCases.length} found):\n`);
+  console.log(`Test cases under ${root} (${testCases.length} found)${tagSuffix}:\n`);
   for (const tc of testCases) {
     const name = tc.name.padEnd(nameWidth);
     const path = relative(root, tc.path).padEnd(pathWidth);
