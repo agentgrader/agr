@@ -107,6 +107,10 @@ export async function runBenchCommand(opts: {
       agentConfigs = loadAgentConfigsFromPaths(configPaths);
       if (opts.configsDir) {
         console.log(`Loaded ${agentConfigs.length} agent config(s) from ${opts.configsDir}.`);
+      } else if (agentConfigs.length === 1) {
+        console.log(`Config: ${agentConfigs[0]!.name} (model: ${agentConfigs[0]!.model ?? "?"})`);
+      } else {
+        console.log(`Loaded ${agentConfigs.length} agent config(s): ${agentConfigs.map(ac => ac.name).join(", ")}`);
       }
     }
   }
