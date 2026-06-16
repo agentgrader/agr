@@ -16,8 +16,3 @@ export function missingApiKeyForAgentConfig(agentConfig: AgentConfig): string | 
   if (process.env[envVar]) return undefined;
   return envVar;
 }
-
-export function formatMissingApiKeyMessage(envVar: string, envPath?: string): string {
-  const where = envPath ? `.env (${envPath})` : ".env in your project root";
-  return `${envVar} is not set. Add it to ${where} or export it in your shell.`;
-}
