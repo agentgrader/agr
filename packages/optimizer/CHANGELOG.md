@@ -1,5 +1,17 @@
 # @agentgrader/optimizer
 
+## 2.0.2
+
+### Patch Changes
+
+- 4e841b5: `agr bench --save-baseline` now records `avgTokensIn` and `avgTokensOut`; `agr compare-baseline` output shows `Avg tokens in` and `Avg tokens out` rows with percentage deltas when token data is available.
+- Updated dependencies [e489a94]
+- Updated dependencies [e489a94]
+- Updated dependencies [9f387b8]
+- Updated dependencies [e489a94]
+- Updated dependencies [e489a94]
+  - @agentgrader/core@1.3.2
+
 ## 2.0.1
 
 ### Patch Changes

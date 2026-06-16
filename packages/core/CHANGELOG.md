@@ -1,5 +1,22 @@
 # @agentgrader/core
 
+## 1.3.2
+
+### Patch Changes
+
+- e489a94: `metrics["tool-adoption"]`/`metrics["tool-usage"]` now record `usedVia: "direct" | "wrapped"` per tool, via the new `getCommandUsageSource` (refactored from `wasCommandUsed`). `agr trace --quality` prints `OK (called directly)` vs. `OK (via another tool's output)` vs. `MISSING` per required/tracked tool, falling back to `OK (mechanism not recorded for this run)` for runs predating this change. Previously both cases were reported identically as `OK`, making it impossible to tell whether a required tool was actually invoked or only credited because a composite tool wrapped it.
+- e489a94: `wasCommandUsed` (and `getCommandUsageSource`) now also match `tool_<name>` entries, the first-class AI-SDK tools agent-openrouter registers for each toolkit skill (e.g. `tool_rename_symbol` for `rename-symbol`). Previously only the prompt-described `executeCommand`/`terminal/create` paths were matched, so a toolkit tool invoked via `tool_<name>` was invisible to `metrics["tool-usage"]`/`metrics["tool-adoption"]`, undercounting real adoption.
+- 9f387b8: Add sandbox-bridged MCP spawning: a stdio `mcp_servers:` entry can now set `sandboxed: true` to run inside the agr Docker sandbox (via `docker exec -i`) instead of on the host.
+
+  - `@agentgrader/core`: `McpServerConfigSchema`'s stdio variant gains an optional `sandboxed: boolean`, and `SandboxHandle` gains an optional `spawnStdio(cmd)` method returning a `SandboxStdioProcess` (stdin/stdout/stderr/exit bridge).
+  - `@agentgrader/sandbox-docker`: `DockerSandboxHandle.spawnStdio()` implements this via `docker exec -i <container> sh -c <cmd>` as a host child process (dockerode's `exec.start({hijack: true})` hangs forever under Bun, so this shells out to the `docker` CLI instead).
+  - `@agentgrader/agent-openrouter`: when a stdio `mcp_servers` entry has `sandboxed: true`, a new `SandboxStdioMcpTransport` runs the server via `sandbox.spawnStdio` and frames messages as newline-delimited JSON, so the server's `command` sees the task's sandboxed `/app` fixture files instead of the host filesystem.
+
+  This closes the gap noted in `docs/advanced/acp-agent.md`'s "Sandbox caveat": previously, all stdio `mcp_servers` entries were spawned on the host regardless of adapter.
+
+- e489a94: agent-openrouter now registers each toolkit skill (`.claude/skills/<name>/SKILL.md`, backed by `bin/<name>`) as its own first-class tool named `tool_<name>` (hyphens become underscores), with the skill's description and an `args` passthrough param, executing `<name> <args>` in the sandbox. Per `JETBRAINS_FEEDBACK.md` iteration 76 (7th confirming variant), `claude-haiku-4-5-20251001` reliably calls tools that appear in its real tool list (`readFile`/`writeFile`/`executeCommand`/`submit`) but does not invoke toolkit commands that are only _described_ in the system prompt and run via `executeCommand <name> <args>` - registering them as first-class tools gives these commands the same adoption odds as built-in tools. `run-single.ts` now always propagates the merged toolkit list via `effectiveConfig.toolkits`, so adapters can call `discoverSkillsForToolkits` independently of whether the system-prompt addendum was built.
+- e489a94: `bucketToolName` (used by `metrics["tool-usage"]`/`metrics["tool-adoption"]`) now strips one or more leading `cd <dir> &&`/`cd <dir>;` prefixes before taking the command's first word. Previously, `executeCommand`/`terminal/create` calls that `cd` into the project before running the real command (e.g. `cd /app && python -m pytest ...`) bucketed as `executeCommand:cd`, hiding the actual command (`python`) from tool-usage/tool-adoption tracking. A bare `cd <dir>` with nothing after it still buckets as `cd`.
+
 ## 1.3.1
 
 ### Patch Changes

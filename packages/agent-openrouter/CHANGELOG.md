@@ -1,5 +1,30 @@
 # @agentgrader/agent-openrouter
 
+## 4.1.0
+
+### Minor Changes
+
+- 9f387b8: Add sandbox-bridged MCP spawning: a stdio `mcp_servers:` entry can now set `sandboxed: true` to run inside the agr Docker sandbox (via `docker exec -i`) instead of on the host.
+
+  - `@agentgrader/core`: `McpServerConfigSchema`'s stdio variant gains an optional `sandboxed: boolean`, and `SandboxHandle` gains an optional `spawnStdio(cmd)` method returning a `SandboxStdioProcess` (stdin/stdout/stderr/exit bridge).
+  - `@agentgrader/sandbox-docker`: `DockerSandboxHandle.spawnStdio()` implements this via `docker exec -i <container> sh -c <cmd>` as a host child process (dockerode's `exec.start({hijack: true})` hangs forever under Bun, so this shells out to the `docker` CLI instead).
+  - `@agentgrader/agent-openrouter`: when a stdio `mcp_servers` entry has `sandboxed: true`, a new `SandboxStdioMcpTransport` runs the server via `sandbox.spawnStdio` and frames messages as newline-delimited JSON, so the server's `command` sees the task's sandboxed `/app` fixture files instead of the host filesystem.
+
+  This closes the gap noted in `docs/advanced/acp-agent.md`'s "Sandbox caveat": previously, all stdio `mcp_servers` entries were spawned on the host regardless of adapter.
+
+- e489a94: agent-openrouter now registers each toolkit skill (`.claude/skills/<name>/SKILL.md`, backed by `bin/<name>`) as its own first-class tool named `tool_<name>` (hyphens become underscores), with the skill's description and an `args` passthrough param, executing `<name> <args>` in the sandbox. Per `JETBRAINS_FEEDBACK.md` iteration 76 (7th confirming variant), `claude-haiku-4-5-20251001` reliably calls tools that appear in its real tool list (`readFile`/`writeFile`/`executeCommand`/`submit`) but does not invoke toolkit commands that are only _described_ in the system prompt and run via `executeCommand <name> <args>` - registering them as first-class tools gives these commands the same adoption odds as built-in tools. `run-single.ts` now always propagates the merged toolkit list via `effectiveConfig.toolkits`, so adapters can call `discoverSkillsForToolkits` independently of whether the system-prompt addendum was built.
+
+### Patch Changes
+
+- 30ee67c: Fix `resolveProvider` to no longer treat `OPENAI_API_KEY` as a signal that OpenRouter is configured. Previously, setting only `OPENAI_API_KEY` (no `OPENROUTER_API_KEY`) for a `gpt-`/`o`-series model resolved to provider `"openrouter"`, which then called OpenRouter's API using the OpenAI key and failed. Now only `OPENROUTER_API_KEY` short-circuits the native-provider checks, so a `gpt-`/`o`-series model with only `OPENAI_API_KEY` correctly resolves to provider `"openai"`.
+- e489a94: Fix prompt-cache token accounting in `onStepFinish`: Anthropic's `usage.promptTokens` (`input_tokens`) already excludes `cache_read`/`cache_creation` tokens, but `onStepFinish` subtracted them again, clamping the fresh-token cost term to ~0 and undercounting step cost. It also emitted `tokensIn` as the fresh-only count while `cachedTokens` came from a separate, often-larger pool, producing >100% "prompt cache hit rate" in `agr trace` and the run summary. `tokensIn` is now `promptTokens + cacheRead + cacheCreation` (total input tokens), so `cachedTokens <= tokensIn` always holds. Also adds a `claude-haiku-4-5`/`claude-sonnet-4` pricing case to `getPricing()`, which previously fell through to the unknown-model default ($2/$10 per 1M vs. actual $1/$5 for Haiku 4.5).
+- Updated dependencies [e489a94]
+- Updated dependencies [e489a94]
+- Updated dependencies [9f387b8]
+- Updated dependencies [e489a94]
+- Updated dependencies [e489a94]
+  - @agentgrader/core@1.3.2
+
 ## 4.0.0
 
 ### Minor Changes
