@@ -172,9 +172,9 @@ export async function runSingleCommand(
 
   const passed = summary?.passed;
   if (passed === true) {
-    console.log(`\nNext: agr bench ${testCase.name}  |  agr trace --last  |  agr trace --last --quality`);
+    console.log(`\nNext: agr bench ${testCase.name}  |  agr trace ${runId}  |  agr trace --last --quality`);
   } else {
-    console.log(`\nInspect: agr trace --last  |  agr trace --last --quality  |  agr trace --last --tools`);
+    console.log(`\nInspect: agr trace ${runId}  |  agr trace --last --quality  |  agr trace --last --tools`);
   }
 
   process.exit(exitCode);
