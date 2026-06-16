@@ -84,22 +84,31 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
 export async function compareCommand(
   runIdA: string | undefined,
   runIdB: string | undefined,
-  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; testCase?: string },
+  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; testCase?: string; config?: string },
 ) {
   const db = initDb();
 
   if (opts.lastTwo) {
     const runs = await listRuns(db);
-    const filtered = opts.testCase
+    let filtered = opts.testCase
       ? runs.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!))
       : runs;
+    if (opts.config) {
+      filtered = filtered.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    }
     if (filtered.length < 2) {
-      const scope = opts.testCase ? ` for test case "${opts.testCase}"` : "";
+      const parts: string[] = [];
+      if (opts.testCase) parts.push(`test case "${opts.testCase}"`);
+      if (opts.config) parts.push(`config "${opts.config}"`);
+      const scope = parts.length ? ` for ${parts.join(" and ")}` : "";
       console.error(`Need at least 2 runs${scope} for --last-two (found ${filtered.length}). Run \`agr run\` or \`agr bench\` first.`);
       process.exit(1);
     }
-    if (opts.testCase) {
-      console.log(`Comparing last two runs for test case "${opts.testCase}"`);
+    const scopeParts: string[] = [];
+    if (opts.testCase) scopeParts.push(`test case "${opts.testCase}"`);
+    if (opts.config) scopeParts.push(`config "${opts.config}"`);
+    if (scopeParts.length) {
+      console.log(`Comparing last two runs for ${scopeParts.join(" and ")}`);
     }
     runIdA = filtered[1]!.id;
     runIdB = filtered[0]!.id;

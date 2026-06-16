@@ -15,17 +15,23 @@ import { formatDuration } from "../lib/format-relative-time";
  * tool name appears across the run's `tool_call` steps. Useful for checking
  * whether a custom toolkit/MCP tool was actually used, vs. only available.
  */
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string }) {
   const db = initDb();
 
   let resolvedRunId = runId;
   if (opts.last) {
     const runs = await listRuns(db);
-    const filtered = opts.testCase
+    let filtered = opts.testCase
       ? runs.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!))
       : runs;
+    if (opts.config) {
+      filtered = filtered.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    }
     if (filtered.length === 0) {
-      const scope = opts.testCase ? ` for test case "${opts.testCase}"` : "";
+      const parts: string[] = [];
+      if (opts.testCase) parts.push(`test case "${opts.testCase}"`);
+      if (opts.config) parts.push(`config "${opts.config}"`);
+      const scope = parts.length ? ` for ${parts.join(" and ")}` : "";
       console.error(`No runs found${scope} in .agr/db.sqlite. Run \`agr run\` or \`agr bench\` first.`);
       process.exit(1);
     }
@@ -63,7 +69,8 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   }
 
   const tcSuffix = opts.testCase ? ` --test-case ${opts.testCase}` : "";
-  const compareSuffix = opts.testCase ? ` --test-case ${opts.testCase}` : "";
+  const cfgSuffix = opts.config ? ` --config ${opts.config}` : "";
+  const compareSuffix = `${tcSuffix}${cfgSuffix}`;
 
   if (opts.quality) {
     printQualityBreakdown(run.metrics);
