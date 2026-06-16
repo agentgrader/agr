@@ -13,24 +13,24 @@
     },
     "packages/agent-acp": {
       "name": "@agentgrader/agent-acp",
-      "version": "2.0.2",
+      "version": "3.0.0",
       "dependencies": {
         "@agentclientprotocol/sdk": "^0.25.1",
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
         "zod": "^3.23.8",
       },
       "devDependencies": {
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/agent-openrouter": {
       "name": "@agentgrader/agent-openrouter",
-      "version": "4.0.0",
+      "version": "5.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.3.0",
+        "@agentgrader/core": "^1.4.0",
         "@ai-sdk/anthropic": "^1.2.12",
         "@ai-sdk/openai": "^1.1.0",
         "ai": "^4.1.0",
@@ -40,12 +40,12 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.0",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/cli": {
       "name": "agentgrader",
-      "version": "1.5.1",
+      "version": "1.7.1",
       "bin": {
         "agr": "dist/index.js",
         "agentgrader": "dist/index.js",
@@ -75,7 +75,7 @@
     },
     "packages/core": {
       "name": "@agentgrader/core",
-      "version": "1.3.1",
+      "version": "1.4.0",
       "dependencies": {
         "@agentgrader/store": "^1.1.0",
         "@mastra/core": "^1.41.0",
@@ -98,23 +98,23 @@
     },
     "packages/optimizer": {
       "name": "@agentgrader/optimizer",
-      "version": "2.0.1",
+      "version": "3.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
         "zod": "^3.23.8",
       },
       "devDependencies": {
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/sandbox-docker": {
       "name": "@agentgrader/sandbox-docker",
-      "version": "4.1.0",
+      "version": "5.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
         "dockerode": "^4.0.2",
       },
       "devDependencies": {
@@ -122,28 +122,28 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/sandbox-e2b": {
       "name": "@agentgrader/sandbox-e2b",
-      "version": "1.0.0",
+      "version": "2.0.1",
       "dependencies": {
-        "@agentgrader/core": "workspace:*",
+        "@agentgrader/core": "^1.4.0",
         "e2b": "^2.0.0",
       },
       "devDependencies": {
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.1",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/scorer-llm-judge": {
       "name": "@agentgrader/scorer-llm-judge",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.3.0",
+        "@agentgrader/core": "^1.4.0",
         "@ai-sdk/anthropic": "^3.0.82",
         "@ai-sdk/openai": "^1.1.0",
         "ai": "^4.1.0",
@@ -153,20 +153,20 @@
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.0",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/scorer-static": {
       "name": "@agentgrader/scorer-static",
-      "version": "2.0.0",
+      "version": "3.0.0",
       "dependencies": {
-        "@agentgrader/core": "^1.3.0",
+        "@agentgrader/core": "^1.4.0",
       },
       "devDependencies": {
         "tsup": "^8.5.1",
       },
       "peerDependencies": {
-        "@agentgrader/core": "^1.3.0",
+        "@agentgrader/core": "^1.4.0",
       },
     },
     "packages/store": {
