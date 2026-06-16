@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { formatDuration } from "../lib/format-relative-time";
 
 export interface RunState {
   runId: string;
@@ -141,21 +142,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ runs, testCases, configs, 
               }
 
               if (run.status === "failed" || !run.passed) {
-                const seconds = (run.durationMs / 1000).toFixed(1);
                 return (
                   <Box key={cfg} width={CONFIG_COL_WIDTH}>
                     <Text color="red" wrap="truncate-end">
-                      FAIL {seconds}s (${run.costUsd.toFixed(3)})
+                      FAIL {formatDuration(run.durationMs)} (${run.costUsd.toFixed(3)})
                     </Text>
                   </Box>
                 );
               }
 
-              const seconds = (run.durationMs / 1000).toFixed(1);
               return (
                 <Box key={cfg} width={CONFIG_COL_WIDTH}>
                   <Text color="green" wrap="truncate-end">
-                    PASS {seconds}s (${run.costUsd.toFixed(3)})
+                    PASS {formatDuration(run.durationMs)} (${run.costUsd.toFixed(3)})
                   </Text>
                 </Box>
               );
