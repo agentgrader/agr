@@ -306,8 +306,10 @@ cli
   .option("--run-id <id>", "Run id for trace export")
   .option("--last", "Export traces for the most recent run (no --run-id needed)")
   .option("--matrix-id <id>", "Filter runs by matrix id")
+  .option("--last-matrix", "Export runs for the most recent matrix sweep (no --matrix-id needed)")
   .option("--limit <n>", "Maximum number of runs to export")
   .example("agr export runs --format jsonl --output runs.jsonl")
+  .example("agr export runs --last-matrix --format jsonl --output sweep.jsonl")
   .example("agr export traces --run-id <runId> --format otlp --output trace.json")
   .example("agr export traces --last --format otlp --output last-trace.json")
   .action(async (subcommand, options) => {
@@ -319,6 +321,7 @@ cli
         runId: options.runId,
         last: options.last,
         matrixId: options.matrixId,
+        lastMatrix: options.lastMatrix,
         limit: options.limit ? Number(options.limit) : undefined,
       });
     } catch (err: any) {
