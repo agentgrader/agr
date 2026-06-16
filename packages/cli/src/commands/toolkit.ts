@@ -188,6 +188,9 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
   console.log(`Checking against ${opts.checkConfig} (track_tools + require_tools_before_submit):`);
   if (untracked.length > 0) {
     console.log(`  In ${toolkitDir}/bin/ but not tracked: ${untracked.join(", ")}`);
+    console.log("");
+    console.log("  Add to your agent config:");
+    console.log(`    track_tools: [${untracked.join(", ")}]`);
   } else {
     console.log("  All toolkit tools are tracked.");
   }
