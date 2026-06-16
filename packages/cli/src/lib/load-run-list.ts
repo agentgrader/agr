@@ -22,7 +22,7 @@ export interface EnrichedRun {
   completedAt: number | null;
 }
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string): Promise<EnrichedRun[]> {
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
   const filtered = sinceTs !== undefined ? rows.filter((r) => r.createdAt >= sinceTs) : rows;
   const tcFiltered = testCaseFilter
@@ -31,7 +31,10 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
   const cfgFiltered = configFilter
     ? tcFiltered.filter((r) => r.agentConfigId === configFilter || r.agentConfigId.includes(configFilter))
     : tcFiltered;
-  const limited = limit ? cfgFiltered.slice(0, limit) : cfgFiltered;
+  const passedFiltered = passedFilter !== undefined
+    ? cfgFiltered.filter((r) => r.passed === passedFilter)
+    : cfgFiltered;
+  const limited = limit ? passedFiltered.slice(0, limit) : passedFiltered;
   if (limited.length === 0) return [];
 
   const [tcRows, cfgRows] = await Promise.all([
