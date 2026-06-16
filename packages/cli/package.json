@@ -1,6 +1,6 @@
 {
   "name": "agentgrader",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "description": "CLI for Agentgrader, the coding agent optimizer. Evaluate, compare, and improve agents on real tasks with agr.",
   "license": "MIT",
   "type": "module",
