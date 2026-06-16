@@ -165,7 +165,8 @@ export async function runBenchCommand(opts: {
   } else {
     yamlFiles = opts.testCaseArgs!.map(arg => resolveTestCasePath(arg));
     testCases = yamlFiles.map(f => loadTestCase(f));
-    console.log(`Loaded ${testCases.length} test case(s): ${testCases.map(tc => tc.name).join(", ")}`);
+    const tcLabel = testCases.length === 1 ? "test case" : "test cases";
+    console.log(`Loaded ${testCases.length} ${tcLabel}: ${testCases.map(tc => tc.name).join(", ")}`);
   }
 
   if (agentConfigs.length === 0) {
