@@ -201,7 +201,7 @@ export function resolveTestCasePath(input: string, searchDir: string = process.c
 export function findTestCaseYamlFiles(dir: string): string[] {
   const files: string[] = [];
   try {
-    const entries = readdirSync(dir);
+    const entries = readdirSync(dir).sort();
     for (const entry of entries) {
       const fullPath = resolve(dir, entry);
       const stat = statSync(fullPath);
