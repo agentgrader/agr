@@ -1,6 +1,13 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+const GITIGNORE = `# Agentgrader run history and exports
+.agr/
+
+# Environment variables
+.env
+`;
+
 const AGENT_CONFIG_YAML = `name: Baseline Agent
 model: claude-haiku-4-5-20251001
 provider: anthropic
@@ -75,6 +82,11 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
 
   writeFileSync(agentConfigPath, AGENT_CONFIG_YAML);
 
+  const gitignorePath = resolve(root, ".gitignore");
+  if (!existsSync(gitignorePath)) {
+    writeFileSync(gitignorePath, GITIGNORE);
+  }
+
   if (opts.blank) {
     mkdirSync(resolve(root, "tasks"), { recursive: true });
 
@@ -82,6 +94,7 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     console.log("");
     console.log("Created:");
     console.log("  agent.yaml  - agent config (claude-haiku-4-5, provider: anthropic)");
+    console.log("  .gitignore  - ignores .agr/ (run history) and .env");
     console.log("  tasks/      - put your own test cases here, e.g. tasks/<name>/agr.yaml");
     console.log("");
     console.log("Next steps:");
@@ -107,6 +120,7 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   console.log("");
   console.log("Created:");
   console.log("  agent.yaml                     - agent config (claude-haiku-4-5, provider: anthropic)");
+  console.log("  .gitignore                     - ignores .agr/ (run history) and .env");
   console.log("  tasks/hello-world/agr.yaml      - a tiny test case (implement add() in math.js)");
   console.log("  tasks/hello-world/fixture/      - starter project for the test case");
   console.log("");
