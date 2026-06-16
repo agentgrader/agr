@@ -58,6 +58,8 @@ const sampleReport: BenchReport = {
       avgCostUsd: 0.015,
       avgDurationMs: 150,
       avgStepsCount: 4,
+      avgTokensIn: 15,
+      avgTokensOut: 7,
       totalRuns: 2,
       passedRuns: 1,
     },

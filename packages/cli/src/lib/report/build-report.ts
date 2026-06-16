@@ -81,6 +81,8 @@ export async function buildReportFromRunIds(
     avgCostUsd: a.avgCostUsd,
     avgDurationMs: a.avgDurationMs,
     avgStepsCount: a.avgStepsCount,
+    avgTokensIn: a.avgTokensIn,
+    avgTokensOut: a.avgTokensOut,
     totalRuns: a.totalRuns,
     passedRuns: a.passedRuns,
   }));

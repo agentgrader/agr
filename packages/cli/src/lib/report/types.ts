@@ -38,6 +38,8 @@ export interface BenchReport {
     avgCostUsd: number;
     avgDurationMs: number;
     avgStepsCount: number;
+    avgTokensIn: number;
+    avgTokensOut: number;
     totalRuns: number;
     passedRuns: number;
   }>;

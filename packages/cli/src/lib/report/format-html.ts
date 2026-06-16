@@ -22,11 +22,11 @@ export function formatReportAsHtml(report: BenchReport): string {
     report.aggregatesByConfig && report.aggregatesByConfig.length > 0
       ? `<h2>By config</h2>
 <table>
-<thead><tr><th>Config</th><th>Solve rate</th><th>Avg cost</th><th>Avg duration</th><th>Avg steps</th><th>Passed</th><th>Total</th></tr></thead>
+<thead><tr><th>Config</th><th>Solve rate</th><th>Avg cost</th><th>Avg duration</th><th>Avg steps</th><th>Avg tokens in</th><th>Avg tokens out</th><th>Passed</th><th>Total</th></tr></thead>
 <tbody>${report.aggregatesByConfig
           .map(
             (a) =>
-              `<tr><td>${escapeHtml(a.agentConfigId)}</td><td>${(a.solveRate * 100).toFixed(1)}%</td><td>$${a.avgCostUsd.toFixed(4)}</td><td>${escapeHtml(formatDuration(a.avgDurationMs))}</td><td>${Math.round(a.avgStepsCount)}</td><td>${a.passedRuns}</td><td>${a.totalRuns}</td></tr>`,
+              `<tr><td>${escapeHtml(a.agentConfigId)}</td><td>${(a.solveRate * 100).toFixed(1)}%</td><td>$${a.avgCostUsd.toFixed(4)}</td><td>${escapeHtml(formatDuration(a.avgDurationMs))}</td><td>${Math.round(a.avgStepsCount)}</td><td>${Math.round(a.avgTokensIn)}</td><td>${Math.round(a.avgTokensOut)}</td><td>${a.passedRuns}</td><td>${a.totalRuns}</td></tr>`,
           )
           .join("\n")}</tbody>
 </table>`
