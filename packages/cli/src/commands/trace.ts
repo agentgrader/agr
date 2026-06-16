@@ -45,6 +45,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   console.log(
     `  status:       ${run.status}${run.passed === true ? " (passed)" : run.passed === false ? " (failed)" : ""}`,
   );
+  console.log(`  steps:        ${run.stepsCount}`);
   console.log(`  cost:         $${run.costUsd.toFixed(4)}`);
   console.log(`  duration:     ${formatDuration(run.durationMs)}`);
   if (run.error) console.log(`  error:        ${run.error}`);
