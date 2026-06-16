@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean; byConfig?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -115,6 +115,46 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`    avg cost: $${cfg.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(cfg.avgDurationMs)}${tokLine}`);
     }
     console.log(`\nNext: agr status --config <name>  |  agr bench --suite tasks/ --configs-dir ./agents`);
+    return;
+  }
+
+  if (opts.byTestCase) {
+    const tcMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      const key = run.testCaseId;
+      if (!tcMap.has(key)) tcMap.set(key, []);
+      tcMap.get(key)!.push(run);
+    }
+    const tcStats = Array.from(tcMap.entries()).map(([testCaseId, tcRuns]) => {
+      const p = tcRuns.filter((r) => r.passed === true).length;
+      const f = tcRuns.filter((r) => r.passed === false).length;
+      const cost = tcRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      const dur = tcRuns.reduce((s, r) => s + (r.durationMs ?? 0), 0);
+      return {
+        testCaseId,
+        total: tcRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: tcRuns.length > 0 ? (p / tcRuns.length) * 100 : 0,
+        avgCostUsd: tcRuns.length > 0 ? cost / tcRuns.length : 0,
+        avgDurationMs: tcRuns.length > 0 ? dur / tcRuns.length : 0,
+      };
+    }).sort((a, b) => a.solveRate - b.solveRate);
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, config: opts.config ?? null, byTestCase: tcStats }, null, 2));
+      return;
+    }
+
+    const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${cfgScope}\n`);
+    console.log(`Per-test-case breakdown (${tcStats.length} test case(s), sorted by solve rate asc):\n`);
+    for (const tc of tcStats) {
+      console.log(`  ${tc.testCaseId}`);
+      console.log(`    runs: ${tc.total}  (${tc.passed} passed, ${tc.failed} failed)  solve rate: ${tc.solveRate.toFixed(1)}%`);
+      console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(tc.avgDurationMs)}`);
+    }
+    console.log(`\nNext: agr status --test-case <name>  |  agr bench --only-failed --suite tasks/`);
     return;
   }
 
