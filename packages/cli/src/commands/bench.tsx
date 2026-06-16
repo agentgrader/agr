@@ -24,6 +24,7 @@ import {
   resolveManifestSuiteDir,
 } from "../lib/load-bench-manifest";
 import { loadMatrix } from "../lib/load-matrix";
+import { formatDuration } from "../lib/format-relative-time";
 import {
   loadAgentConfigsFromPaths,
   resolveAgentConfigPathList,
@@ -361,9 +362,12 @@ export async function runBenchCommand(opts: {
       for (const [configId, stats] of Object.entries(summary.byConfig)) {
         const pct = stats.totalRuns > 0 ? ((stats.solveRate) * 100).toFixed(0) : "0";
         const cost = costByConfig.get(configId) ?? 0;
-        const avgConfigNote = stats.totalRuns > 1 ? `  avg: $${(cost / stats.totalRuns).toFixed(4)}/run` : "";
-        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}${avgConfigNote}`);
         const configRuns = Object.values(runStates).filter(r => r.agentConfigId === configId);
+        const finishedRuns = configRuns.filter(r => r.status !== "running");
+        const totalDurMs = finishedRuns.reduce((acc, r) => acc + (r.durationMs || 0), 0);
+        const avgCostNote = stats.totalRuns > 1 ? `  avg: $${(cost / stats.totalRuns).toFixed(4)}/run` : "";
+        const avgDurNote = finishedRuns.length > 1 ? `  ${formatDuration(Math.round(totalDurMs / finishedRuns.length))}/run` : "";
+        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}${avgCostNote}${avgDurNote}`);
         const failedCases = configRuns.filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
         const erroredRuns = configRuns.filter(r => r.status === "failed");
         if (failedCases.length > 10) {
@@ -380,8 +384,11 @@ export async function runBenchCommand(opts: {
       }
     } else {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
+      const allFinished = Object.values(runStates).filter(r => r.status !== "running");
+      const totalDurMs = allFinished.reduce((acc, r) => acc + (r.durationMs || 0), 0);
       const avgCostNote = summary.totalRuns > 1 ? `  avg: $${(totalCost / summary.totalRuns).toFixed(4)}/run` : "";
-      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}${avgCostNote}  elapsed: ${elapsedSec}s`);
+      const avgDurNote = allFinished.length > 1 ? `  ${formatDuration(Math.round(totalDurMs / allFinished.length))}/run` : "";
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}${avgCostNote}${avgDurNote}  elapsed: ${elapsedSec}s`);
       const crashedRuns = Object.values(runStates).filter(r => r.status === "failed");
       const testFailedCases = Object.values(runStates).filter(r => r.status === "completed" && !r.passed).map(r => r.testCaseId);
       if (testFailedCases.length > 10) {
