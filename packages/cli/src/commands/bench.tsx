@@ -329,9 +329,25 @@ export async function runBenchCommand(opts: {
   const summary = summaryFromRunStates(runStates, configIds);
 
   if (!matrixId) {
-    const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
     const totalCost = Object.values(runStates).reduce((acc, r) => acc + (r.costUsd || 0), 0);
-    console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}`);
+    const configCount = Object.keys(summary.byConfig).length;
+    if (configCount > 1) {
+      const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}`);
+      const costByConfig = new Map<string, number>();
+      for (const r of Object.values(runStates)) {
+        costByConfig.set(r.agentConfigId, (costByConfig.get(r.agentConfigId) ?? 0) + (r.costUsd || 0));
+      }
+      const nameWidth = Math.max(...Object.keys(summary.byConfig).map(id => id.length));
+      for (const [configId, stats] of Object.entries(summary.byConfig)) {
+        const pct = stats.totalRuns > 0 ? ((stats.solveRate) * 100).toFixed(0) : "0";
+        const cost = costByConfig.get(configId) ?? 0;
+        console.log(`  ${configId.padEnd(nameWidth)}  ${stats.passedRuns}/${stats.totalRuns} PASS (${pct}%)  $${cost.toFixed(4)}`);
+      }
+    } else {
+      const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}`);
+    }
   }
 
   if (opts.report && opts.output) {
