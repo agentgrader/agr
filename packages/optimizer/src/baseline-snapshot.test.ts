@@ -64,4 +64,47 @@ describe("baseline snapshot", () => {
     expect(snapshot.aggregates.avgDurationMs).toBe(2000);
     expect(snapshot.aggregates.avgStepsCount).toBe(6);
   });
+
+  test("createBaselineSnapshot computes avgTokensIn/avgTokensOut when token data present", () => {
+    const snapshot = createBaselineSnapshot({
+      configs: ["agent"],
+      runs: [
+        { testCaseId: "a", agentConfigId: "agent", passed: true, costUsd: 0.01, durationMs: 1000, stepsCount: 4, tokensIn: 100, tokensOut: 40, metrics: null },
+        { testCaseId: "b", agentConfigId: "agent", passed: true, costUsd: 0.02, durationMs: 3000, stepsCount: 8, tokensIn: 200, tokensOut: 60, metrics: null },
+      ],
+    });
+    expect(snapshot.aggregates.avgTokensIn).toBe(150);
+    expect(snapshot.aggregates.avgTokensOut).toBe(50);
+  });
+
+  test("createBaselineSnapshot omits avgTokensIn/avgTokensOut when no token data", () => {
+    const snapshot = createBaselineSnapshot({
+      configs: ["agent"],
+      runs: [
+        { testCaseId: "a", agentConfigId: "agent", passed: true, costUsd: 0.01, durationMs: 1000, stepsCount: 4, metrics: null },
+      ],
+    });
+    expect(snapshot.aggregates.avgTokensIn).toBeUndefined();
+    expect(snapshot.aggregates.avgTokensOut).toBeUndefined();
+  });
+
+  test("formatBaselineDiffMarkdown includes Avg tokens rows when token data present", () => {
+    const baseline = createBaselineSnapshot({
+      configs: ["agent"],
+      runs: [
+        { testCaseId: "a", agentConfigId: "agent", passed: true, costUsd: 0.01, durationMs: 1000, stepsCount: 4, tokensIn: 100, tokensOut: 40, metrics: null },
+      ],
+    });
+    const current = createBaselineSnapshot({
+      configs: ["agent"],
+      runs: [
+        { testCaseId: "a", agentConfigId: "agent", passed: true, costUsd: 0.01, durationMs: 1000, stepsCount: 4, tokensIn: 120, tokensOut: 50, metrics: null },
+      ],
+    });
+    const diff = diffSnapshots(baseline, current);
+    const md = formatBaselineDiffMarkdown(diff, baseline, current);
+    expect(md).toContain("Avg tokens in");
+    expect(md).toContain("Avg tokens out");
+    expect(md).toContain("+20.0%");
+  });
 });

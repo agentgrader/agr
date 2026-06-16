@@ -5,6 +5,8 @@ export interface BaselineRunEntry {
   costUsd: number;
   durationMs: number;
   stepsCount: number;
+  tokensIn?: number;
+  tokensOut?: number;
   metrics: Record<string, unknown> | null;
 }
 
@@ -20,6 +22,8 @@ export interface BaselineSnapshot {
     avgCostUsd: number;
     avgDurationMs: number;
     avgStepsCount: number;
+    avgTokensIn?: number;
+    avgTokensOut?: number;
     totalRuns: number;
     passedRuns: number;
     toolUsage?: Record<string, Record<string, number>>;
@@ -59,6 +63,13 @@ export function createBaselineSnapshot(input: {
     totalRuns > 0 ? input.runs.reduce((sum, r) => sum + r.durationMs, 0) / totalRuns : 0;
   const avgStepsCount =
     totalRuns > 0 ? input.runs.reduce((sum, r) => sum + r.stepsCount, 0) / totalRuns : 0;
+  const hasTokens = input.runs.some((r) => (r.tokensIn ?? 0) > 0 || (r.tokensOut ?? 0) > 0);
+  const avgTokensIn = hasTokens && totalRuns > 0
+    ? input.runs.reduce((sum, r) => sum + (r.tokensIn ?? 0), 0) / totalRuns
+    : undefined;
+  const avgTokensOut = hasTokens && totalRuns > 0
+    ? input.runs.reduce((sum, r) => sum + (r.tokensOut ?? 0), 0) / totalRuns
+    : undefined;
 
   return {
     version: 1,
@@ -72,6 +83,8 @@ export function createBaselineSnapshot(input: {
       avgCostUsd,
       avgDurationMs,
       avgStepsCount,
+      ...(avgTokensIn !== undefined ? { avgTokensIn } : {}),
+      ...(avgTokensOut !== undefined ? { avgTokensOut } : {}),
       totalRuns,
       passedRuns,
       toolUsage: input.toolUsage,
@@ -191,6 +204,24 @@ export function formatBaselineDiffMarkdown(
         : 0;
     lines.push(
       `| Avg steps | ${Math.round(baseline.aggregates.avgStepsCount)} | ${Math.round(current.aggregates.avgStepsCount)} | ${stepsDeltaPct >= 0 ? "+" : ""}${stepsDeltaPct.toFixed(1)}% |`,
+    );
+  }
+  if (baseline.aggregates.avgTokensIn !== undefined && current.aggregates.avgTokensIn !== undefined) {
+    const tokenInDeltaPct =
+      baseline.aggregates.avgTokensIn > 0
+        ? ((current.aggregates.avgTokensIn - baseline.aggregates.avgTokensIn) / baseline.aggregates.avgTokensIn) * 100
+        : 0;
+    lines.push(
+      `| Avg tokens in | ${Math.round(baseline.aggregates.avgTokensIn)} | ${Math.round(current.aggregates.avgTokensIn)} | ${tokenInDeltaPct >= 0 ? "+" : ""}${tokenInDeltaPct.toFixed(1)}% |`,
+    );
+  }
+  if (baseline.aggregates.avgTokensOut !== undefined && current.aggregates.avgTokensOut !== undefined) {
+    const tokenOutDeltaPct =
+      baseline.aggregates.avgTokensOut > 0
+        ? ((current.aggregates.avgTokensOut - baseline.aggregates.avgTokensOut) / baseline.aggregates.avgTokensOut) * 100
+        : 0;
+    lines.push(
+      `| Avg tokens out | ${Math.round(baseline.aggregates.avgTokensOut)} | ${Math.round(current.aggregates.avgTokensOut)} | ${tokenOutDeltaPct >= 0 ? "+" : ""}${tokenOutDeltaPct.toFixed(1)}% |`,
     );
   }
 
