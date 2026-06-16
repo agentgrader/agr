@@ -1,5 +1,18 @@
 # @agentgrader/agent-acp
 
+## 2.0.3
+
+### Patch Changes
+
+- e489a94: `config.mcp_servers` (the same map agent-openrouter connects to and merges into its tool set) is now forwarded to `connection.newSession()` as `mcpServers`, converted to ACP's `McpServer` shape via the new `convertMcpServersForAcp` (stdio servers keep `command`/`args`/`env`; http/sse servers become `{ type, url, headers }`, with `env`/`headers` maps converted to ACP's `{ name, value }` list form). Previously `newSession` always passed `mcpServers: []`, so any `mcp_servers:` entries in an agent config were silently dropped for ACP runs even though the identical config worked for the AI SDK adapter. Whether the ACP agent actually connects to and uses a forwarded MCP server still depends on that agent's own ACP implementation.
+- 32b05c2: `convertMcpServersForAcp` now skips a stdio `mcp_servers:` entry that has `sandboxed: true` (logging a warning) instead of forwarding it as-is. That flag tells agent-openrouter to spawn `command` inside the Docker sandbox, so its `command`/`args` reference sandbox-only paths (e.g. `/app/...`). ACP agent subprocesses spawn `mcpServers` entries on the host, where those paths don't exist - previously this produced a confusing host-side spawn failure from the ACP agent itself; now it's a clear, attributable warning from agentgrader and the rest of the run proceeds with that server omitted.
+- Updated dependencies [e489a94]
+- Updated dependencies [e489a94]
+- Updated dependencies [9f387b8]
+- Updated dependencies [e489a94]
+- Updated dependencies [e489a94]
+  - @agentgrader/core@1.3.2
+
 ## 2.0.2
 
 ### Patch Changes
