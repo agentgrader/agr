@@ -600,7 +600,8 @@ function printTagBreakdown(
   for (const tag of tags) {
     const { passed, total } = tagStats[tag];
     const pct = total > 0 ? ((passed / total) * 100).toFixed(0) : "0";
-    console.log(`${tag.padEnd(24)} ${passed}/${total} (${pct}%)`);
+    const note = passed === total ? "  all passed" : passed === 0 ? "  none passed" : "";
+    console.log(`${tag.padEnd(24)} ${passed}/${total} (${pct}%)${note}`);
   }
   console.log("=================================================\n");
 }
