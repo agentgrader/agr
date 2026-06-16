@@ -132,6 +132,7 @@ cli
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .option("--dry-run", "Print the test case x config matrix without executing any runs")
   .option("--tags <tags>", "Comma-separated list of tags; only test cases with at least one matching tag are run (requires --suite)")
+  .option("--skip-tags <tags>", "Comma-separated list of tags; test cases with any of these tags are excluded (requires --suite; applied after --tags)")
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
@@ -203,6 +204,7 @@ cli
         testCaseArgs: hasPositional ? testCases : undefined,
         dryRun: options.dryRun,
         tags: options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined,
+        skipTags: options.skipTags ? (options.skipTags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined,
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
         onlyFailed: options.onlyFailed,
         shuffle: options.shuffle,
