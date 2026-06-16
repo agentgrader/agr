@@ -25,7 +25,7 @@ export async function exportCommand(
       format === "otlp" || format === "jsonl"
         ? tracesToOtelJsonl(opts.runId, traces)
         : JSON.stringify(tracesToOtelJson(opts.runId, traces), null, 2);
-    writeExport(output, content);
+    writeExport(output, content, traces.length);
     return;
   }
 
@@ -47,18 +47,19 @@ export async function exportCommand(
       format === "jsonl"
         ? `${payload.map((row) => JSON.stringify(row)).join("\n")}\n`
         : JSON.stringify(payload, null, 2);
-    writeExport(output, content);
+    writeExport(output, content, payload.length);
     return;
   }
 
   throw new Error(`Unknown export subcommand "${subcommand}". Use "runs" or "traces".`);
 }
 
-function writeExport(outputPath: string, content: string) {
+function writeExport(outputPath: string, content: string, count?: number) {
   const path = resolve(outputPath);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content, "utf-8");
-  console.log(`Export written to ${path}`);
+  const countNote = count !== undefined ? ` (${count} record${count === 1 ? "" : "s"})` : "";
+  console.log(`Export written to ${path}${countNote}`);
 }
 
 export async function maybeAutoExportOnBench(
