@@ -1,5 +1,11 @@
 # @agentgrader/sandbox-e2b
 
+## 2.0.1
+
+### Patch Changes
+
+- Fix npm install by replacing `workspace:*` dependency specifiers with published semver ranges in `agentgrader` and `@agentgrader/sandbox-e2b`.
+
 ## 2.0.0
 
 ### Patch Changes

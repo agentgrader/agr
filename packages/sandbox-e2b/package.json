@@ -1,6 +1,6 @@
 {
   "name": "@agentgrader/sandbox-e2b",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "E2B cloud SandboxProvider for Agentgrader",
   "license": "MIT",
   "type": "module",
@@ -22,7 +22,7 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "@agentgrader/core": "workspace:*",
+    "@agentgrader/core": "^1.4.0",
     "e2b": "^2.0.0"
   },
   "devDependencies": {
