@@ -31,9 +31,9 @@ function checkIcon(check: ValidationCheck): string {
  */
 async function validateOne(
   input: string,
-  opts: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
+  opts: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; json?: boolean },
   sandboxProvider: ReturnType<typeof resolveSandbox>,
-): Promise<boolean> {
+): Promise<{ ok: boolean; name: string; path: string; checks: Array<{ name: string; passed: boolean; detail: string }> }> {
   const resolvedPath = resolveTestCasePath(input);
   const testCase = loadTestCase(resolvedPath);
 
@@ -43,10 +43,12 @@ async function validateOne(
     if (!testCase.fail_to_pass?.length) missing.push("fail_to_pass");
     if (!testCase.pass_to_pass?.length) missing.push("pass_to_pass");
     if (missing.length > 0) {
-      console.error(
-        `Strict validation requires: ${missing.join(", ")}. Fill these fields before running in CI.`,
-      );
-      return false;
+      if (!opts.json) {
+        console.error(
+          `Strict validation requires: ${missing.join(", ")}. Fill these fields before running in CI.`,
+        );
+      }
+      return { ok: false, name: testCase.name, path: resolvedPath, checks: [{ name: "strict-fields", passed: false, detail: `Missing: ${missing.join(", ")}` }] };
     }
   }
 
@@ -54,51 +56,63 @@ async function validateOne(
     const yamlDir = resolve(resolvedPath, "..");
     for (const toolkit of testCase.toolkits) {
       const findings = auditToolkitDirectory(resolve(yamlDir, toolkit));
-      for (const finding of findings) {
-        const label = finding.severity === "error" ? "[FAIL]" : "[WARN]";
-        console.log(`${label} toolkit ${toolkit}: ${finding.message} (${finding.rule})`);
+      if (!opts.json) {
+        for (const finding of findings) {
+          const label = finding.severity === "error" ? "[FAIL]" : "[WARN]";
+          console.log(`${label} toolkit ${toolkit}: ${finding.message} (${finding.rule})`);
+        }
       }
-      if (hasAuditErrors(findings)) return false;
+      if (hasAuditErrors(findings)) {
+        return { ok: false, name: testCase.name, path: resolvedPath, checks: findings.map(f => ({ name: `toolkit:${toolkit}`, passed: f.severity !== "error", detail: `${f.message} (${f.rule})` })) };
+      }
     }
   }
 
   const report = await validateTestCase({ testCase, sandboxProvider });
 
-  const hadExecutionSkip = report.checks.some((c) =>
-    c.name.includes("execution-checks (skipped"),
-  );
-  for (const check of report.checks) {
-    const icon = checkIcon(check);
-    console.log(`${icon} ${check.name}`);
-    if (check.detail && check.detail !== "ok") {
-      const indented = check.detail
-        .split("\n")
-        .map((line) => `   ${line}`)
-        .join("\n");
-      console.log(indented);
-    }
-  }
-
-  if (hadExecutionSkip) {
-    console.log("");
-    console.log(
-      "Note: this was a static-only validation (no test_command configured) - Docker/patch execution checks were skipped.",
+  if (!opts.json) {
+    const hadExecutionSkip = report.checks.some((c) =>
+      c.name.includes("execution-checks (skipped"),
     );
-    if (report.ok && !opts.strict) {
-      console.log(
-        "Tip: run with --strict to enforce test_command, fail_to_pass, and pass_to_pass as a CI gate.",
-      );
+    for (const check of report.checks) {
+      const icon = checkIcon(check);
+      console.log(`${icon} ${check.name}`);
+      if (check.detail && check.detail !== "ok") {
+        const indented = check.detail
+          .split("\n")
+          .map((line) => `   ${line}`)
+          .join("\n");
+        console.log(indented);
+      }
     }
+
+    if (hadExecutionSkip) {
+      console.log("");
+      console.log(
+        "Note: this was a static-only validation (no test_command configured) - Docker/patch execution checks were skipped.",
+      );
+      if (report.ok && !opts.strict) {
+        console.log(
+          "Tip: run with --strict to enforce test_command, fail_to_pass, and pass_to_pass as a CI gate.",
+        );
+      }
+    }
+
+    console.log("");
+    console.log(report.ok ? "Validation passed." : "Validation failed.");
   }
 
-  console.log("");
-  console.log(report.ok ? "Validation passed." : "Validation failed.");
-  return report.ok;
+  return {
+    ok: report.ok,
+    name: testCase.name,
+    path: resolvedPath,
+    checks: report.checks.map(c => ({ name: c.name, passed: c.passed, detail: c.detail })),
+  };
 }
 
 export async function validateCommand(
   testCasePaths: string | string[],
-  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string; tags?: string[] },
+  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string; tags?: string[]; json?: boolean },
 ) {
   const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
   const safeOpts = opts ?? {};
@@ -129,8 +143,10 @@ export async function validateCommand(
     }
 
     resolvedPaths = yamlFiles;
-    const tagNote = opts.tags?.length ? ` [tags: ${opts.tags.join(", ")}]` : "";
-    console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}${tagNote}\n`);
+    if (!opts.json) {
+      const tagNote = opts.tags?.length ? ` [tags: ${opts.tags.join(", ")}]` : "";
+      console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}${tagNote}\n`);
+    }
   } else {
     if (opts?.tags?.length) {
       console.warn(`Warning: --tags has no effect without --suite (tags: ${opts.tags.join(", ")})`);
@@ -145,25 +161,30 @@ export async function validateCommand(
 
   if (resolvedPaths.length === 1) {
     const testCase = loadTestCase(resolvedPaths[0]!);
-    console.log(`Validating "${testCase.name}" (${resolvedPaths[0]})...\n`);
-    const ok = await validateOne(resolvedPaths[0]!, safeOpts, sandboxProvider);
-    if (ok) {
+    if (!opts?.json) console.log(`Validating "${testCase.name}" (${resolvedPaths[0]})...\n`);
+    const result = await validateOne(resolvedPaths[0]!, safeOpts, sandboxProvider);
+    if (opts?.json) {
+      console.log(JSON.stringify({ passed: result.ok, passedCount: result.ok ? 1 : 0, totalCount: 1, results: [result] }));
+    } else if (result.ok) {
       console.log(`\nNext: agr run ${testCase.name}  |  agr bench ${testCase.name}`);
     } else {
       console.log(`\nFix the failing checks above, then re-run: agr validate ${testCase.name}`);
     }
-    process.exit(ok ? 0 : 1);
+    process.exit(result.ok ? 0 : 1);
   }
 
   let passCount = 0;
   const testCaseNames: string[] = [];
   const failedNames: string[] = [];
+  const allResults: Array<{ ok: boolean; name: string; path: string; checks: Array<{ name: string; passed: boolean; detail: string }> }> = [];
+
   for (const path of resolvedPaths) {
     const testCase = loadTestCase(path);
     testCaseNames.push(testCase.name);
-    console.log(`\n--- ${testCase.name} (${path}) ---\n`);
-    const ok = await validateOne(path, safeOpts, sandboxProvider);
-    if (ok) {
+    if (!opts?.json) console.log(`\n--- ${testCase.name} (${path}) ---\n`);
+    const result = await validateOne(path, safeOpts, sandboxProvider);
+    allResults.push(result);
+    if (result.ok) {
       passCount++;
     } else {
       failedNames.push(testCase.name);
@@ -171,6 +192,12 @@ export async function validateCommand(
   }
 
   const failCount = resolvedPaths.length - passCount;
+
+  if (opts?.json) {
+    console.log(JSON.stringify({ passed: failCount === 0, passedCount: passCount, totalCount: resolvedPaths.length, results: allResults }));
+    process.exit(failCount > 0 ? 1 : 0);
+  }
+
   console.log(
     failCount === 0
       ? `\nAll ${resolvedPaths.length} validations passed.`
