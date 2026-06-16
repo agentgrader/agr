@@ -64,6 +64,7 @@ cli
     "Stream agent steps live to the console as they happen",
   )
   .option("--fail-on-failure", "Exit with code 1 if the run does not pass")
+  .option("--repeat <n>", "Run the test case N times and print a solve-rate summary (useful for flakiness testing)")
   .option("--report <format>", "Write a report (json, jsonl, html, md)")
   .option("--output <path>", "Output path for --report")
   .option("--report-include-traces", "Include full step traces in --report output")
@@ -75,10 +76,11 @@ cli
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .example("agr run hello-world")
   .example("agr run hello-world --config agent.yaml --verbose")
+  .example("agr run hello-world --repeat 5")
   .example("agr run tasks/fix-bug/agr.yaml --fail-on-failure")
   .action(async (testCase, options) => {
     try {
-      await runSingleCommand(testCase, options);
+      await runSingleCommand(testCase, { ...options, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined });
     } catch (err: any) {
       console.error(`Error executing run: ${err.message}`);
       process.exit(1);
