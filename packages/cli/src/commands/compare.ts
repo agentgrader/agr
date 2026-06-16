@@ -84,18 +84,25 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
 export async function compareCommand(
   runIdA: string | undefined,
   runIdB: string | undefined,
-  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean },
+  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; testCase?: string },
 ) {
   const db = initDb();
 
   if (opts.lastTwo) {
     const runs = await listRuns(db);
-    if (runs.length < 2) {
-      console.error(`Need at least 2 runs for --last-two (found ${runs.length}). Run \`agr run\` or \`agr bench\` first.`);
+    const filtered = opts.testCase
+      ? runs.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!))
+      : runs;
+    if (filtered.length < 2) {
+      const scope = opts.testCase ? ` for test case "${opts.testCase}"` : "";
+      console.error(`Need at least 2 runs${scope} for --last-two (found ${filtered.length}). Run \`agr run\` or \`agr bench\` first.`);
       process.exit(1);
     }
-    runIdA = runs[1]!.id;
-    runIdB = runs[0]!.id;
+    if (opts.testCase) {
+      console.log(`Comparing last two runs for test case "${opts.testCase}"`);
+    }
+    runIdA = filtered[1]!.id;
+    runIdB = filtered[0]!.id;
   }
 
   if (!runIdA || !runIdB) {

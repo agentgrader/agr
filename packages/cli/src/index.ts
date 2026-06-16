@@ -417,11 +417,13 @@ cli
     "Show only divergent steps plus one step of context before and after each",
   )
   .option("--last-two", "Compare the two most recent runs (no run IDs needed)")
+  .option("--test-case <name>", "With --last-two, compare the two most recent runs for this specific test case")
   .example("agr compare <runIdA> <runIdB> --only-diff")
   .example("agr compare --last-two --only-diff")
+  .example("agr compare --last-two --test-case hello-world")
   .action(async (runIdA, runIdB, options) => {
     try {
-      await compareCommand(runIdA, runIdB, { ...options, lastTwo: options.lastTwo });
+      await compareCommand(runIdA, runIdB, { ...options, lastTwo: options.lastTwo, testCase: options.testCase });
     } catch (err: any) {
       console.error(`Error executing compare: ${err.message}`);
       process.exit(1);
