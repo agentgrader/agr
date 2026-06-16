@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { formatCompactWhen, formatRelativeTime, formatRunWhen } from "./format-relative-time";
+import { formatCompactWhen, formatDuration, formatRelativeTime, formatRunWhen } from "./format-relative-time";
 
 const NOW = Date.parse("2026-06-14T12:00:00.000Z");
 
@@ -38,5 +38,23 @@ describe("formatCompactWhen", () => {
     const when = formatCompactWhen(Math.floor(NOW / 1000) - 10 * 24 * 60 * 60, NOW);
     expect(when.length).toBeLessThanOrEqual(10);
     expect(when).not.toContain(",");
+  });
+});
+
+describe("formatDuration", () => {
+  test("shows milliseconds under one second", () => {
+    expect(formatDuration(500)).toBe("500ms");
+  });
+
+  test("shows seconds with one decimal under one minute", () => {
+    expect(formatDuration(12300)).toBe("12.3s");
+  });
+
+  test("shows minutes and seconds for longer durations", () => {
+    expect(formatDuration(90000)).toBe("1m 30s");
+  });
+
+  test("shows zero milliseconds", () => {
+    expect(formatDuration(0)).toBe("0ms");
   });
 });
