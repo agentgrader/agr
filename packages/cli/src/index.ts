@@ -72,6 +72,9 @@ cli
   .option("--llm-judge-model <model>", "LLM judge model slug")
   .option("--judge-gate", "Fail the run when the LLM judge score is below --judge-min-score")
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
+  .example("agr run hello-world")
+  .example("agr run hello-world --config agent.yaml --verbose")
+  .example("agr run tasks/fix-bug/agr.yaml --fail-on-failure")
   .action(async (testCase, options) => {
     try {
       await runSingleCommand(testCase, options);
@@ -120,6 +123,7 @@ cli
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .option("--dry-run", "Print the test case x config matrix without executing any runs")
   .option("--tags <tags>", "Comma-separated list of tags; only test cases with at least one matching tag are run (requires --suite)")
+  .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
   .example("agr bench --manifest bench.yaml")
