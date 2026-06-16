@@ -11,9 +11,20 @@ import { findAllTestCases } from "../lib/load-test-case";
  * The printed `name` values (and each test case's directory basename) are
  * what `agr run`/`agr bench` accept as a short form instead of a full path.
  */
-export async function listTestsCommand(dir: string | undefined) {
+export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean }) {
   const root = resolve(dir || ".");
   const testCases = findAllTestCases(root);
+
+  if (opts?.json) {
+    const output = testCases.map(tc => ({
+      name: tc.name,
+      path: tc.path,
+      relativePath: relative(root, tc.path),
+      ...(tc.description ? { description: tc.description } : {}),
+    }));
+    console.log(JSON.stringify(output, null, 2));
+    return;
+  }
 
   if (testCases.length === 0) {
     console.log(`No test cases found under ${root}.`);
