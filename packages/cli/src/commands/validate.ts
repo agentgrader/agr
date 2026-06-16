@@ -130,6 +130,9 @@ export async function validateCommand(
     const tagNote = opts.tags?.length ? ` [tags: ${opts.tags.join(", ")}]` : "";
     console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}${tagNote}\n`);
   } else {
+    if (opts?.tags?.length) {
+      console.warn(`Warning: --tags has no effect without --suite (tags: ${opts.tags.join(", ")})`);
+    }
     const inputs = Array.isArray(testCasePaths) ? testCasePaths : [testCasePaths];
     if (inputs.length === 0) {
       console.error("No test case specified. Usage: agr validate <testCase> [testCase...] or --suite <dir>");
