@@ -3,6 +3,11 @@
   "version": "5.0.0",
   "description": "Docker-based SandboxProvider for Agentgrader",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/sandbox-docker"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

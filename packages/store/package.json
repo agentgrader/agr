@@ -3,6 +3,11 @@
   "version": "1.1.0",
   "description": "SQLite and Drizzle persistence for Agentgrader runs and traces",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/store"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

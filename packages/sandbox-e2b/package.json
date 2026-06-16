@@ -3,6 +3,11 @@
   "version": "2.0.1",
   "description": "E2B cloud SandboxProvider for Agentgrader",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/sandbox-e2b"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

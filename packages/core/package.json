@@ -3,6 +3,11 @@
   "version": "1.4.1",
   "description": "Core schemas, contracts, and runner for the Agentgrader coding agent optimizer",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
