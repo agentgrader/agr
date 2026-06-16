@@ -1,0 +1,42 @@
+name: fix-missing-await
+description: sumTransformed() returns NaN - missing await in async loop
+fixture: ./fixture
+prompt: |
+  The function sumTransformed() in src/counter.ts should sum the results of
+  applying an async transform to each number. Instead it returns NaN because
+  a Promise object is being added to the total instead of the resolved number.
+  Add the missing `await` keyword so the resolved values are summed correctly.
+  Do not change the function signature.
+success:
+  - run: npm install && npm test
+    expect: { exit_code: 0 }
+  - assert: steps <= 10
+  - assert: cost_usd <= 0.05
+timeout_seconds: 300
+
+tags:
+  - typescript
+  - async
+  - missing-await
+  - regression
+
+test_command: "npx tsx --test --test-reporter=tap src/counter.test.ts"
+
+fail_to_pass:
+  - "should sum transformed values correctly"
+  - "should handle single value"
+
+pass_to_pass:
+  - "should return 0 for empty array"
+
+expected_files:
+  - src/counter.ts
+
+forbid_modified:
+  - src/counter.test.ts
+
+solution: ./solution.patch
+
+created_at: "2024-01-15T00:00:00Z"
+
+agent_config: ../../../configs/baseline.yaml
