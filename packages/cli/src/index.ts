@@ -265,12 +265,15 @@ cli
   .option("--config <name>", "Restrict stats to runs for this specific agent config (substring match)")
   .option("--passed", "Restrict stats to runs that passed")
   .option("--failed", "Restrict stats to runs that failed")
+  .option("--by-config", "Show a per-config breakdown (solve rate, avg cost, avg duration), sorted by solve rate")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
   .example("agr status --test-case hello-world")
   .example("agr status --config agent-fast")
   .example("agr status --failed")
+  .example("agr status --by-config")
+  .example("agr status --by-config --test-case hello-world")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
@@ -278,7 +281,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, passed });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, passed, byConfig: options.byConfig });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);

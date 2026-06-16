@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean; byConfig?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -71,6 +71,52 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     ? runs.reduce((acc, r) => acc + (r.durationMs ?? 0), 0) / runs.length
     : 0;
   const solveRate = runs.length > 0 ? (passedRuns / runs.length) * 100 : 0;
+
+  if (opts.byConfig) {
+    const cfgMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      const key = run.agentConfigId;
+      if (!cfgMap.has(key)) cfgMap.set(key, []);
+      cfgMap.get(key)!.push(run);
+    }
+    const cfgStats = Array.from(cfgMap.entries()).map(([configId, cfgRuns]) => {
+      const p = cfgRuns.filter((r) => r.passed === true).length;
+      const f = cfgRuns.filter((r) => r.passed === false).length;
+      const cost = cfgRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      const dur = cfgRuns.reduce((s, r) => s + (r.durationMs ?? 0), 0);
+      const ti = cfgRuns.reduce((s, r) => s + (r.tokensIn ?? 0), 0);
+      const to = cfgRuns.reduce((s, r) => s + (r.tokensOut ?? 0), 0);
+      return {
+        configId,
+        total: cfgRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: cfgRuns.length > 0 ? (p / cfgRuns.length) * 100 : 0,
+        avgCostUsd: cfgRuns.length > 0 ? cost / cfgRuns.length : 0,
+        avgDurationMs: cfgRuns.length > 0 ? dur / cfgRuns.length : 0,
+        avgTokensIn: cfgRuns.length > 0 ? ti / cfgRuns.length : 0,
+        avgTokensOut: cfgRuns.length > 0 ? to / cfgRuns.length : 0,
+      };
+    }).sort((a, b) => b.solveRate - a.solveRate);
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, testCase: opts.testCase ?? null, byConfig: cfgStats }, null, 2));
+      return;
+    }
+
+    const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}\n`);
+    console.log(`Per-config breakdown (${cfgStats.length} config(s), sorted by solve rate):\n`);
+    for (const cfg of cfgStats) {
+      const hasTokens = cfg.avgTokensIn > 0 || cfg.avgTokensOut > 0;
+      const tokLine = hasTokens ? `  avg tok: ${Math.round(cfg.avgTokensIn)}in/${Math.round(cfg.avgTokensOut)}out` : "";
+      console.log(`  ${cfg.configId}`);
+      console.log(`    runs: ${cfg.total}  (${cfg.passed} passed, ${cfg.failed} failed)  solve rate: ${cfg.solveRate.toFixed(1)}%`);
+      console.log(`    avg cost: $${cfg.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(cfg.avgDurationMs)}${tokLine}`);
+    }
+    console.log(`\nNext: agr status --config <name>  |  agr bench --suite tasks/ --configs-dir ./agents`);
+    return;
+  }
 
   if (opts.json) {
     console.log(JSON.stringify({
