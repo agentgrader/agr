@@ -13,6 +13,8 @@ export interface EnrichedRun {
   stepsCount: number;
   costUsd: number;
   durationMs: number;
+  tokensIn: number;
+  tokensOut: number;
   error: string | null;
   finalDiff: string | null;
   matrixId: string | null;
@@ -49,6 +51,8 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number): Promise<Enric
       stepsCount: run.stepsCount,
       costUsd: run.costUsd,
       durationMs: run.durationMs,
+      tokensIn: run.tokensIn ?? 0,
+      tokensOut: run.tokensOut ?? 0,
       error: run.error ?? null,
       finalDiff: run.finalDiff ?? null,
       matrixId: run.matrixId ?? null,

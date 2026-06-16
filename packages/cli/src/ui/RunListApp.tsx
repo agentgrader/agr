@@ -461,7 +461,15 @@ export const RunListApp: React.FC<RunListAppProps> = ({ runs, dbPath, loadTraces
             <DetailRow
               label="Status"
               lines={[
-                `${formatRunStatus(detailRun)}  |  $${detailRun.costUsd.toFixed(4)}  |  ${formatDuration(detailRun.durationMs)}  |  ${detailRun.stepsCount} steps`,
+                [
+                  `${formatRunStatus(detailRun)}`,
+                  `$${detailRun.costUsd.toFixed(4)}`,
+                  formatDuration(detailRun.durationMs),
+                  `${detailRun.stepsCount} steps`,
+                  ...(detailRun.tokensIn > 0 || detailRun.tokensOut > 0
+                    ? [`${detailRun.tokensIn}in/${detailRun.tokensOut}out tok`]
+                    : []),
+                ].join("  |  "),
               ]}
               valueColor={statusColor(formatRunStatus(detailRun))}
               bold
