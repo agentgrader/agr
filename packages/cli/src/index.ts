@@ -14,6 +14,7 @@ import { toolkitAddCommand, toolkitListCommand } from "./commands/toolkit";
 import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
 import { validateToolkitCommand } from "./commands/validate-toolkit";
+import { statusCommand } from "./commands/status";
 
 const cli = cac("agr");
 
@@ -245,6 +246,19 @@ cli
       await importPrCommand(repo, prNumber, options);
     } catch (err: any) {
       console.error(`Error executing import-pr: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("status", "Show a quick summary of the local run database (.agr/db.sqlite)")
+  .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .example("agr status")
+  .action(async (options) => {
+    try {
+      await statusCommand({ db: options.db });
+    } catch (err: any) {
+      console.error(`Error executing status: ${err.message}`);
       process.exit(1);
     }
   });
