@@ -10,6 +10,7 @@ export async function exportCommand(
     output?: string;
     db?: string;
     runId?: string;
+    last?: boolean;
     matrixId?: string;
     limit?: number;
   },
@@ -19,12 +20,24 @@ export async function exportCommand(
   const output = opts.output ?? `export-${subcommand}.${format === "jsonl" ? "jsonl" : "json"}`;
 
   if (subcommand === "traces") {
-    if (!opts.runId) throw new Error("--run-id is required for `agr export traces`");
-    const traces = await getTraces(db, opts.runId);
+    let resolvedRunId = opts.runId;
+    if (opts.last) {
+      const runs = await listRuns(db);
+      if (runs.length === 0) {
+        console.error("No runs found in .agr/db.sqlite. Run `agr run` or `agr bench` first.");
+        process.exit(1);
+      }
+      resolvedRunId = runs[0]!.id;
+    }
+    if (!resolvedRunId) {
+      console.error("--run-id is required for `agr export traces` (or use --last)");
+      process.exit(1);
+    }
+    const traces = await getTraces(db, resolvedRunId);
     const content =
       format === "otlp" || format === "jsonl"
-        ? tracesToOtelJsonl(opts.runId, traces)
-        : JSON.stringify(tracesToOtelJson(opts.runId, traces), null, 2);
+        ? tracesToOtelJsonl(resolvedRunId, traces)
+        : JSON.stringify(tracesToOtelJson(resolvedRunId, traces), null, 2);
     writeExport(output, content, traces.length);
     return;
   }

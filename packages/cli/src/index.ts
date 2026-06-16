@@ -300,10 +300,12 @@ cli
   .option("--output <path>", "Output file path")
   .option("--db <path>", "SQLite database path", { default: ".agr/db.sqlite" })
   .option("--run-id <id>", "Run id for trace export")
+  .option("--last", "Export traces for the most recent run (no --run-id needed)")
   .option("--matrix-id <id>", "Filter runs by matrix id")
   .option("--limit <n>", "Maximum number of runs to export")
   .example("agr export runs --format jsonl --output runs.jsonl")
   .example("agr export traces --run-id <runId> --format otlp --output trace.json")
+  .example("agr export traces --last --format otlp --output last-trace.json")
   .action(async (subcommand, options) => {
     try {
       await exportCommand(subcommand, {
@@ -311,6 +313,7 @@ cli
         output: options.output,
         db: options.db,
         runId: options.runId,
+        last: options.last,
         matrixId: options.matrixId,
         limit: options.limit ? Number(options.limit) : undefined,
       });
