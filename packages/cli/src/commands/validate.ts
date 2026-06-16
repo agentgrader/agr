@@ -152,8 +152,10 @@ export async function validateCommand(
   }
 
   let passCount = 0;
+  const testCaseNames: string[] = [];
   for (const path of resolvedPaths) {
     const testCase = loadTestCase(path);
+    testCaseNames.push(testCase.name);
     console.log(`\n--- ${testCase.name} (${path}) ---\n`);
     const ok = await validateOne(path, safeOpts, sandboxProvider);
     if (ok) passCount++;
@@ -169,7 +171,7 @@ export async function validateCommand(
     if (opts?.suite) {
       console.log(`\nNext: agr bench --suite ${opts.suite}  |  agr bench --suite ${opts.suite} --matrix matrix.yaml`);
     } else {
-      console.log(`\nNext: agr bench [...testCases] --config agent.yaml`);
+      console.log(`\nNext: agr bench ${testCaseNames.join(" ")} --config agent.yaml`);
     }
   }
   process.exit(failCount > 0 ? 1 : 0);
