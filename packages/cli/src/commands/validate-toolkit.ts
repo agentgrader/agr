@@ -7,6 +7,7 @@ export async function validateToolkitCommand(dir: string, opts?: { strict?: bool
 
   if (findings.length === 0) {
     console.log(`[OK] No security findings in ${toolkitDir}`);
+    console.log(`\nNext: agr toolkit-list ${dir}  |  agr bench --suite tasks/ --strict-toolkits`);
     return;
   }
 
@@ -15,7 +16,9 @@ export async function validateToolkitCommand(dir: string, opts?: { strict?: bool
     console.log(`${label} ${finding.file}: ${finding.message} (${finding.rule})`);
   }
 
-  if (hasAuditErrors(findings) || (opts?.strict && findings.length > 0)) {
+  const failed = hasAuditErrors(findings) || (opts?.strict && findings.length > 0);
+  if (failed) {
+    console.log(`\nFix the findings above, then re-run: agr validate-toolkit ${dir}`);
     process.exit(1);
   }
 }
