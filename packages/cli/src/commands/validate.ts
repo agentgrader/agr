@@ -98,7 +98,7 @@ async function validateOne(
 
 export async function validateCommand(
   testCasePaths: string | string[],
-  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string },
+  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string; tags?: string[] },
 ) {
   const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
   const safeOpts = opts ?? {};
@@ -107,13 +107,28 @@ export async function validateCommand(
 
   if (opts?.suite) {
     const suiteDir = resolve(opts.suite);
-    const yamlFiles = findTestCaseYamlFiles(suiteDir);
-    if (yamlFiles.length === 0) {
+    const allYamlFiles = findTestCaseYamlFiles(suiteDir);
+    if (allYamlFiles.length === 0) {
       console.error(`No test cases found in suite directory: ${suiteDir}`);
       process.exit(1);
     }
+
+    let yamlFiles = allYamlFiles;
+    if (opts.tags?.length) {
+      const tagSet = new Set(opts.tags);
+      yamlFiles = allYamlFiles.filter(f => {
+        const tc = loadTestCase(f);
+        return (tc.tags ?? []).some(t => tagSet.has(t));
+      });
+      if (yamlFiles.length === 0) {
+        console.error(`No test cases with tags [${opts.tags.join(", ")}] found in suite: ${suiteDir}`);
+        process.exit(1);
+      }
+    }
+
     resolvedPaths = yamlFiles;
-    console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}\n`);
+    const tagNote = opts.tags?.length ? ` [tags: ${opts.tags.join(", ")}]` : "";
+    console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}${tagNote}\n`);
   } else {
     const inputs = Array.isArray(testCasePaths) ? testCasePaths : [testCasePaths];
     if (inputs.length === 0) {

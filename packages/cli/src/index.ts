@@ -36,12 +36,15 @@ cli
 cli
   .command("list-tests [dir]", "List test cases (agr.yaml files) found under dir (default: cwd)")
   .option("--json", "Print results as a JSON array instead of a human-readable table")
+  .option("--tags <tags>", "Comma-separated list of tags; only show test cases with at least one matching tag")
   .example("agr list-tests")
   .example("agr list-tests tasks/")
   .example("agr list-tests --json")
+  .example("agr list-tests --tags python,fast")
   .action(async (dir, options) => {
     try {
-      await listTestsCommand(dir, { json: options.json });
+      const tags = options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
+      await listTestsCommand(dir, { json: options.json, tags });
     } catch (err: any) {
       console.error(`Error executing list-tests: ${err.message}`);
       process.exit(1);
@@ -201,17 +204,20 @@ cli
   .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
   .option("--audit-toolkits", "Run security audit on toolkits referenced by the test case")
   .option("--suite <dir>", "Validate every test case found under this directory")
+  .option("--tags <tags>", "Comma-separated list of tags; only validate matching test cases (requires --suite)")
   .example("agr validate fix-greeting")
   .example("agr validate fix-greeting --strict")
   .example("agr validate task-a task-b task-c --strict")
   .example("agr validate --suite tasks/ --strict")
+  .example("agr validate --suite tasks/ --tags python --strict")
   .action(async (testCases, options) => {
     try {
       if ((!testCases || testCases.length === 0) && !options.suite) {
         console.error("No test case specified. Usage: agr validate <testCase> [testCase...] or --suite <dir>");
         process.exit(1);
       }
-      await validateCommand(testCases ?? [], { ...options, suite: options.suite });
+      const tags = options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
+      await validateCommand(testCases ?? [], { ...options, suite: options.suite, tags });
     } catch (err: any) {
       console.error(`Error executing validate: ${err.message}`);
       process.exit(1);

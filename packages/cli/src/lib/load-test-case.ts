@@ -133,6 +133,7 @@ export interface TestCaseSummary {
   path: string;
   name: string;
   description?: string;
+  tags?: string[];
 }
 
 /**
@@ -146,7 +147,8 @@ export function findAllTestCases(dir: string): TestCaseSummary[] {
     try {
       const raw = parse(readFileSync(path, "utf-8"));
       if (raw && typeof raw.name === "string" && Array.isArray(raw.success)) {
-        summaries.push({ path, name: raw.name, description: raw.description });
+        const tags = Array.isArray(raw.tags) ? (raw.tags as string[]) : undefined;
+        summaries.push({ path, name: raw.name, description: raw.description, tags });
       }
     } catch {
       // not a valid test case file, skip
