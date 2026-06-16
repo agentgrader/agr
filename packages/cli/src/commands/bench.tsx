@@ -266,6 +266,7 @@ export async function runBenchCommand(opts: {
   // 5. render the live dashboard
   const totalRuns = testCases.length * Math.max(agentConfigs.length, 1);
   console.log(`Starting ${totalRuns} run(s), concurrency: ${concurrency}`);
+  const benchStartMs = Date.now();
   const runStates: Record<string, RunState> = {};
   const testCaseIds = testCases.map((tc) => tc.id || tc.name);
   const configIds = agentConfigs.map((ac) => ac.id || ac.name);
@@ -339,10 +340,11 @@ export async function runBenchCommand(opts: {
 
   if (!matrixId) {
     const totalCost = Object.values(runStates).reduce((acc, r) => acc + (r.costUsd || 0), 0);
+    const elapsedSec = ((Date.now() - benchStartMs) / 1000).toFixed(1);
     const configCount = Object.keys(summary.byConfig).length;
     if (configCount > 1) {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
-      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}`);
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
       const costByConfig = new Map<string, number>();
       for (const r of Object.values(runStates)) {
         costByConfig.set(r.agentConfigId, (costByConfig.get(r.agentConfigId) ?? 0) + (r.costUsd || 0));
@@ -355,7 +357,7 @@ export async function runBenchCommand(opts: {
       }
     } else {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
-      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}`);
+      console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
     }
   }
 
