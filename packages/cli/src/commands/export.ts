@@ -12,6 +12,7 @@ export async function exportCommand(
     runId?: string;
     last?: boolean;
     matrixId?: string;
+    lastMatrix?: boolean;
     limit?: number;
   },
 ) {
@@ -44,7 +45,17 @@ export async function exportCommand(
 
   if (subcommand === "runs") {
     let runs = await listRuns(db);
-    if (opts.matrixId) runs = runs.filter((r) => r.matrixId === opts.matrixId);
+    let resolvedMatrixId = opts.matrixId;
+    if (opts.lastMatrix) {
+      const matrixRun = runs.find((r) => r.matrixId);
+      if (!matrixRun?.matrixId) {
+        console.error("No matrix runs found in .agr/db.sqlite. Run `agr bench --matrix` first.");
+        process.exit(1);
+      }
+      resolvedMatrixId = matrixRun.matrixId;
+      console.log(`Using most recent matrix: ${resolvedMatrixId}`);
+    }
+    if (resolvedMatrixId) runs = runs.filter((r) => r.matrixId === resolvedMatrixId);
     if (opts.limit) runs = runs.slice(0, opts.limit);
     const payload = runs.map((r) => ({
       id: r.id,

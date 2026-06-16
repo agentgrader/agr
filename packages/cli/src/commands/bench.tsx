@@ -450,7 +450,7 @@ export async function runBenchCommand(opts: {
   if (opts.saveBaseline) {
     nextHint = `Baseline saved to ${opts.saveBaseline}. On a PR branch: agr bench ... && agr compare-baseline --current ${opts.saveBaseline} --format md --output comment.md --fail-on-regression`;
   } else if (matrixId) {
-    nextHint = `Next: agr export runs --matrix-id ${matrixId} --format jsonl --output sweep.jsonl  |  agr list`;
+    nextHint = `Next: agr export runs --last-matrix --format jsonl --output sweep.jsonl  |  agr list`;
   } else if (needsDebug) {
     if (agentConfigs.length > 1) {
       nextHint = `Inspect: agr compare --last-two --only-diff  |  agr trace --last --quality  |  agr list`;
