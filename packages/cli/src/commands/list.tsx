@@ -12,21 +12,25 @@ export interface ListCommandOptions {
   limit?: number;
   plain?: boolean;
   since?: string;
+  testCase?: string;
 }
 
 function printPlainList(
   runs: Awaited<ReturnType<typeof loadEnrichedRuns>>,
   dbPath: string,
   sinceLabel?: string,
+  tcLabel?: string,
 ): void {
   if (runs.length === 0) {
-    console.log(`No runs found in ${dbPath}${sinceLabel ? ` since ${sinceLabel}` : ""}.`);
+    const scope = [sinceLabel ? `since ${sinceLabel}` : "", tcLabel ? `for test case "${tcLabel}"` : ""].filter(Boolean).join(", ");
+    console.log(`No runs found in ${dbPath}${scope ? ` (${scope})` : ""}.`);
     console.log("Run `agr run` or `agr bench` first.");
     return;
   }
 
   const sinceNote = sinceLabel ? `  [since ${sinceLabel}]` : "";
-  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}:\n`);
+  const tcNote = tcLabel ? `  [test case: ${tcLabel}]` : "";
+  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}${tcNote}:\n`);
   for (const run of runs) {
     const status = formatRunStatus(run);
     const when = formatRunWhen(run.createdAt);
@@ -52,11 +56,12 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
   const sinceTs = options.since ? parseSince(options.since) : undefined;
-  const runs = await loadEnrichedRuns(db, limit, sinceTs);
+  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase);
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
+  const tcLabel = options.testCase ? options.testCase : undefined;
   if (options.plain || !process.stdout.isTTY) {
-    printPlainList(runs, dbPath, sinceLabel);
+    printPlainList(runs, dbPath, sinceLabel, tcLabel);
     return;
   }
 
