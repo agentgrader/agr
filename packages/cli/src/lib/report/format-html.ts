@@ -18,6 +18,20 @@ export function formatReportAsHtml(report: BenchReport): string {
     )
     .join("\n");
 
+  const configSection =
+    report.aggregatesByConfig && report.aggregatesByConfig.length > 0
+      ? `<h2>By config</h2>
+<table>
+<thead><tr><th>Config</th><th>Solve rate</th><th>Avg cost</th><th>Avg duration</th><th>Passed</th><th>Total</th></tr></thead>
+<tbody>${report.aggregatesByConfig
+          .map(
+            (a) =>
+              `<tr><td>${escapeHtml(a.agentConfigId)}</td><td>${(a.solveRate * 100).toFixed(1)}%</td><td>$${a.avgCostUsd.toFixed(4)}</td><td>${escapeHtml(formatDuration(a.avgDurationMs))}</td><td>${a.passedRuns}</td><td>${a.totalRuns}</td></tr>`,
+          )
+          .join("\n")}</tbody>
+</table>`
+      : "";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,6 +60,7 @@ th{background:#f5f5f5}
 <thead><tr><th>Run</th><th>Test case</th><th>Config</th><th>Result</th><th>Cost</th><th>Duration</th><th>Steps</th></tr></thead>
 <tbody>${rows}</tbody>
 </table>
+${configSection}
 </body>
 </html>`;
 }

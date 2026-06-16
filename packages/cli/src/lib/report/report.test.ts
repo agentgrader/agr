@@ -56,6 +56,7 @@ const sampleReport: BenchReport = {
       agentConfigId: "agent",
       solveRate: 0.5,
       avgCostUsd: 0.015,
+      avgDurationMs: 150,
       totalRuns: 2,
       passedRuns: 1,
     },

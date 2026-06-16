@@ -78,6 +78,7 @@ export async function buildReportFromRunIds(
     agentConfigId: a.agentConfigId,
     solveRate: a.solveRate,
     avgCostUsd: a.avgCostUsd,
+    avgDurationMs: a.avgDurationMs,
     totalRuns: a.totalRuns,
     passedRuns: a.passedRuns,
   }));
