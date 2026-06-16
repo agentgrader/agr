@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { basename, dirname, relative, resolve } from "path";
 import { render } from "ink";
 import React from "react";
-import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, type AgrDb } from "@agentgrader/store";
+import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, listRuns, type AgrDb } from "@agentgrader/store";
 import { runBenchmark, summaryFromRunStates, auditToolkitDirectory, hasAuditErrors, type TestCase, type AgentConfig } from "@agentgrader/core";
 import { evaluateBenchExit } from "../lib/bench-exit";
 import { buildExtraScorers } from "../lib/extra-scorers";
@@ -63,6 +63,7 @@ export async function runBenchCommand(opts: {
   dryRun?: boolean;
   tags?: string[];
   limit?: number;
+  onlyFailed?: boolean;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -177,6 +178,29 @@ export async function runBenchCommand(opts: {
     console.log(`--limit ${opts.limit}: running first ${opts.limit} of ${testCases.length} test case(s)`);
     testCases = testCases.slice(0, opts.limit);
     yamlFiles = yamlFiles.slice(0, opts.limit);
+  }
+
+  if (opts.onlyFailed) {
+    const earlyDb = initDb();
+    const allRuns = await listRuns(earlyDb);
+    const failedIds = new Set<string>();
+    const seenIds = new Set<string>();
+    for (const run of allRuns) {
+      if (!seenIds.has(run.testCaseId)) {
+        seenIds.add(run.testCaseId);
+        if (run.passed === false) failedIds.add(run.testCaseId);
+      }
+    }
+    const beforeCount = testCases.length;
+    const pairs = testCases.map((tc, i) => ({ tc, yaml: yamlFiles[i]! })).filter(({ tc }) => failedIds.has(tc.name));
+    if (pairs.length === 0) {
+      console.log(`--only-failed: no previously failed test cases found among [${testCases.map(tc => tc.name).join(", ")}].`);
+      console.log("All test cases passed on their last run. Remove --only-failed to re-run everything.");
+      process.exit(0);
+    }
+    testCases = pairs.map(p => p.tc);
+    yamlFiles = pairs.map(p => p.yaml);
+    console.log(`--only-failed: ${testCases.length} of ${beforeCount} test case(s) failed on last run: ${testCases.map(tc => tc.name).join(", ")}`);
   }
 
   if (agentConfigs.length === 0) {

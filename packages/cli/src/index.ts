@@ -125,6 +125,7 @@ cli
   .option("--dry-run", "Print the test case x config matrix without executing any runs")
   .option("--tags <tags>", "Comma-separated list of tags; only test cases with at least one matching tag are run (requires --suite)")
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
+  .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
@@ -192,6 +193,7 @@ cli
         dryRun: options.dryRun,
         tags: options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined,
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
+        onlyFailed: options.onlyFailed,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);
