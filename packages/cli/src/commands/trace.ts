@@ -48,6 +48,9 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   console.log(`  steps:        ${run.stepsCount}`);
   console.log(`  cost:         $${run.costUsd.toFixed(4)}`);
   console.log(`  duration:     ${formatDuration(run.durationMs)}`);
+  if (run.tokensIn || run.tokensOut) {
+    console.log(`  tokens:       ${run.tokensIn} in / ${run.tokensOut} out`);
+  }
   if (run.error) console.log(`  error:        ${run.error}`);
 
   const agentError = run.metrics ? safeParseJson(run.metrics)?.agentError : undefined;
