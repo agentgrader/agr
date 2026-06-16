@@ -54,5 +54,13 @@ export async function listTestsCommand(dir: string | undefined, opts?: { json?: 
     const tags = anyTags && tc.tags?.length ? `  [${tc.tags.join(", ")}]` : "";
     console.log(`  ${name}  ${path}${desc}${tags}`);
   }
-  console.log(`\nRun one with \`agr run <name>\` or \`agr run <path>\`.`);
+  if (opts?.tags?.length) {
+    const tagArg = opts.tags.join(",");
+    console.log(`\nRun all with \`agr bench --suite ${relative(process.cwd(), root) || root} --tags ${tagArg}\`  |  Run one with \`agr run <name>\`.`);
+  } else if (testCases.length > 1) {
+    const relRoot = relative(process.cwd(), root) || root;
+    console.log(`\nRun all with \`agr bench --suite ${relRoot}\`  |  Run one with \`agr run <name>\`.`);
+  } else {
+    console.log(`\nRun with \`agr run <name>\` or \`agr run <path>\`.`);
+  }
 }
