@@ -351,10 +351,14 @@ export async function runBenchCommand(opts: {
     }
   }
 
-  const hasMultipleConfigs = agentConfigs.length > 1;
-  const nextHint = hasMultipleConfigs
-    ? `Next: agr list  |  agr compare <idA> <idB> --only-diff  |  agr export runs --format jsonl --output runs.jsonl`
-    : `Next: agr trace --last  |  agr trace --last --quality  |  agr list`;
+  let nextHint: string;
+  if (matrixId) {
+    nextHint = `Next: agr export runs --matrix-id ${matrixId} --format jsonl --output sweep.jsonl  |  agr list`;
+  } else if (agentConfigs.length > 1) {
+    nextHint = `Next: agr list  |  agr compare <idA> <idB> --only-diff  |  agr export runs --format jsonl --output runs.jsonl`;
+  } else {
+    nextHint = `Next: agr trace --last  |  agr trace --last --quality  |  agr list`;
+  }
   console.log(`\n${nextHint}`);
 
   process.exit(exitCode);
