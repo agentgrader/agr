@@ -257,12 +257,14 @@ cli
   .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
   .option("--json", "Output as JSON (for scripts and CI)")
   .option("--since <duration|date>", "Restrict stats to runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
+  .option("--test-case <name>", "Restrict stats to runs for this specific test case (substring match)")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
+  .example("agr status --test-case hello-world")
   .action(async (options) => {
     try {
-      await statusCommand({ db: options.db, json: options.json, since: options.since });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);

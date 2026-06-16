@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
-import { formatCompactWhen } from "../lib/format-relative-time";
+import { formatCompactWhen, formatDuration } from "../lib/format-relative-time";
 import { parseSince } from "../lib/parse-since";
 
 /**
@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -36,6 +36,10 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     runs = runs.filter((r) => r.createdAt >= sinceTs);
   }
 
+  if (opts.testCase) {
+    runs = runs.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!));
+  }
+
   if (runs.length === 0) {
     if (opts.json) {
       console.log(JSON.stringify({ exists: true, dbPath, totalRuns: 0 }));
@@ -56,20 +60,29 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const uniqueConfigs = new Set(runs.map((r) => r.agentConfigId)).size;
   const lastRun = runs[0];
   const matrixRuns = runs.filter((r) => r.matrixId).length;
+  const avgCostUsd = runs.length > 0 ? totalCostUsd / runs.length : 0;
+  const avgDurationMs = runs.length > 0
+    ? runs.reduce((acc, r) => acc + (r.durationMs ?? 0), 0) / runs.length
+    : 0;
+  const solveRate = runs.length > 0 ? (passedRuns / runs.length) * 100 : 0;
 
   if (opts.json) {
     console.log(JSON.stringify({
       exists: true,
       dbPath,
       since: opts.since ?? null,
+      testCase: opts.testCase ?? null,
       totalRuns: runs.length,
       passedRuns,
       failedRuns,
       erroredRuns,
+      solveRate,
       uniqueTestCases,
       uniqueConfigs,
       matrixRuns,
       totalCostUsd,
+      avgCostUsd,
+      avgDurationMs,
       totalTokensIn,
       totalTokensOut,
       lastRunAt: lastRun?.createdAt ?? null,
@@ -81,19 +94,27 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
 
   const lastRunWhen = lastRun ? formatCompactWhen(lastRun.createdAt) : "never";
   const lastRunDetail = lastRun ? `  (${lastRun.testCaseId} with ${lastRun.agentConfigId})` : "";
+  const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
 
-  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}\n`);
   console.log(`  Runs:       ${runs.length} total  (${passedRuns} passed, ${failedRuns} failed${erroredRuns > 0 ? `, ${erroredRuns} errored` : ""})`);
-  console.log(`  Test cases: ${uniqueTestCases} unique`);
+  if (runs.length > 0 && (passedRuns > 0 || failedRuns > 0)) {
+    console.log(`  Solve rate: ${solveRate.toFixed(1)}%`);
+  }
+  if (!opts.testCase) {
+    console.log(`  Test cases: ${uniqueTestCases} unique`);
+  }
   console.log(`  Configs:    ${uniqueConfigs} unique`);
   if (matrixRuns > 0) {
     console.log(`  Matrix:     ${matrixRuns} run(s) from matrix sweeps`);
   }
-  console.log(`  Total cost: $${totalCostUsd.toFixed(4)}`);
+  console.log(`  Total cost: $${totalCostUsd.toFixed(4)}  avg: $${avgCostUsd.toFixed(4)}/run`);
+  console.log(`  Avg duration: ${formatDuration(avgDurationMs)}`);
   if (totalTokensIn > 0 || totalTokensOut > 0) {
     console.log(`  Tokens:     ${totalTokensIn.toLocaleString()} in / ${totalTokensOut.toLocaleString()} out`);
   }
   console.log(`  Last run:   ${lastRunWhen}${lastRunDetail}`);
   console.log("");
-  console.log(`Next: agr list  |  agr trace --last  |  agr export runs --format jsonl --output runs.jsonl`);
+  const traceHint = opts.testCase ? `agr trace --last --test-case ${opts.testCase}` : "agr trace --last";
+  console.log(`Next: agr list  |  ${traceHint}  |  agr export runs --format jsonl --output runs.jsonl`);
 }
