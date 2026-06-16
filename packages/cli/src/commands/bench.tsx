@@ -126,6 +126,7 @@ export async function runBenchCommand(opts: {
     const allYamlFiles = findTestCaseYamlFiles(suiteDir);
     if (allYamlFiles.length === 0) {
       console.error(`No test cases found in suite directory: ${suiteDir}`);
+      console.error(`Run \`agr list-tests ${relative(process.cwd(), suiteDir) || suiteDir}\` to debug.`);
       process.exit(1);
     }
     const allTestCases = allYamlFiles.map(f => loadTestCase(f));
@@ -151,6 +152,7 @@ export async function runBenchCommand(opts: {
       pairs = pairs.filter(({ tc }) => (tc.tags ?? []).some(t => tagSet.has(t)));
       if (pairs.length === 0) {
         console.error(`No test cases with tags [${opts.tags.join(", ")}] found in suite: ${suiteDir}`);
+        console.error(`Run \`agr list-tests ${relative(process.cwd(), suiteDir) || suiteDir}\` to see available tags.`);
         process.exit(1);
       }
       if (pairs.length < beforeCount) {

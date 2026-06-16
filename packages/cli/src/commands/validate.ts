@@ -110,6 +110,7 @@ export async function validateCommand(
     const allYamlFiles = findTestCaseYamlFiles(suiteDir);
     if (allYamlFiles.length === 0) {
       console.error(`No test cases found in suite directory: ${suiteDir}`);
+      console.error(`Run \`agr list-tests ${opts.suite}\` to debug.`);
       process.exit(1);
     }
 
@@ -122,6 +123,7 @@ export async function validateCommand(
       });
       if (yamlFiles.length === 0) {
         console.error(`No test cases with tags [${opts.tags.join(", ")}] found in suite: ${suiteDir}`);
+        console.error(`Run \`agr list-tests ${opts.suite}\` to see available tags.`);
         process.exit(1);
       }
     }
