@@ -12,6 +12,8 @@ import { buildReportFromRunIds } from "../lib/report/build-report";
 import { writeReport, type ReportFormat } from "../lib/report/write-report";
 import { RunView, type RunSummary } from "../ui/RunView";
 import { formatDuration } from "../lib/format-relative-time";
+import { findEnvFile } from "../lib/load-env";
+import { formatMissingApiKeyMessage, missingApiKeyForAgentConfig } from "../lib/preflight-api-key";
 
 export async function runSingleCommand(
   testCasePath: string,
@@ -64,8 +66,19 @@ export async function runSingleCommand(
     agentConfig = { ...agentConfig, max_steps: opts.maxSteps, maxSteps: opts.maxSteps };
   }
 
+  const adapterName = opts.adapter ?? "ai-sdk";
+  if (adapterName === "ai-sdk") {
+    const missingKey = missingApiKeyForAgentConfig(agentConfig);
+    if (missingKey) {
+      const envPath = findEnvFile();
+      console.error(formatMissingApiKeyMessage(missingKey, envPath));
+      console.error("Run `agr doctor` to check your setup.");
+      process.exit(1);
+    }
+  }
+
   const sandboxProvider = resolveSandbox(opts.sandbox ?? "docker");
-  const adapter = resolveAdapter(opts.adapter ?? "ai-sdk");
+  const adapter = resolveAdapter(adapterName);
   const db = initDb();
 
   const repeat = opts.repeat && opts.repeat > 1 ? opts.repeat : 1;

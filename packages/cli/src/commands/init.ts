@@ -2,6 +2,11 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { printInitOutput } from "../lib/init-output";
 
+const ENV_EXAMPLE = `# Copy to .env and fill in your key:
+# cp .env.example .env
+ANTHROPIC_API_KEY=
+`;
+
 const GITIGNORE = `# Agentgrader run history and exports
 .agr/
 
@@ -155,6 +160,11 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   }
 
   writeFileSync(agentConfigPath, AGENT_CONFIG_YAML);
+
+  const envExamplePath = resolve(root, ".env.example");
+  if (!existsSync(envExamplePath)) {
+    writeFileSync(envExamplePath, ENV_EXAMPLE);
+  }
 
   const gitignorePath = resolve(root, ".gitignore");
   if (!existsSync(gitignorePath)) {

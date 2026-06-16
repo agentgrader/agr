@@ -13,6 +13,8 @@ describe("formatInitOutput", () => {
     expect(out).toContain("omegadogfeeding");
     expect(out).toContain("agent.yaml");
     expect(out).toContain("tasks/hello-world/agr.yaml");
+    expect(out).toContain(".env.example");
+    expect(out).toContain("cp .env.example .env");
     expect(out).toContain("agr run hello-world --verbose");
     expect(out).toContain("agr trace --last");
     expect(out).toContain("agr status");
