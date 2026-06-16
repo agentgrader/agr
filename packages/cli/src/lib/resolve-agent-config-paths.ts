@@ -10,7 +10,7 @@ function globToRegex(glob: string): RegExp {
 
 function collectYamlFilesRecursive(dir: string): string[] {
   const files: string[] = [];
-  for (const entry of readdirSync(dir)) {
+  for (const entry of readdirSync(dir).sort()) {
     if (entry.startsWith(".")) continue;
     const fullPath = resolve(dir, entry);
     const stat = statSync(fullPath);
