@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Host-side stdio MCP proxy that bridges external agents into an Agentgrader sandbox",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/mcp-sandbox-proxy"
+  },
   "type": "module",
   "bin": {
     "agr-mcp-proxy": "dist/proxy.js"

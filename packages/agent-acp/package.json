@@ -3,6 +3,11 @@
   "version": "3.0.0",
   "description": "Agent Client Protocol (ACP) adapter for Agentgrader",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/agent-acp"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

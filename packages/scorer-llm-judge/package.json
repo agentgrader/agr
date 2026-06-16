@@ -3,6 +3,11 @@
   "version": "3.0.0",
   "description": "Additive LLM-as-judge code-quality scorer for Agentgrader",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/scorer-llm-judge"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

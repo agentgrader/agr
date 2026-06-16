@@ -3,6 +3,11 @@
   "version": "5.0.0",
   "description": "OpenRouter and AI SDK ReAct agent adapter for Agentgrader",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/agent-openrouter"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

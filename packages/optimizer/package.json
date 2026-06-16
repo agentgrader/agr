@@ -3,6 +3,11 @@
   "version": "3.0.0",
   "description": "Agent config matrix expansion, result aggregation, and Pareto-front analysis for Agentgrader optimization sweeps",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/optimizer"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

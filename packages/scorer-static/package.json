@@ -3,6 +3,11 @@
   "version": "3.0.0",
   "description": "Deterministic code-quality scorer (diff size, TODOs, lint) for Agentgrader",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentgrader/agr.git",
+    "directory": "packages/scorer-static"
+  },
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
