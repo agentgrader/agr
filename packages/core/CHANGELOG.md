@@ -1,5 +1,11 @@
 # @agentgrader/core
 
+## 1.4.1
+
+### Patch Changes
+
+- Load `.env` from the project tree, scaffold `.env.example` on init, preflight missing API keys before runs, and catch adapter errors without Mastra stack traces.
+
 ## 1.4.0
 
 ### Minor Changes

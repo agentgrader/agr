@@ -1,6 +1,6 @@
 {
   "name": "agentgrader",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "CLI for Agentgrader, the coding agent optimizer. Evaluate, compare, and improve agents on real tasks with agr.",
   "license": "MIT",
   "repository": {
@@ -27,7 +27,7 @@
   "dependencies": {
     "@agentgrader/agent-acp": "^3.0.0",
     "@agentgrader/agent-openrouter": "^5.0.0",
-    "@agentgrader/core": "^1.4.0",
+    "@agentgrader/core": "^1.4.1",
     "@agentgrader/optimizer": "^3.0.0",
     "@agentgrader/sandbox-docker": "^5.0.0",
     "@agentgrader/sandbox-e2b": "^2.0.1",
