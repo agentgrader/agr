@@ -499,6 +499,7 @@ async function printMatrixSummary(db: AgrDb, matrixId: string, agentConfigs: Age
   const front = paretoFront(aggregates);
   const frontIds = new Set(front.map((a) => a.agentConfigId));
   const includesQuality = front.some((a) => a.avgQuality?.linterViolations !== undefined);
+  const includesTokens = aggregates.some((a) => (a.avgTokensIn ?? 0) > 0 || (a.avgTokensOut ?? 0) > 0);
 
   console.log("\n================ MATRIX SUMMARY ================");
   for (const agg of aggregates) {
@@ -508,8 +509,11 @@ async function printMatrixSummary(db: AgrDb, matrixId: string, agentConfigs: Age
       agg.avgQuality?.linterViolations !== undefined
         ? ` lint:${agg.avgQuality.linterViolations.toFixed(1)}`
         : "";
+    const tok = includesTokens
+      ? ` tok:${Math.round(agg.avgTokensIn ?? 0)}/${Math.round(agg.avgTokensOut ?? 0)}`
+      : "";
     console.log(
-      `${marker} ${agg.agentConfigName.padEnd(36)} solve:${solveRatePct.padStart(3)}% (${agg.passedRuns}/${agg.totalRuns}) cost:$${agg.avgCostUsd.toFixed(4)}${lint}`,
+      `${marker} ${agg.agentConfigName.padEnd(36)} solve:${solveRatePct.padStart(3)}% (${agg.passedRuns}/${agg.totalRuns}) cost:$${agg.avgCostUsd.toFixed(4)}${tok}${lint}`,
     );
   }
   console.log(
