@@ -53,6 +53,42 @@ test("add() returns the sum of its two arguments", () => {
 });
 `;
 
+const TEST_CASE_PYTHON_YAML = `name: hello-world-python
+description: implement add() so the pytest suite passes
+fixture: ./fixture
+prompt: |
+  The function add(a, b) in math.py is not implemented (it currently raises
+  NotImplementedError). Implement it so it returns the sum of a and b. Do not
+  change its signature or the test file.
+success:
+  - run: pytest -x test_math.py
+    expect: { exit_code: 0 }
+timeout_seconds: 120
+
+agent_config: ../../agent.yaml
+`;
+
+const FIXTURE_MATH_PY = `def add(a: int, b: int) -> int:
+    # TODO: implement this so it returns the sum of a and b
+    raise NotImplementedError
+`;
+
+const FIXTURE_TEST_MATH_PY = `import pytest
+from math import add
+
+
+def test_add_positives():
+    assert add(2, 3) == 5
+
+
+def test_add_negative():
+    assert add(-1, 1) == 0
+
+
+def test_add_zeros():
+    assert add(0, 0) == 0
+`;
+
 const CI_WORKFLOW_YAML = `name: agentgrader
 
 on:
@@ -107,7 +143,7 @@ function writeCI(root: string): string {
   return ciPath;
 }
 
-export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean; ci?: boolean }) {
+export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean; ci?: boolean; example?: string }) {
   const root = resolve(dir || ".");
   const agentConfigPath = resolve(root, "agent.yaml");
 
@@ -153,32 +189,52 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     return;
   }
 
-  const taskDir = resolve(root, "tasks/hello-world");
+  const isPython = opts.example === "python" || opts.example === "py";
+
+  const taskName = isPython ? "hello-world-python" : "hello-world";
+  const taskDir = resolve(root, `tasks/${taskName}`);
   const fixtureDir = resolve(taskDir, "fixture");
 
   mkdirSync(fixtureDir, { recursive: true });
 
-  writeFileSync(resolve(taskDir, "agr.yaml"), TEST_CASE_YAML);
-  writeFileSync(resolve(fixtureDir, "math.js"), FIXTURE_MATH_JS);
-  writeFileSync(resolve(fixtureDir, "math.test.js"), FIXTURE_MATH_TEST_JS);
+  if (isPython) {
+    writeFileSync(resolve(taskDir, "agr.yaml"), TEST_CASE_PYTHON_YAML);
+    writeFileSync(resolve(fixtureDir, "math.py"), FIXTURE_MATH_PY);
+    writeFileSync(resolve(fixtureDir, "test_math.py"), FIXTURE_TEST_MATH_PY);
+  } else {
+    writeFileSync(resolve(taskDir, "agr.yaml"), TEST_CASE_YAML);
+    writeFileSync(resolve(fixtureDir, "math.js"), FIXTURE_MATH_JS);
+    writeFileSync(resolve(fixtureDir, "math.test.js"), FIXTURE_MATH_TEST_JS);
+  }
 
   console.log(`Scaffolded a new agentgrader project in ${root}`);
   console.log("");
   console.log("Created:");
   console.log("  agent.yaml                         - agent config (claude-haiku-4-5, provider: anthropic)");
   console.log("  .gitignore                         - ignores .agr/ (run history) and .env");
-  console.log("  tasks/hello-world/agr.yaml          - a tiny test case (implement add() in math.js)");
-  console.log("  tasks/hello-world/fixture/          - starter project for the test case");
+  if (isPython) {
+    console.log(`  tasks/${taskName}/agr.yaml  - a tiny test case (implement add() in math.py, verified with pytest)`);
+    console.log(`  tasks/${taskName}/fixture/  - starter project for the test case`);
+  } else {
+    console.log("  tasks/hello-world/agr.yaml          - a tiny test case (implement add() in math.js)");
+    console.log("  tasks/hello-world/fixture/          - starter project for the test case");
+  }
   if (opts.ci) {
     writeCI(root);
     console.log("  .github/workflows/agr.yml          - GitHub Actions CI workflow (runs agr bench on push/PR)");
   }
   console.log("");
+  if (isPython) {
+    console.log("Note: the Python example requires pytest in the sandbox Docker image.");
+    console.log("      If using the default image, add a requirements.txt with `pytest` or");
+    console.log("      use a custom image with pytest pre-installed.");
+    console.log("");
+  }
   console.log("Next steps:");
   console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
   console.log("  2. Try it out:");
   console.log("");
-  console.log("       agr run hello-world --verbose");
+  console.log(`       agr run ${taskName} --verbose`);
   console.log("");
   console.log("  3. Inspect the trace afterwards with `agr trace --last` (or");
   console.log("     `agr trace <runId>` if you want to reference a specific run).");

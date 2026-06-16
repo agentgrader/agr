@@ -24,11 +24,13 @@ cli
   .option("--force", "Overwrite agent.yaml if it already exists")
   .option("--blank", "Only write agent.yaml and an empty tasks/ dir, without the hello-world sample test case")
   .option("--ci", "Also write a GitHub Actions workflow (.github/workflows/agr.yml) that runs agr bench on push and pull_request")
+  .option("--example <lang>", "Sample test case language: js (default) or python/py (pytest-based hello-world)")
   .example("agr init")
   .example("agr init my-project")
   .example("agr init --blank")
   .example("agr init --ci")
   .example("agr init --blank --ci")
+  .example("agr init --example python")
   .action(async (dir, options) => {
     try {
       await initCommand(dir, options);
