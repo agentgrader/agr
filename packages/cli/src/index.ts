@@ -61,6 +61,7 @@ cli
     "Run a single agent test case (path to agr.yaml, a directory containing one, or a test case name from `agr list-tests`)",
   )
   .option("--config <config>", "Path to an AgentConfig YAML file")
+  .option("--model <model>", "Override the model from the agent config for this run (e.g. claude-opus-4-8)")
   .option("--adapter <adapter>", "Agent adapter to use (ai-sdk, acp)", { default: "ai-sdk" })
   .option(
     "--verbose",
@@ -79,6 +80,7 @@ cli
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
   .example("agr run hello-world")
   .example("agr run hello-world --config agent.yaml --verbose")
+  .example("agr run hello-world --model claude-opus-4-8")
   .example("agr run hello-world --repeat 5")
   .example("agr run tasks/fix-bug/agr.yaml --fail-on-failure")
   .action(async (testCase, options) => {
@@ -132,6 +134,7 @@ cli
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
+  .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
   .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
@@ -201,6 +204,7 @@ cli
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
         onlyFailed: options.onlyFailed,
         shuffle: options.shuffle,
+        model: options.model,
       });
     } catch (err: any) {
       console.error(`Error executing benchmark: ${err.message}`);

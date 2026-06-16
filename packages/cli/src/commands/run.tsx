@@ -17,6 +17,7 @@ export async function runSingleCommand(
   testCasePath: string,
   opts: {
     config?: string;
+    model?: string;
     verbose?: boolean;
     adapter?: string;
     failOnFailure?: boolean;
@@ -49,6 +50,11 @@ export async function runSingleCommand(
       `No agent config specified. Either:\n  - Pass --config <path> to the CLI\n  - Add agent_config: <path> to your agr.yaml`,
     );
     process.exit(1);
+  }
+
+  if (opts.model) {
+    console.log(`Overriding model: ${agentConfig.model} -> ${opts.model}`);
+    agentConfig = { ...agentConfig, model: opts.model };
   }
 
   const sandboxProvider = resolveSandbox(opts.sandbox ?? "docker");

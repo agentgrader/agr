@@ -65,6 +65,7 @@ export async function runBenchCommand(opts: {
   limit?: number;
   onlyFailed?: boolean;
   shuffle?: boolean;
+  model?: string;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -225,6 +226,12 @@ export async function runBenchCommand(opts: {
     console.log(
       `Using shared agent_config from agr.yaml: ${sharedAgentConfig} (${agentConfigs.length} ${acLabel}).`,
     );
+  }
+
+  if (opts.model) {
+    const overrideModel = opts.model;
+    console.log(`Overriding model for all agent config(s): ${overrideModel}`);
+    agentConfigs = agentConfigs.map((ac) => ({ ...ac, model: overrideModel }));
   }
 
   if (opts.dryRun) {
