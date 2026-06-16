@@ -27,17 +27,85 @@ export async function exportCommand(
   const output = opts.output ?? `export-${subcommand}.${ext}`;
 
   if (subcommand === "traces") {
+    const hasFilters = opts.testCase || opts.config || opts.since || opts.passed !== undefined;
+    const hasRunSelector = opts.runId || opts.last;
+
+    if (!hasRunSelector && !hasFilters) {
+      console.error("--run-id is required for `agr export traces` (or use --last, --test-case, or --config)");
+      process.exit(1);
+    }
+
+    if (hasFilters && !hasRunSelector) {
+      // Multi-run trace export filtered by test case / config / since / passed / limit
+      let runs = await listRuns(db);
+      if (opts.testCase) {
+        const tc = opts.testCase;
+        runs = runs.filter((r) => r.testCaseId === tc || r.testCaseId.includes(tc));
+      }
+      if (opts.config) {
+        const cfg = opts.config;
+        runs = runs.filter((r) => r.agentConfigId === cfg || r.agentConfigId.includes(cfg));
+      }
+      if (opts.since) {
+        const sinceTs = parseSince(opts.since);
+        runs = runs.filter((r) => r.createdAt >= sinceTs);
+      }
+      if (opts.passed !== undefined) {
+        runs = runs.filter((r) => r.passed === opts.passed);
+      }
+      if (opts.limit) runs = runs.slice(0, opts.limit);
+      if (runs.length === 0) {
+        console.error("No matching runs found. Check filters with `agr list --plain`.");
+        process.exit(1);
+      }
+      console.log(`Exporting traces for ${runs.length} run(s)...`);
+      if (format === "jsonl" || format === "otlp") {
+        const lines: string[] = [];
+        for (const run of runs) {
+          const traces = await getTraces(db, run.id);
+          lines.push(tracesToOtelJsonl(run.id, traces));
+        }
+        writeExport(output, lines.join(""), runs.length);
+      } else {
+        const allExports = [];
+        for (const run of runs) {
+          const traces = await getTraces(db, run.id);
+          allExports.push({
+            runId: run.id,
+            testCaseId: run.testCaseId,
+            agentConfigId: run.agentConfigId,
+            passed: run.passed,
+            ...tracesToOtelJson(run.id, traces),
+          });
+        }
+        writeExport(output, JSON.stringify(allExports, null, 2), runs.length);
+      }
+      return;
+    }
+
+    // Single-run export: --run-id or --last (with optional --test-case / --config scoping)
     let resolvedRunId = opts.runId;
     if (opts.last) {
-      const runs = await listRuns(db);
+      let runs = await listRuns(db);
+      if (opts.testCase) {
+        const tc = opts.testCase;
+        runs = runs.filter((r) => r.testCaseId === tc || r.testCaseId.includes(tc));
+      }
+      if (opts.config) {
+        const cfg = opts.config;
+        runs = runs.filter((r) => r.agentConfigId === cfg || r.agentConfigId.includes(cfg));
+      }
       if (runs.length === 0) {
-        console.error("No runs found in .agr/db.sqlite. Run `agr run` or `agr bench` first.");
+        const parts: string[] = ["No runs found"];
+        if (opts.testCase) parts.push(`for test case "${opts.testCase}"`);
+        if (opts.config) parts.push(`for config "${opts.config}"`);
+        console.error(`${parts.join(" ")}. Check \`agr list --plain\`.`);
         process.exit(1);
       }
       resolvedRunId = runs[0]!.id;
     }
     if (!resolvedRunId) {
-      console.error("--run-id is required for `agr export traces` (or use --last)");
+      console.error("--run-id is required for `agr export traces` (or use --last, --test-case, or --config)");
       process.exit(1);
     }
     const traces = await getTraces(db, resolvedRunId);

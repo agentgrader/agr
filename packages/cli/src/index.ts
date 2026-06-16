@@ -375,10 +375,10 @@ cli
   .option("--last-matrix", "Export runs for the most recent matrix sweep (no --matrix-id needed)")
   .option("--limit <n>", "Maximum number of runs to export")
   .option("--since <duration|date>", "Only export runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
-  .option("--test-case <id>", "Filter exported runs to those with a matching testCaseId (substring match)")
-  .option("--config <id>", "Filter exported runs to those with a matching agentConfigId (substring match)")
-  .option("--passed", "Export only runs that passed")
-  .option("--failed", "Export only runs that failed")
+  .option("--test-case <id>", "Filter exported runs/traces to those with a matching testCaseId (substring match)")
+  .option("--config <id>", "Filter exported runs/traces to those with a matching agentConfigId (substring match)")
+  .option("--passed", "Export only runs/traces that passed")
+  .option("--failed", "Export only runs/traces that failed")
   .example("agr export runs --format jsonl --output runs.jsonl")
   .example("agr export runs --format csv --output runs.csv")
   .example("agr export runs --since 24h --format jsonl --output today.jsonl")
@@ -387,6 +387,8 @@ cli
   .example("agr export runs --failed --output failed-runs.json")
   .example("agr export traces --run-id <runId> --format otlp --output trace.json")
   .example("agr export traces --last --format otlp --output last-trace.json")
+  .example("agr export traces --test-case hello-world --format jsonl --output hello-traces.jsonl")
+  .example("agr export traces --last --test-case hello-world --format otlp --output last-hello.json")
   .action(async (subcommand, options) => {
     try {
       if (options.passed && options.failed) {
