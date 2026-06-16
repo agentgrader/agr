@@ -3,6 +3,19 @@ import { dirname, resolve } from "node:path";
 import { initDb, getTraces, listRuns, type AgrDb } from "@agentgrader/store";
 import { tracesToOtelJson, tracesToOtelJsonl } from "../lib/export/otel";
 
+function parseSince(since: string): number {
+  const relative = since.match(/^(\d+)(s|m|h|d)$/);
+  if (relative) {
+    const n = parseInt(relative[1]!, 10);
+    const unit = relative[2]!;
+    const ms: Record<string, number> = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+    return Math.floor((Date.now() - n * ms[unit]!) / 1000);
+  }
+  const ts = Date.parse(since);
+  if (isNaN(ts)) throw new Error(`--since: unrecognized format "${since}". Use ISO date or duration like 1h, 24h, 7d.`);
+  return Math.floor(ts / 1000);
+}
+
 export async function exportCommand(
   subcommand: string,
   opts: {
@@ -14,6 +27,7 @@ export async function exportCommand(
     matrixId?: string;
     lastMatrix?: boolean;
     limit?: number;
+    since?: string;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -56,6 +70,15 @@ export async function exportCommand(
       console.log(`Using most recent matrix: ${resolvedMatrixId}`);
     }
     if (resolvedMatrixId) runs = runs.filter((r) => r.matrixId === resolvedMatrixId);
+    if (opts.since) {
+      const sinceTs = parseSince(opts.since);
+      runs = runs.filter((r) => r.createdAt >= sinceTs);
+      if (runs.length === 0) {
+        console.error(`No runs found since ${opts.since} (${new Date(sinceTs * 1000).toISOString()}). Use a wider window.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) since ${opts.since} (${new Date(sinceTs * 1000).toISOString()})`);
+    }
     if (opts.limit) runs = runs.slice(0, opts.limit);
     const payload = runs.map((r) => ({
       id: r.id,

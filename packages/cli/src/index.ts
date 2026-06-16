@@ -324,7 +324,9 @@ cli
   .option("--matrix-id <id>", "Filter runs by matrix id")
   .option("--last-matrix", "Export runs for the most recent matrix sweep (no --matrix-id needed)")
   .option("--limit <n>", "Maximum number of runs to export")
+  .option("--since <duration|date>", "Only export runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .example("agr export runs --format jsonl --output runs.jsonl")
+  .example("agr export runs --since 24h --format jsonl --output today.jsonl")
   .example("agr export runs --last-matrix --format jsonl --output sweep.jsonl")
   .example("agr export traces --run-id <runId> --format otlp --output trace.json")
   .example("agr export traces --last --format otlp --output last-trace.json")
@@ -339,6 +341,7 @@ cli
         matrixId: options.matrixId,
         lastMatrix: options.lastMatrix,
         limit: options.limit ? Number(options.limit) : undefined,
+        since: options.since,
       });
     } catch (err: any) {
       console.error(`Error executing export: ${err.message}`);
