@@ -63,6 +63,19 @@ describe("expandAgentConfigGlob", () => {
     ]);
   });
 
+  test("returns ** glob results in alphabetical order regardless of inode ordering", () => {
+    touch("configs/z-agent.yaml");
+    touch("configs/a-agent.yaml");
+    touch("configs/m-agent.yaml");
+
+    const result = expandAgentConfigGlob("configs/**", dir);
+    expect(result).toEqual([
+      resolve(dir, "configs/a-agent.yaml"),
+      resolve(dir, "configs/m-agent.yaml"),
+      resolve(dir, "configs/z-agent.yaml"),
+    ]);
+  });
+
   test("expands a ** glob with an explicit suffix pattern", () => {
     touch("configs/a.yaml");
     touch("configs/nested/b.yml");
