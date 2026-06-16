@@ -269,7 +269,10 @@ export async function runBenchCommand(opts: {
 
   // 5. render the live dashboard
   const totalRuns = testCases.length * Math.max(agentConfigs.length, 1);
-  console.log(`Starting ${totalRuns} run(s), concurrency: ${concurrency}`);
+  const runBreakdown = agentConfigs.length > 1
+    ? `${testCases.length} test case(s) x ${agentConfigs.length} config(s) = ${totalRuns} run(s)`
+    : `${totalRuns} run(s)`;
+  console.log(`Starting ${runBreakdown}, concurrency: ${concurrency}`);
   const benchStartMs = Date.now();
   const runStates: Record<string, RunState> = {};
   const testCaseIds = testCases.map((tc) => tc.id || tc.name);
