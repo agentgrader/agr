@@ -31,6 +31,8 @@ export async function buildBaselineSnapshotFromRunIds(
       costUsd: row.costUsd ?? 0,
       durationMs: row.durationMs ?? 0,
       stepsCount: row.stepsCount ?? 0,
+      tokensIn: row.tokensIn ?? 0,
+      tokensOut: row.tokensOut ?? 0,
       metrics: parseMetrics(row.metrics),
     });
 
