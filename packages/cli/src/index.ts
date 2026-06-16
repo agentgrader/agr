@@ -335,7 +335,7 @@ cli
 
 cli
   .command("export <subcommand>", "Export runs or traces (runs, traces)")
-  .option("--format <format>", "Export format (json, jsonl, otlp)", { default: "json" })
+  .option("--format <format>", "Export format (json, jsonl, otlp, csv)", { default: "json" })
   .option("--output <path>", "Output file path")
   .option("--db <path>", "SQLite database path", { default: ".agr/db.sqlite" })
   .option("--run-id <id>", "Run id for trace export")
@@ -349,6 +349,7 @@ cli
   .option("--passed", "Export only runs that passed")
   .option("--failed", "Export only runs that failed")
   .example("agr export runs --format jsonl --output runs.jsonl")
+  .example("agr export runs --format csv --output runs.csv")
   .example("agr export runs --since 24h --format jsonl --output today.jsonl")
   .example("agr export runs --last-matrix --format jsonl --output sweep.jsonl")
   .example("agr export runs --test-case hello-world --format jsonl --output hello.jsonl")

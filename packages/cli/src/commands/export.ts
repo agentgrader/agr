@@ -7,7 +7,7 @@ import { parseSince } from "../lib/parse-since";
 export async function exportCommand(
   subcommand: string,
   opts: {
-    format?: "json" | "jsonl" | "otlp";
+    format?: "json" | "jsonl" | "otlp" | "csv";
     output?: string;
     db?: string;
     runId?: string;
@@ -23,7 +23,8 @@ export async function exportCommand(
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
   const format = opts.format ?? "json";
-  const output = opts.output ?? `export-${subcommand}.${format === "jsonl" ? "jsonl" : "json"}`;
+  const ext = format === "jsonl" ? "jsonl" : format === "csv" ? "csv" : "json";
+  const output = opts.output ?? `export-${subcommand}.${ext}`;
 
   if (subcommand === "traces") {
     let resolvedRunId = opts.runId;
@@ -111,15 +112,79 @@ export async function exportCommand(
       matrixId: r.matrixId,
       metrics: r.metrics ? JSON.parse(r.metrics) : null,
     }));
-    const content =
-      format === "jsonl"
-        ? `${payload.map((row) => JSON.stringify(row)).join("\n")}\n`
-        : JSON.stringify(payload, null, 2);
+    let content: string;
+    if (format === "jsonl") {
+      content = `${payload.map((row) => JSON.stringify(row)).join("\n")}\n`;
+    } else if (format === "csv") {
+      content = runsToCSV(payload);
+    } else {
+      content = JSON.stringify(payload, null, 2);
+    }
     writeExport(output, content, payload.length);
     return;
   }
 
   throw new Error(`Unknown export subcommand "${subcommand}". Use "runs" or "traces".`);
+}
+
+function csvCell(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const str = typeof value === "object" ? JSON.stringify(value) : String(value);
+  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function runsToCSV(
+  rows: Array<{
+    id: string;
+    testCaseId: string;
+    agentConfigId: string;
+    passed: boolean | null;
+    costUsd: number | null;
+    durationMs: number | null;
+    stepsCount: number | null;
+    tokensIn: number | null;
+    tokensOut: number | null;
+    matrixId: string | null | undefined;
+    metrics: unknown;
+  }>,
+): string {
+  const headers = [
+    "id",
+    "testCaseId",
+    "agentConfigId",
+    "passed",
+    "costUsd",
+    "durationMs",
+    "stepsCount",
+    "tokensIn",
+    "tokensOut",
+    "matrixId",
+    "metrics",
+  ];
+  const lines = [headers.join(",")];
+  for (const row of rows) {
+    lines.push(
+      [
+        row.id,
+        row.testCaseId,
+        row.agentConfigId,
+        row.passed,
+        row.costUsd,
+        row.durationMs,
+        row.stepsCount,
+        row.tokensIn,
+        row.tokensOut,
+        row.matrixId ?? null,
+        row.metrics,
+      ]
+        .map(csvCell)
+        .join(","),
+    );
+  }
+  return `${lines.join("\n")}\n`;
 }
 
 function writeExport(outputPath: string, content: string, count?: number) {
