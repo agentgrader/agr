@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
 import { formatCompactWhen } from "../lib/format-relative-time";
+import { parseSince } from "../lib/parse-since";
 
 /**
  * `agr status [--db <path>] [--json]`
@@ -11,7 +12,7 @@ import { formatCompactWhen } from "../lib/format-relative-time";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -26,7 +27,14 @@ export async function statusCommand(opts: { db?: string; json?: boolean }) {
   }
 
   const db = initDb(dbPath);
-  const runs = await listRuns(db);
+  let runs = await listRuns(db);
+  let sinceLabel: string | undefined;
+
+  if (opts.since) {
+    const sinceTs = parseSince(opts.since);
+    sinceLabel = `${opts.since} (since ${new Date(sinceTs * 1000).toISOString()})`;
+    runs = runs.filter((r) => r.createdAt >= sinceTs);
+  }
 
   if (runs.length === 0) {
     if (opts.json) {
@@ -53,6 +61,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean }) {
     console.log(JSON.stringify({
       exists: true,
       dbPath,
+      since: opts.since ?? null,
       totalRuns: runs.length,
       passedRuns,
       failedRuns,
@@ -73,7 +82,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean }) {
   const lastRunWhen = lastRun ? formatCompactWhen(lastRun.createdAt) : "never";
   const lastRunDetail = lastRun ? `  (${lastRun.testCaseId} with ${lastRun.agentConfigId})` : "";
 
-  console.log(`Database: ${dbPath}\n`);
+  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
   console.log(`  Runs:       ${runs.length} total  (${passedRuns} passed, ${failedRuns} failed${erroredRuns > 0 ? `, ${erroredRuns} errored` : ""})`);
   console.log(`  Test cases: ${uniqueTestCases} unique`);
   console.log(`  Configs:    ${uniqueConfigs} unique`);

@@ -256,11 +256,13 @@ cli
   .command("status", "Show a quick summary of the local run database (.agr/db.sqlite)")
   .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
   .option("--json", "Output as JSON (for scripts and CI)")
+  .option("--since <duration|date>", "Restrict stats to runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .example("agr status")
   .example("agr status --json")
+  .example("agr status --since 24h")
   .action(async (options) => {
     try {
-      await statusCommand({ db: options.db, json: options.json });
+      await statusCommand({ db: options.db, json: options.json, since: options.since });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
