@@ -198,16 +198,18 @@ cli
   )
   .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
   .option("--audit-toolkits", "Run security audit on toolkits referenced by the test case")
+  .option("--suite <dir>", "Validate every test case found under this directory")
   .example("agr validate fix-greeting")
   .example("agr validate fix-greeting --strict")
   .example("agr validate task-a task-b task-c --strict")
+  .example("agr validate --suite tasks/ --strict")
   .action(async (testCases, options) => {
     try {
-      if (!testCases || testCases.length === 0) {
-        console.error("No test case specified. Usage: agr validate <testCase> [testCase...]");
+      if ((!testCases || testCases.length === 0) && !options.suite) {
+        console.error("No test case specified. Usage: agr validate <testCase> [testCase...] or --suite <dir>");
         process.exit(1);
       }
-      await validateCommand(testCases, options);
+      await validateCommand(testCases ?? [], { ...options, suite: options.suite });
     } catch (err: any) {
       console.error(`Error executing validate: ${err.message}`);
       process.exit(1);
@@ -257,7 +259,7 @@ cli
   });
 
 cli
-  .command("trace <runId>", "Show the step trace and metrics for a single run")
+  .command("trace [runId]", "Show the step trace and metrics for a single run")
   .option(
     "--quality",
     "Show only the quality-metrics breakdown (static-quality, llm-judge, diff, localization)",
@@ -266,9 +268,17 @@ cli
     "--tools",
     "Show only a tool-usage breakdown (call count per tool name) instead of the full trace",
   )
+  .option("--last", "Trace the most recent run in .agr/db.sqlite (no runId needed)")
+  .example("agr trace <runId>")
   .example("agr trace <runId> --tools")
+  .example("agr trace --last")
+  .example("agr trace --last --quality")
   .action(async (runId, options) => {
     try {
+      if (!runId && !options.last) {
+        console.error("Provide a run ID or use --last to trace the most recent run.");
+        process.exit(1);
+      }
       await traceCommand(runId, options);
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);

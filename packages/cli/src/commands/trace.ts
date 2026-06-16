@@ -1,4 +1,4 @@
-import { getRun, getTraces, initDb } from "@agentgrader/store";
+import { getRun, getTraces, initDb, listRuns } from "@agentgrader/store";
 import { countToolCalls, printToolUsageBlock } from "../lib/tool-usage";
 
 /**
@@ -14,11 +14,27 @@ import { countToolCalls, printToolUsageBlock } from "../lib/tool-usage";
  * tool name appears across the run's `tool_call` steps. Useful for checking
  * whether a custom toolkit/MCP tool was actually used, vs. only available.
  */
-export async function traceCommand(runId: string, opts: { quality?: boolean; tools?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean }) {
   const db = initDb();
-  const run = await getRun(db, runId);
+
+  let resolvedRunId = runId;
+  if (opts.last) {
+    const runs = await listRuns(db);
+    if (runs.length === 0) {
+      console.error("No runs found in .agr/db.sqlite.");
+      process.exit(1);
+    }
+    resolvedRunId = runs[0]!.id;
+  }
+
+  if (!resolvedRunId) {
+    console.error("Provide a run ID or use --last to trace the most recent run.");
+    process.exit(1);
+  }
+
+  const run = await getRun(db, resolvedRunId);
   if (!run) {
-    console.error(`Run not found: ${runId}`);
+    console.error(`Run not found: ${resolvedRunId}`);
     process.exit(1);
   }
 
