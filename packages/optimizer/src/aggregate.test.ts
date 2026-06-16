@@ -7,10 +7,10 @@ const configs: AgentConfig[] = [
 ];
 
 describe("aggregateResults", () => {
-  test("computes solve rate and cost/duration/token averages, grouped by agentConfigId", () => {
+  test("computes solve rate and cost/duration/steps/token averages, grouped by agentConfigId", () => {
     const runs: RunRecord[] = [
-      { agentConfigId: "cfg-a", passed: true, costUsd: 0.1, durationMs: 1000, tokensIn: 100, tokensOut: 50 },
-      { agentConfigId: "cfg-a", passed: false, costUsd: 0.2, durationMs: 2000, tokensIn: 200, tokensOut: 100 },
+      { agentConfigId: "cfg-a", passed: true, costUsd: 0.1, durationMs: 1000, stepsCount: 4, tokensIn: 100, tokensOut: 50 },
+      { agentConfigId: "cfg-a", passed: false, costUsd: 0.2, durationMs: 2000, stepsCount: 8, tokensIn: 200, tokensOut: 100 },
     ];
 
     const [result] = aggregateResults(runs, configs);
@@ -22,6 +22,7 @@ describe("aggregateResults", () => {
     expect(result!.solveRate).toBe(0.5);
     expect(result!.avgCostUsd).toBeCloseTo(0.15, 5);
     expect(result!.avgDurationMs).toBe(1500);
+    expect(result!.avgStepsCount).toBe(6);
     expect(result!.avgTokensIn).toBe(150);
     expect(result!.avgTokensOut).toBe(75);
   });
@@ -31,10 +32,11 @@ describe("aggregateResults", () => {
     expect(result!.agentConfigName).toBe("unknown-cfg");
   });
 
-  test("treats missing costUsd/durationMs/tokens as zero", () => {
+  test("treats missing costUsd/durationMs/stepsCount/tokens as zero", () => {
     const [result] = aggregateResults([{ agentConfigId: "cfg-a", passed: true }], configs);
     expect(result!.avgCostUsd).toBe(0);
     expect(result!.avgDurationMs).toBe(0);
+    expect(result!.avgStepsCount).toBe(0);
     expect(result!.avgTokensIn).toBe(0);
     expect(result!.avgTokensOut).toBe(0);
   });
