@@ -68,6 +68,7 @@ export async function runBenchCommand(opts: {
   model?: string;
   maxSteps?: number;
   skipTags?: string[];
+  name?: string;
   json?: boolean;
 }) {
   let suiteDir: string | undefined;
@@ -183,6 +184,19 @@ export async function runBenchCommand(opts: {
       }
       if (pairs.length < beforeCount) {
         console.log(`--skip-tags [${opts.skipTags.join(", ")}]: skipped ${beforeCount - pairs.length} test case(s), ${pairs.length} remaining`);
+      }
+    }
+
+    if (opts.name) {
+      const nameFilter = opts.name.toLowerCase();
+      const beforeCount = pairs.length;
+      pairs = pairs.filter(({ tc }) => tc.name.toLowerCase().includes(nameFilter));
+      if (pairs.length === 0) {
+        console.error(`--name "${opts.name}" matched no test cases in suite. Run \`agr list-tests ${relative(process.cwd(), suiteDir!) || suiteDir}\` to see available names.`);
+        process.exit(1);
+      }
+      if (pairs.length < beforeCount) {
+        console.log(`--name "${opts.name}": ${pairs.length} of ${beforeCount} test case(s) matched`);
       }
     }
 
