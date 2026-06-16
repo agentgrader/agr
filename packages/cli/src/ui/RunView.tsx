@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { StepEvent } from "@agentgrader/core";
+import { formatDuration } from "../lib/format-relative-time";
 import { DiffPanel } from "./DiffPanel";
 
 export const VERBOSE_CONTENT_MAX = 200;
@@ -103,7 +104,7 @@ const SummaryView: React.FC<{ summary: RunSummary }> = ({ summary }) => {
       </Box>
       <Text>Steps:     {summary.stepsCount}</Text>
       <Text>Cost:      ${summary.costUsd.toFixed(4)}</Text>
-      <Text>Duration:  {(summary.durationMs / 1000).toFixed(1)}s</Text>
+      <Text>Duration:  {formatDuration(summary.durationMs)}</Text>
       {cacheHitRate !== undefined && (
         <Text>
           Prompt cache: {summary.cachedTokens}/{summary.tokensIn} input tokens served from cache (
