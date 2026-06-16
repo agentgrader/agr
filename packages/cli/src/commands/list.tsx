@@ -13,6 +13,7 @@ export interface ListCommandOptions {
   plain?: boolean;
   since?: string;
   testCase?: string;
+  config?: string;
 }
 
 function printPlainList(
@@ -20,9 +21,14 @@ function printPlainList(
   dbPath: string,
   sinceLabel?: string,
   tcLabel?: string,
+  cfgLabel?: string,
 ): void {
   if (runs.length === 0) {
-    const scope = [sinceLabel ? `since ${sinceLabel}` : "", tcLabel ? `for test case "${tcLabel}"` : ""].filter(Boolean).join(", ");
+    const scope = [
+      sinceLabel ? `since ${sinceLabel}` : "",
+      tcLabel ? `for test case "${tcLabel}"` : "",
+      cfgLabel ? `for config "${cfgLabel}"` : "",
+    ].filter(Boolean).join(", ");
     console.log(`No runs found in ${dbPath}${scope ? ` (${scope})` : ""}.`);
     console.log("Run `agr run` or `agr bench` first.");
     return;
@@ -30,7 +36,8 @@ function printPlainList(
 
   const sinceNote = sinceLabel ? `  [since ${sinceLabel}]` : "";
   const tcNote = tcLabel ? `  [test case: ${tcLabel}]` : "";
-  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}${tcNote}:\n`);
+  const cfgNote = cfgLabel ? `  [config: ${cfgLabel}]` : "";
+  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}${tcNote}${cfgNote}:\n`);
   for (const run of runs) {
     const status = formatRunStatus(run);
     const when = formatRunWhen(run.createdAt);
@@ -56,12 +63,13 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
   const sinceTs = options.since ? parseSince(options.since) : undefined;
-  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase);
+  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config);
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   const tcLabel = options.testCase ? options.testCase : undefined;
+  const cfgLabel = options.config ? options.config : undefined;
   if (options.plain || !process.stdout.isTTY) {
-    printPlainList(runs, dbPath, sinceLabel, tcLabel);
+    printPlainList(runs, dbPath, sinceLabel, tcLabel, cfgLabel);
     return;
   }
 

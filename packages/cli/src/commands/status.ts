@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -38,6 +38,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
 
   if (opts.testCase) {
     runs = runs.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!));
+  }
+  if (opts.config) {
+    runs = runs.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
   }
 
   if (runs.length === 0) {
@@ -72,6 +75,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       dbPath,
       since: opts.since ?? null,
       testCase: opts.testCase ?? null,
+      config: opts.config ?? null,
       totalRuns: runs.length,
       passedRuns,
       failedRuns,
@@ -95,8 +99,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const lastRunWhen = lastRun ? formatCompactWhen(lastRun.createdAt) : "never";
   const lastRunDetail = lastRun ? `  (${lastRun.testCaseId} with ${lastRun.agentConfigId})` : "";
   const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
+  const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
 
-  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}\n`);
+  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}\n`);
   console.log(`  Runs:       ${runs.length} total  (${passedRuns} passed, ${failedRuns} failed${erroredRuns > 0 ? `, ${erroredRuns} errored` : ""})`);
   if (runs.length > 0 && (passedRuns > 0 || failedRuns > 0)) {
     console.log(`  Solve rate: ${solveRate.toFixed(1)}%`);
@@ -104,7 +109,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   if (!opts.testCase) {
     console.log(`  Test cases: ${uniqueTestCases} unique`);
   }
-  console.log(`  Configs:    ${uniqueConfigs} unique`);
+  if (!opts.config) {
+    console.log(`  Configs:    ${uniqueConfigs} unique`);
+  }
   if (matrixRuns > 0) {
     console.log(`  Matrix:     ${matrixRuns} run(s) from matrix sweeps`);
   }
