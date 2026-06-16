@@ -13,7 +13,18 @@ import { writeReport, type ReportFormat } from "../lib/report/write-report";
 import { RunView, type RunSummary } from "../ui/RunView";
 import { formatDuration } from "../lib/format-relative-time";
 import { findEnvFile } from "../lib/load-env";
-import { formatMissingApiKeyMessage, missingApiKeyForAgentConfig } from "../lib/preflight-api-key";
+import { missingApiKeyForAgentConfig } from "../lib/preflight-api-key";
+import {
+  formatNextSteps,
+  formatOverrideLine,
+  formatSuccess,
+  formatWarning,
+  printMissingApiKeyError,
+  printNoAgentConfigError,
+  printRunContext,
+  printRunStartLine,
+} from "../lib/cli-output";
+import { stdoutSupportsColor } from "../lib/terminal";
 
 export async function runSingleCommand(
   testCasePath: string,
@@ -41,28 +52,31 @@ export async function runSingleCommand(
   const testCase = loadTestCase(resolvedPath);
 
   let agentConfig: AgentConfig;
+  let configPath: string | undefined;
 
   if (opts.config) {
+    configPath = opts.config;
     agentConfig = loadAgentConfig(opts.config);
   } else if (testCase.agent_config) {
+    configPath = testCase.agent_config;
     agentConfig = loadAgentConfig(testCase.agent_config);
-    console.log(
-      `Using agent config from agr.yaml: ${testCase.agent_config} (model: ${agentConfig.model})`,
-    );
   } else {
-    console.error(
-      `No agent config specified. Either:\n  - Pass --config <path> to the CLI\n  - Add agent_config: <path> to your agr.yaml`,
-    );
+    printNoAgentConfigError();
     process.exit(1);
   }
 
   if (opts.model) {
-    if (!opts.json) console.log(`Overriding model: ${agentConfig.model} -> ${opts.model}`);
+    if (!opts.json) {
+      console.log(formatOverrideLine("model", agentConfig.model ?? "?", opts.model, { colors: stdoutSupportsColor() }));
+    }
     agentConfig = { ...agentConfig, model: opts.model };
   }
 
   if (opts.maxSteps !== undefined) {
-    if (!opts.json) console.log(`Overriding max_steps: ${agentConfig.maxSteps ?? agentConfig.max_steps ?? "default"} -> ${opts.maxSteps}`);
+    const before = String(agentConfig.maxSteps ?? agentConfig.max_steps ?? "default");
+    if (!opts.json) {
+      console.log(formatOverrideLine("steps", before, String(opts.maxSteps), { colors: stdoutSupportsColor() }));
+    }
     agentConfig = { ...agentConfig, max_steps: opts.maxSteps, maxSteps: opts.maxSteps };
   }
 
@@ -71,8 +85,13 @@ export async function runSingleCommand(
     const missingKey = missingApiKeyForAgentConfig(agentConfig);
     if (missingKey) {
       const envPath = findEnvFile();
-      console.error(formatMissingApiKeyMessage(missingKey, envPath));
-      console.error("Run `agr doctor` to check your setup.");
+      printMissingApiKeyError({
+        envVar: missingKey,
+        envPath,
+        testCaseName: testCase.name,
+        configPath,
+        model: agentConfig.model,
+      });
       process.exit(1);
     }
   }
@@ -94,7 +113,13 @@ export async function runSingleCommand(
       createdAt: Math.floor(Date.now() / 1000),
     });
 
-    if (!opts.json) console.log(`Repeating "${testCase.name}" x${repeat} using model "${agentConfig.model}"...\n`);
+    if (!opts.json) {
+      console.log(
+        formatSuccess(`repeating ${testCase.name} ×${repeat} · ${agentConfig.model}`, {
+          colors: stdoutSupportsColor(),
+        }) + "\n",
+      );
+    }
     const results: Array<{ passed: boolean | null; costUsd: number; durationMs: number; runId: string; error?: string }> = [];
 
     for (let i = 0; i < repeat; i++) {
@@ -216,7 +241,12 @@ export async function runSingleCommand(
     return;
   }
 
-  console.log(`Starting run for "${testCase.name}" (${resolvedPath}) using model "${agentConfig.model}"...`);
+  printRunContext({
+    testCaseName: testCase.name,
+    configPath,
+    model: agentConfig.model ?? "?",
+  });
+  printRunStartLine();
 
   const verbose = !!opts.verbose;
   const steps: StepEvent[] = [];
@@ -291,7 +321,7 @@ export async function runSingleCommand(
     }
 
     if (opts.report && !opts.output) {
-      console.warn(`Warning: --report ${opts.report} has no effect without --output <path>.`);
+      console.warn(formatWarning(`--report ${opts.report} has no effect without --output <path>`, { colors: stdoutSupportsColor() }));
     }
 
     if (opts.report && opts.output) {
@@ -304,7 +334,7 @@ export async function runSingleCommand(
         !!opts.reportIncludeTraces,
       );
       const path = writeReport(report, opts.report, opts.output);
-      console.log(`Report written to ${path}`);
+      console.log(formatSuccess(`report written to ${path}`, { colors: stdoutSupportsColor() }));
     }
   } catch (err: any) {
     rerender(
@@ -324,9 +354,9 @@ export async function runSingleCommand(
 
   const passed = summary?.passed;
   if (passed === true) {
-    console.log(`\nNext: agr bench ${testCase.name}  |  agr trace ${runId}  |  agr trace --last --quality`);
+    printNextSteps([`agr bench ${testCase.name}`, `agr trace ${runId}`, "agr trace --last --quality"]);
   } else {
-    console.log(`\nInspect: agr trace ${runId}  |  agr trace --last --quality  |  agr trace --last --tools`);
+    printNextSteps([`agr trace ${runId}`, "agr trace --last --quality", "agr trace --last --tools"]);
   }
 
   process.exit(exitCode);
