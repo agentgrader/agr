@@ -1,4 +1,4 @@
-import { getRun, getTraces, initDb } from "@agentgrader/store";
+import { getRun, getTraces, initDb, listRuns } from "@agentgrader/store";
 
 type TraceRow = Awaited<ReturnType<typeof getTraces>>[number];
 
@@ -72,16 +72,32 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
 
 /**
  * `agr compare <runIdA> <runIdB> [--full] [--only-diff]`
+ * `agr compare --last-two [--full] [--only-diff]`
  *
  * Loads two completed runs from `.agr/db.sqlite` and prints their step traces
  * side by side, highlighting where the agents diverged.
  */
 export async function compareCommand(
-  runIdA: string,
-  runIdB: string,
-  opts: { full?: boolean; onlyDiff?: boolean },
+  runIdA: string | undefined,
+  runIdB: string | undefined,
+  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean },
 ) {
   const db = initDb();
+
+  if (opts.lastTwo) {
+    const runs = await listRuns(db);
+    if (runs.length < 2) {
+      console.error(`Need at least 2 runs for --last-two (found ${runs.length}). Run \`agr run\` or \`agr bench\` first.`);
+      process.exit(1);
+    }
+    runIdA = runs[1]!.id;
+    runIdB = runs[0]!.id;
+  }
+
+  if (!runIdA || !runIdB) {
+    console.error("Provide two run IDs or use --last-two to compare the two most recent runs.");
+    process.exit(1);
+  }
 
   const [runA, runB, tracesA, tracesB] = await Promise.all([
     getRun(db, runIdA),

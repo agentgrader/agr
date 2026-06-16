@@ -363,16 +363,18 @@ cli
   });
 
 cli
-  .command("compare <runIdA> <runIdB>", "Compare the step traces of two runs side by side")
+  .command("compare [runIdA] [runIdB]", "Compare the step traces of two runs side by side")
   .option("--full", "Print full step content without truncation")
   .option(
     "--only-diff",
     "Show only divergent steps plus one step of context before and after each",
   )
+  .option("--last-two", "Compare the two most recent runs (no run IDs needed)")
   .example("agr compare <runIdA> <runIdB> --only-diff")
+  .example("agr compare --last-two --only-diff")
   .action(async (runIdA, runIdB, options) => {
     try {
-      await compareCommand(runIdA, runIdB, options);
+      await compareCommand(runIdA, runIdB, { ...options, lastTwo: options.lastTwo });
     } catch (err: any) {
       console.error(`Error executing compare: ${err.message}`);
       process.exit(1);
