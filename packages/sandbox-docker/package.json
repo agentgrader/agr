@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/sandbox-docker",
-  "version": "4.2.0",
-  "description": "Docker-based SandboxProvider implementation for the Agentgrader framework",
+  "version": "5.0.0",
+  "description": "Docker-based SandboxProvider for Agentgrader",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,7 +22,7 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "@agentgrader/core": "^1.3.2",
+    "@agentgrader/core": "^1.4.0",
     "dockerode": "^4.0.2"
   },
   "devDependencies": {
@@ -30,6 +30,6 @@
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^1.3.2"
+    "@agentgrader/core": "^1.4.0"
   }
 }

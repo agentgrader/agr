@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/scorer-llm-judge",
-  "version": "2.0.0",
-  "description": "Additive, non-blocking LLM-as-judge code-quality scorer for the Agentgrader framework",
+  "version": "3.0.0",
+  "description": "Additive LLM-as-judge code-quality scorer for Agentgrader",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -21,7 +21,7 @@
     "build:watch": "tsup src/index.ts --format esm --dts --watch"
   },
   "dependencies": {
-    "@agentgrader/core": "^1.3.0",
+    "@agentgrader/core": "^1.4.0",
     "@ai-sdk/anthropic": "^3.0.82",
     "@ai-sdk/openai": "^1.1.0",
     "ai": "^4.1.0",
@@ -31,6 +31,6 @@
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^1.3.0"
+    "@agentgrader/core": "^1.4.0"
   }
 }

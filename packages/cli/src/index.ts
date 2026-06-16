@@ -103,7 +103,7 @@ cli
   });
 
 cli
-  .command("bench [...testCases]", "Run a benchmark matrix of multiple test cases and configs")
+  .command("bench [...testCases]", "Compare and optimize across multiple test cases and agent configs")
   .option("--configs <configs>", "Comma-separated paths to AgentConfig YAML files")
   .option("--config <config>", "Alias for --configs (single config path)")
   .option(
@@ -121,7 +121,7 @@ cli
     "--matrix <matrix>",
     "Path to an optimizer matrix YAML file - expands into agent configs and prints a Pareto summary afterwards (alternative to --configs)",
   )
-  .option("--fail-on-failure", "Exit with code 1 if any run in the benchmark fails")
+  .option("--fail-on-failure", "Exit with code 1 if any run in the comparison sweep fails")
   .option("--min-solve-rate <rate>", "Exit with code 1 if solve rate is below this threshold (0-1)")
   .option(
     "--min-solve-rate-scope <scope>",
@@ -225,7 +225,7 @@ cli
         json: options.json,
       });
     } catch (err: any) {
-      console.error(`Error executing benchmark: ${err.message}`);
+      console.error(`Error executing comparison sweep: ${err.message}`);
       process.exit(1);
     }
   });
@@ -548,7 +548,7 @@ cli
   });
 
 cli
-  .command("doctor", "Check that the local environment is set up correctly for running agentgrader benchmarks")
+  .command("doctor", "Check that the local environment is set up correctly for Agentgrader")
   .option("--db <path>", "Path to the SQLite database to check", { default: ".agr/db.sqlite" })
   .option("--suite <dir>", "Test suite directory to check for agr.yaml files", { default: "tasks" })
   .option("--json", "Output check results as a JSON object and suppress human-readable output")

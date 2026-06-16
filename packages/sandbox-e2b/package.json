@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/sandbox-e2b",
-  "version": "1.0.1",
-  "description": "E2B cloud SandboxProvider implementation for the Agentgrader framework",
+  "version": "2.0.0",
+  "description": "E2B cloud SandboxProvider for Agentgrader",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,6 +29,6 @@
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^1.3.2"
+    "@agentgrader/core": "^1.4.0"
   }
 }

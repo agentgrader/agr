@@ -1,5 +1,12 @@
 # @agentgrader/scorer-llm-judge
 
+## 3.0.0
+
+### Patch Changes
+
+- Updated dependencies
+  - @agentgrader/core@1.4.0
+
 ## 2.0.0
 
 ### Patch Changes

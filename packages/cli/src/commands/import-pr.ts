@@ -185,7 +185,7 @@ function detectProjectKind(fixtureDir: string): ProjectKind {
 
 /**
  * TODO: fail_to_pass/pass_to_pass auto-discovery (pytest-TAP name extraction) is not
- * implemented yet — fill those lists manually after running the test suite.
+ * implemented yet. Fill those lists manually after running the test suite.
  */
 function projectTestDefaults(
   kind: ProjectKind,

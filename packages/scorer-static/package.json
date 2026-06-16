@@ -1,7 +1,7 @@
 {
   "name": "@agentgrader/scorer-static",
-  "version": "2.0.0",
-  "description": "Deterministic, non-blocking code-quality scorer (diff size, TODOs, lint) for the Agentgrader framework",
+  "version": "3.0.0",
+  "description": "Deterministic code-quality scorer (diff size, TODOs, lint) for Agentgrader",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -22,12 +22,12 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "@agentgrader/core": "^1.3.0"
+    "@agentgrader/core": "^1.4.0"
   },
   "devDependencies": {
     "tsup": "^8.5.1"
   },
   "peerDependencies": {
-    "@agentgrader/core": "^1.3.0"
+    "@agentgrader/core": "^1.4.0"
   }
 }

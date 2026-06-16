@@ -1,5 +1,11 @@
 # @agentgrader/core
 
+## 1.4.0
+
+### Minor Changes
+
+- patch descriptions
+
 ## 1.3.2
 
 ### Patch Changes
