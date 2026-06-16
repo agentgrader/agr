@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 
 const GITIGNORE = `# Agentgrader run history and exports
 .agr/
@@ -53,6 +53,34 @@ test("add() returns the sum of its two arguments", () => {
 });
 `;
 
+const CI_WORKFLOW_YAML = `name: agentgrader
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install agentgrader
+        run: npm install -g agentgrader
+
+      - name: Run benchmark
+        env:
+          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+        run: agr bench --suite tasks/ --fail-on-failure
+`;
+
 /**
  * `agr init [dir] [--force]`
  *
@@ -70,7 +98,16 @@ test("add() returns the sum of its two arguments", () => {
  * Mirrors `git init`: refuses to overwrite an existing `<dir>/agent.yaml`
  * unless `--force` is passed.
  */
-export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean }) {
+function writeCI(root: string): string {
+  const ciPath = resolve(root, ".github/workflows/agr.yml");
+  if (!existsSync(ciPath)) {
+    mkdirSync(dirname(ciPath), { recursive: true });
+    writeFileSync(ciPath, CI_WORKFLOW_YAML);
+  }
+  return ciPath;
+}
+
+export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean; ci?: boolean }) {
   const root = resolve(dir || ".");
   const agentConfigPath = resolve(root, "agent.yaml");
 
@@ -96,6 +133,10 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     console.log("  agent.yaml  - agent config (claude-haiku-4-5, provider: anthropic)");
     console.log("  .gitignore  - ignores .agr/ (run history) and .env");
     console.log("  tasks/      - put your own test cases here, e.g. tasks/<name>/agr.yaml");
+    if (opts.ci) {
+      writeCI(root);
+      console.log("  .github/workflows/agr.yml  - GitHub Actions CI workflow (runs agr bench on push/PR)");
+    }
     console.log("");
     console.log("Next steps:");
     console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
@@ -105,6 +146,10 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     console.log("     `agr run <name>` works without --config, or always pass --config agent.yaml.");
     console.log("  3. Run `agr list-tests` to confirm it's found, then `agr run <name>`.");
     console.log("  4. Check your DB summary any time with `agr status`.");
+    if (opts.ci) {
+      console.log("  5. Add ANTHROPIC_API_KEY as a GitHub Actions secret to enable CI:");
+      console.log("     https://docs.github.com/en/actions/security-for-github-actions/using-secrets-in-github-actions");
+    }
     return;
   }
 
@@ -120,10 +165,14 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   console.log(`Scaffolded a new agentgrader project in ${root}`);
   console.log("");
   console.log("Created:");
-  console.log("  agent.yaml                     - agent config (claude-haiku-4-5, provider: anthropic)");
-  console.log("  .gitignore                     - ignores .agr/ (run history) and .env");
-  console.log("  tasks/hello-world/agr.yaml      - a tiny test case (implement add() in math.js)");
-  console.log("  tasks/hello-world/fixture/      - starter project for the test case");
+  console.log("  agent.yaml                         - agent config (claude-haiku-4-5, provider: anthropic)");
+  console.log("  .gitignore                         - ignores .agr/ (run history) and .env");
+  console.log("  tasks/hello-world/agr.yaml          - a tiny test case (implement add() in math.js)");
+  console.log("  tasks/hello-world/fixture/          - starter project for the test case");
+  if (opts.ci) {
+    writeCI(root);
+    console.log("  .github/workflows/agr.yml          - GitHub Actions CI workflow (runs agr bench on push/PR)");
+  }
   console.log("");
   console.log("Next steps:");
   console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
@@ -134,4 +183,8 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
   console.log("  3. Inspect the trace afterwards with `agr trace --last` (or");
   console.log("     `agr trace <runId>` if you want to reference a specific run).");
   console.log("  4. Check your DB summary any time with `agr status`.");
+  if (opts.ci) {
+    console.log("  5. Add ANTHROPIC_API_KEY as a GitHub Actions secret to enable CI:");
+    console.log("     https://docs.github.com/en/actions/security-for-github-actions/using-secrets-in-github-actions");
+  }
 }
