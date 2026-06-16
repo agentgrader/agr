@@ -67,6 +67,7 @@ export async function runBenchCommand(opts: {
   shuffle?: boolean;
   model?: string;
   maxSteps?: number;
+  skipTags?: string[];
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -124,6 +125,9 @@ export async function runBenchCommand(opts: {
   if (opts.tags?.length && !suiteDir) {
     console.warn(`Warning: --tags has no effect without --suite (tags: ${opts.tags.join(", ")})`);
   }
+  if (opts.skipTags?.length && !suiteDir) {
+    console.warn(`Warning: --skip-tags has no effect without --suite (skip-tags: ${opts.skipTags.join(", ")})`);
+  }
 
   let yamlFiles: string[];
   let testCases: TestCase[];
@@ -165,6 +169,19 @@ export async function runBenchCommand(opts: {
         console.log(
           `Tag filter [${opts.tags.join(", ")}]: ${pairs.length} of ${beforeCount} test case(s) matched`,
         );
+      }
+    }
+
+    if (opts.skipTags?.length) {
+      const skipSet = new Set(opts.skipTags);
+      const beforeCount = pairs.length;
+      pairs = pairs.filter(({ tc }) => !(tc.tags ?? []).some(t => skipSet.has(t)));
+      if (pairs.length === 0) {
+        console.error(`--skip-tags [${opts.skipTags.join(", ")}] excluded all test cases. Remove or adjust the filter.`);
+        process.exit(1);
+      }
+      if (pairs.length < beforeCount) {
+        console.log(`--skip-tags [${opts.skipTags.join(", ")}]: skipped ${beforeCount - pairs.length} test case(s), ${pairs.length} remaining`);
       }
     }
 
