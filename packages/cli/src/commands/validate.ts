@@ -1,7 +1,7 @@
 import { type ValidationCheck, validateTestCase, auditToolkitDirectory, hasAuditErrors } from "@agentgrader/core";
 import { resolve } from "node:path";
 import { resolveSandbox } from "../lib/resolve-sandbox";
-import { loadTestCase, resolveTestCasePath } from "../lib/load-test-case";
+import { findTestCaseYamlFiles, loadTestCase, resolveTestCasePath } from "../lib/load-test-case";
 
 function isSkippedCheck(check: ValidationCheck): boolean {
   return (
@@ -98,39 +98,51 @@ async function validateOne(
 
 export async function validateCommand(
   testCasePaths: string | string[],
-  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean },
+  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string },
 ) {
-  const inputs = Array.isArray(testCasePaths) ? testCasePaths : [testCasePaths];
-  if (inputs.length === 0) {
-    console.error("No test case specified. Usage: agr validate <testCase> [testCase...]");
-    process.exit(1);
-  }
-
   const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
   const safeOpts = opts ?? {};
 
-  if (inputs.length === 1) {
-    const resolvedPath = resolveTestCasePath(inputs[0]!);
-    const testCase = loadTestCase(resolvedPath);
-    console.log(`Validating "${testCase.name}" (${resolvedPath})...\n`);
-    const ok = await validateOne(inputs[0]!, safeOpts, sandboxProvider);
+  let resolvedPaths: string[];
+
+  if (opts?.suite) {
+    const suiteDir = resolve(opts.suite);
+    const yamlFiles = findTestCaseYamlFiles(suiteDir);
+    if (yamlFiles.length === 0) {
+      console.error(`No test cases found in suite directory: ${suiteDir}`);
+      process.exit(1);
+    }
+    resolvedPaths = yamlFiles;
+    console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}\n`);
+  } else {
+    const inputs = Array.isArray(testCasePaths) ? testCasePaths : [testCasePaths];
+    if (inputs.length === 0) {
+      console.error("No test case specified. Usage: agr validate <testCase> [testCase...] or --suite <dir>");
+      process.exit(1);
+    }
+    resolvedPaths = inputs.map(i => resolveTestCasePath(i));
+  }
+
+  if (resolvedPaths.length === 1) {
+    const testCase = loadTestCase(resolvedPaths[0]!);
+    console.log(`Validating "${testCase.name}" (${resolvedPaths[0]})...\n`);
+    const ok = await validateOne(resolvedPaths[0]!, safeOpts, sandboxProvider);
     process.exit(ok ? 0 : 1);
   }
 
   let passCount = 0;
-  for (const input of inputs) {
-    const resolvedPath = resolveTestCasePath(input);
-    const testCase = loadTestCase(resolvedPath);
-    console.log(`\n--- ${testCase.name} (${resolvedPath}) ---\n`);
-    const ok = await validateOne(input, safeOpts, sandboxProvider);
+  for (const path of resolvedPaths) {
+    const testCase = loadTestCase(path);
+    console.log(`\n--- ${testCase.name} (${path}) ---\n`);
+    const ok = await validateOne(path, safeOpts, sandboxProvider);
     if (ok) passCount++;
   }
 
-  const failCount = inputs.length - passCount;
+  const failCount = resolvedPaths.length - passCount;
   console.log(
     failCount === 0
-      ? `\nAll ${inputs.length} validations passed.`
-      : `\n${passCount}/${inputs.length} validations passed, ${failCount} failed.`,
+      ? `\nAll ${resolvedPaths.length} validations passed.`
+      : `\n${passCount}/${resolvedPaths.length} validations passed, ${failCount} failed.`,
   );
   process.exit(failCount > 0 ? 1 : 0);
 }
