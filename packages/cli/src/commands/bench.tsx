@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { basename, dirname, resolve } from "path";
+import { basename, dirname, relative, resolve } from "path";
 import { render } from "ink";
 import React from "react";
 import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, type AgrDb } from "@agentgrader/store";
@@ -59,6 +59,7 @@ export async function runBenchCommand(opts: {
   judgeGate?: boolean;
   judgeMinScore?: number;
   testCaseArgs?: string[];
+  dryRun?: boolean;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -153,6 +154,38 @@ export async function runBenchCommand(opts: {
     console.log(
       `Using shared agent_config from agr.yaml: ${sharedAgentConfig} (${agentConfigs.length} config).`,
     );
+  }
+
+  if (opts.dryRun) {
+    const cwd = process.cwd();
+    const totalRuns = testCases.length * Math.max(agentConfigs.length, 1);
+    const configLabel = agentConfigs.length === 1 ? "config" : "configs";
+    console.log(
+      `\nBench dry run -- ${testCases.length} test case(s) x ${agentConfigs.length} ${configLabel} = ${totalRuns} run(s)\n`,
+    );
+    console.log("Test cases:");
+    const tcNameWidth = Math.max(...testCases.map(tc => tc.name.length));
+    for (let i = 0; i < testCases.length; i++) {
+      const tc = testCases[i]!;
+      const rel = relative(cwd, yamlFiles[i]!);
+      console.log(`  ${tc.name.padEnd(tcNameWidth)}  ${rel}`);
+    }
+    console.log("");
+    if (agentConfigs.length > 0) {
+      console.log("Agent configs:");
+      const acNameWidth = Math.max(...agentConfigs.map(ac => ac.name.length));
+      const acModelWidth = Math.max(...agentConfigs.map(ac => (ac.model ?? "").length));
+      for (const ac of agentConfigs) {
+        const name = ac.name.padEnd(acNameWidth);
+        const model = (ac.model ?? "").padEnd(acModelWidth);
+        console.log(`  ${name}  ${model}`);
+      }
+      console.log("");
+    }
+    const concurrency = opts.concurrency ?? 2;
+    console.log(`Total: ${totalRuns} job(s)  concurrency: ${concurrency}`);
+    console.log("\nRe-run without --dry-run to execute.");
+    return;
   }
 
   // 3. open the sqlite db
