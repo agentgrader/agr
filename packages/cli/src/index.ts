@@ -261,14 +261,22 @@ cli
   .option("--since <duration|date>", "Restrict stats to runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .option("--test-case <name>", "Restrict stats to runs for this specific test case (substring match)")
   .option("--config <name>", "Restrict stats to runs for this specific agent config (substring match)")
+  .option("--passed", "Restrict stats to runs that passed")
+  .option("--failed", "Restrict stats to runs that failed")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
   .example("agr status --test-case hello-world")
   .example("agr status --config agent-fast")
+  .example("agr status --failed")
   .action(async (options) => {
     try {
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config });
+      if (options.passed && options.failed) {
+        console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const passed = options.passed ? true : options.failed ? false : undefined;
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, passed });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
@@ -283,14 +291,22 @@ cli
   .option("--since <duration|date>", "Only show runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .option("--test-case <name>", "Only show runs for this specific test case (substring match)")
   .option("--config <name>", "Only show runs for this specific agent config (substring match)")
+  .option("--passed", "Only show runs that passed")
+  .option("--failed", "Only show runs that failed")
   .example("agr list")
   .example("agr list --limit 20")
   .example("agr list --plain")
   .example("agr list --plain --since 24h")
   .example("agr list --plain --test-case hello-world")
   .example("agr list --plain --config agent-fast")
+  .example("agr list --plain --failed")
   .action(async (options) => {
     try {
+      if (options.passed && options.failed) {
+        console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const passed = options.passed ? true : options.failed ? false : undefined;
       await listCommand({
         db: options.db,
         limit: Number(options.limit),
@@ -298,6 +314,7 @@ cli
         since: options.since,
         testCase: options.testCase,
         config: options.config,
+        passed,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);

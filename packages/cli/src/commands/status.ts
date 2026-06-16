@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -41,6 +41,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   }
   if (opts.config) {
     runs = runs.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+  }
+  if (opts.passed !== undefined) {
+    runs = runs.filter((r) => r.passed === opts.passed);
   }
 
   if (runs.length === 0) {
@@ -76,6 +79,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       since: opts.since ?? null,
       testCase: opts.testCase ?? null,
       config: opts.config ?? null,
+      passed: opts.passed ?? null,
       totalRuns: runs.length,
       passedRuns,
       failedRuns,
@@ -100,8 +104,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const lastRunDetail = lastRun ? `  (${lastRun.testCaseId} with ${lastRun.agentConfigId})` : "";
   const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
   const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
+  const passedScope = opts.passed === true ? "  [passed only]" : opts.passed === false ? "  [failed only]" : "";
 
-  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}\n`);
+  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}${passedScope}\n`);
   console.log(`  Runs:       ${runs.length} total  (${passedRuns} passed, ${failedRuns} failed${erroredRuns > 0 ? `, ${erroredRuns} errored` : ""})`);
   if (runs.length > 0 && (passedRuns > 0 || failedRuns > 0)) {
     console.log(`  Solve rate: ${solveRate.toFixed(1)}%`);

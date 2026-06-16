@@ -14,6 +14,7 @@ export interface ListCommandOptions {
   since?: string;
   testCase?: string;
   config?: string;
+  passed?: boolean;
 }
 
 function printPlainList(
@@ -22,12 +23,14 @@ function printPlainList(
   sinceLabel?: string,
   tcLabel?: string,
   cfgLabel?: string,
+  passedLabel?: string,
 ): void {
   if (runs.length === 0) {
     const scope = [
       sinceLabel ? `since ${sinceLabel}` : "",
       tcLabel ? `for test case "${tcLabel}"` : "",
       cfgLabel ? `for config "${cfgLabel}"` : "",
+      passedLabel ? passedLabel : "",
     ].filter(Boolean).join(", ");
     console.log(`No runs found in ${dbPath}${scope ? ` (${scope})` : ""}.`);
     console.log("Run `agr run` or `agr bench` first.");
@@ -37,7 +40,8 @@ function printPlainList(
   const sinceNote = sinceLabel ? `  [since ${sinceLabel}]` : "";
   const tcNote = tcLabel ? `  [test case: ${tcLabel}]` : "";
   const cfgNote = cfgLabel ? `  [config: ${cfgLabel}]` : "";
-  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}${tcNote}${cfgNote}:\n`);
+  const passedNote = passedLabel ? `  [${passedLabel}]` : "";
+  console.log(`Runs in ${dbPath} (${runs.length} shown)${sinceNote}${tcNote}${cfgNote}${passedNote}:\n`);
   for (const run of runs) {
     const status = formatRunStatus(run);
     const when = formatRunWhen(run.createdAt);
@@ -63,13 +67,14 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
   const sinceTs = options.since ? parseSince(options.since) : undefined;
-  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config);
+  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed);
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   const tcLabel = options.testCase ? options.testCase : undefined;
   const cfgLabel = options.config ? options.config : undefined;
+  const passedLabel = options.passed === true ? "passed only" : options.passed === false ? "failed only" : undefined;
   if (options.plain || !process.stdout.isTTY) {
-    printPlainList(runs, dbPath, sinceLabel, tcLabel, cfgLabel);
+    printPlainList(runs, dbPath, sinceLabel, tcLabel, cfgLabel, passedLabel);
     return;
   }
 
