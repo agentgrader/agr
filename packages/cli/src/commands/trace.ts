@@ -21,7 +21,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   if (opts.last) {
     const runs = await listRuns(db);
     if (runs.length === 0) {
-      console.error("No runs found in .agr/db.sqlite.");
+      console.error("No runs found in .agr/db.sqlite. Run `agr run` or `agr bench` first.");
       process.exit(1);
     }
     resolvedRunId = runs[0]!.id;
