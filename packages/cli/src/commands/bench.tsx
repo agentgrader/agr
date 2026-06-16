@@ -121,6 +121,7 @@ export async function runBenchCommand(opts: {
       process.exit(1);
     }
     const allTestCases = allYamlFiles.map(f => loadTestCase(f));
+    console.log(`Suite: ${allTestCases.length} test case(s) in ${relative(process.cwd(), suiteDir) || suiteDir}`);
 
     let pairs = allTestCases.map((tc, i) => ({ tc, yaml: allYamlFiles[i]! }));
 
