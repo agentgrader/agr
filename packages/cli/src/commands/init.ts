@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { printInitOutput } from "../lib/init-output";
 
 const GITIGNORE = `# Agentgrader run history and exports
 .agr/
@@ -162,30 +163,9 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
 
   if (opts.blank) {
     mkdirSync(resolve(root, "tasks"), { recursive: true });
+    if (opts.ci) writeCI(root);
 
-    console.log(`Scaffolded a blank agentgrader project in ${root}`);
-    console.log("");
-    console.log("Created:");
-    console.log("  agent.yaml  - agent config (claude-haiku-4-5, provider: anthropic)");
-    console.log("  .gitignore  - ignores .agr/ (run history) and .env");
-    console.log("  tasks/      - put your own test cases here, e.g. tasks/<name>/agr.yaml");
-    if (opts.ci) {
-      writeCI(root);
-      console.log("  .github/workflows/agr.yml  - GitHub Actions CI workflow (runs agr bench on push/PR)");
-    }
-    console.log("");
-    console.log("Next steps:");
-    console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
-    console.log("  2. Add a test case under tasks/<name>/agr.yaml (see");
-    console.log("     https://agentgrader.dev/guide/concepts for the schema).");
-    console.log("     Tip: include `agent_config: ../../agent.yaml` in each agr.yaml so");
-    console.log("     `agr run <name>` works without --config, or always pass --config agent.yaml.");
-    console.log("  3. Run `agr list-tests` to confirm it's found, then `agr run <name>`.");
-    console.log("  4. Check your DB summary any time with `agr status`.");
-    if (opts.ci) {
-      console.log("  5. Add ANTHROPIC_API_KEY as a GitHub Actions secret to enable CI:");
-      console.log("     https://docs.github.com/en/actions/security-for-github-actions/using-secrets-in-github-actions");
-    }
+    printInitOutput({ root, kind: "blank", ci: opts.ci });
     return;
   }
 
@@ -207,40 +187,12 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     writeFileSync(resolve(fixtureDir, "math.test.js"), FIXTURE_MATH_TEST_JS);
   }
 
-  console.log(`Scaffolded a new agentgrader project in ${root}`);
-  console.log("");
-  console.log("Created:");
-  console.log("  agent.yaml                         - agent config (claude-haiku-4-5, provider: anthropic)");
-  console.log("  .gitignore                         - ignores .agr/ (run history) and .env");
-  if (isPython) {
-    console.log(`  tasks/${taskName}/agr.yaml  - a tiny test case (implement add() in math.py, verified with pytest)`);
-    console.log(`  tasks/${taskName}/fixture/  - starter project for the test case`);
-  } else {
-    console.log("  tasks/hello-world/agr.yaml          - a tiny test case (implement add() in math.js)");
-    console.log("  tasks/hello-world/fixture/          - starter project for the test case");
-  }
-  if (opts.ci) {
-    writeCI(root);
-    console.log("  .github/workflows/agr.yml          - GitHub Actions CI workflow (runs agr bench on push/PR)");
-  }
-  console.log("");
-  if (isPython) {
-    console.log("Note: the Python example requires pytest in the sandbox Docker image.");
-    console.log("      If using the default image, add a requirements.txt with `pytest` or");
-    console.log("      use a custom image with pytest pre-installed.");
-    console.log("");
-  }
-  console.log("Next steps:");
-  console.log("  1. Make sure ANTHROPIC_API_KEY is set in your environment.");
-  console.log("  2. Try it out:");
-  console.log("");
-  console.log(`       agr run ${taskName} --verbose`);
-  console.log("");
-  console.log("  3. Inspect the trace afterwards with `agr trace --last` (or");
-  console.log("     `agr trace <runId>` if you want to reference a specific run).");
-  console.log("  4. Check your DB summary any time with `agr status`.");
-  if (opts.ci) {
-    console.log("  5. Add ANTHROPIC_API_KEY as a GitHub Actions secret to enable CI:");
-    console.log("     https://docs.github.com/en/actions/security-for-github-actions/using-secrets-in-github-actions");
-  }
+  if (opts.ci) writeCI(root);
+
+  printInitOutput({
+    root,
+    kind: isPython ? "python" : "default",
+    taskName,
+    ci: opts.ci,
+  });
 }

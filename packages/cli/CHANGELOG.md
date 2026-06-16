@@ -1,5 +1,11 @@
 # agentgrader
 
+## 1.7.2
+
+### Patch Changes
+
+- Restyle `agr init` success output with colors, file tree hints, and numbered next steps.
+
 ## 1.7.1
 
 ### Patch Changes
