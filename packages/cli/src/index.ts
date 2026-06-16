@@ -3,6 +3,7 @@ import { cac } from "cac";
 import { cleanupCommand } from "./commands/cleanup";
 import { compareCommand } from "./commands/compare";
 import { compareBaselineCommand } from "./commands/compare-baseline";
+import { doctorCommand } from "./commands/doctor";
 import { exportCommand } from "./commands/export";
 import { runBenchCommand } from "./commands/bench";
 import { importPrCommand } from "./commands/import-pr";
@@ -528,6 +529,21 @@ cli
       await toolkitListCommand(dir, options);
     } catch (err: any) {
       console.error(`Error executing toolkit-list: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("doctor", "Check that the local environment is set up correctly for running agentgrader benchmarks")
+  .option("--db <path>", "Path to the SQLite database to check", { default: ".agr/db.sqlite" })
+  .option("--suite <dir>", "Test suite directory to check for agr.yaml files", { default: "tasks" })
+  .example("agr doctor")
+  .example("agr doctor --suite my-tasks/")
+  .action(async (options) => {
+    try {
+      await doctorCommand({ db: options.db, suite: options.suite });
+    } catch (err: any) {
+      console.error(`Error executing doctor: ${err.message}`);
       process.exit(1);
     }
   });
