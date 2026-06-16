@@ -1,0 +1,56 @@
+#!/bin/sh
+# file-log - show the recent commit history for a specific file, including
+# the commit message and author. Useful for understanding why code was
+# written the way it was, or when a bug was introduced.
+#
+# Usage: file-log <file> [--limit N]
+#
+# Output: one entry per commit, format: "<short-sha>  <date>  <author>  <message>"
+
+set -e
+
+LIMIT=10
+FILE=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --limit)
+      LIMIT="$2"
+      shift 2
+      ;;
+    --limit=*)
+      LIMIT="${1#--limit=}"
+      shift
+      ;;
+    -*)
+      echo "Unknown flag: $1" >&2
+      exit 1
+      ;;
+    *)
+      if [ -z "$FILE" ]; then
+        FILE="$1"
+      else
+        echo "file-log: unexpected argument '$1'" >&2
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$FILE" ]; then
+  echo "Usage: file-log <file> [--limit N]" >&2
+  exit 1
+fi
+
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+  echo "file-log: not inside a git repository" >&2
+  exit 1
+fi
+
+if [ ! -e "$FILE" ]; then
+  echo "file-log: '$FILE' does not exist" >&2
+  exit 1
+fi
+
+git log --oneline --format="%h  %ar  %an  %s" -n "$LIMIT" -- "$FILE"
