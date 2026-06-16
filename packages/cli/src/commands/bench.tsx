@@ -358,6 +358,10 @@ export async function runBenchCommand(opts: {
     } else {
       const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
       console.log(`\nResult: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)  cost: $${totalCost.toFixed(4)}  elapsed: ${elapsedSec}s`);
+      const failedCases = Object.values(runStates).filter(r => !r.passed).map(r => r.testCaseId);
+      if (failedCases.length > 0 && failedCases.length <= 10) {
+        console.log(`  Failed: ${failedCases.join(", ")}`);
+      }
     }
   }
 
