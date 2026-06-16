@@ -137,6 +137,10 @@ export async function runSingleCommand(
       exitCode = 0;
     }
 
+    if (opts.report && !opts.output) {
+      console.warn(`Warning: --report ${opts.report} has no effect without --output <path>.`);
+    }
+
     if (opts.report && opts.output) {
       const summary = computeBenchmarkSummary([result], [agentConfig.id || agentConfig.name]);
       const report = await buildReportFromRunIds(
