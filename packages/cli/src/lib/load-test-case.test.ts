@@ -457,3 +457,21 @@ describe("findTestCaseYamlFiles", () => {
     expect(findTestCaseYamlFiles(join(dir, "does-not-exist"))).toEqual([]);
   });
 });
+
+describe("loadTestCase on examples/suites", () => {
+  const suitesDir = resolve(import.meta.dir, "../../../../examples/suites");
+  const yamlFiles = findTestCaseYamlFiles(suitesDir);
+
+  test("found example test cases to check", () => {
+    expect(yamlFiles.length).toBeGreaterThan(0);
+  });
+
+  for (const file of yamlFiles) {
+    const label = file.replace(suitesDir + "/", "");
+    test(`${label} loads without error`, () => {
+      const tc = loadTestCase(file);
+      expect(tc.name).toBeTruthy();
+      expect(tc.prompt).toBeTruthy();
+    });
+  }
+});
