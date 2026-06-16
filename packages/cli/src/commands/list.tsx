@@ -29,8 +29,9 @@ function printPlainList(
     console.log(`${shortRunId(run.id)}  ${status.padEnd(5)}  ${run.testCaseName}`);
     console.log(`         agent: ${run.agentConfigName} (${run.agentModel})`);
     console.log(`         when:  ${when}`);
+    const tokNote = run.tokensIn > 0 || run.tokensOut > 0 ? `  tokens: ${run.tokensIn}in/${run.tokensOut}out` : "";
     console.log(
-      `         cost: $${run.costUsd.toFixed(4)}  steps: ${run.stepsCount}  duration: ${formatDuration(run.durationMs)}  sandbox: ${run.sandboxProvider}`,
+      `         cost: $${run.costUsd.toFixed(4)}  steps: ${run.stepsCount}  duration: ${formatDuration(run.durationMs)}  sandbox: ${run.sandboxProvider}${tokNote}`,
     );
     if (run.matrixId) console.log(`         matrix: ${run.matrixId}`);
     if (run.error) console.log(`         error: ${run.error}`);
