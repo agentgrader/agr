@@ -438,11 +438,12 @@ export async function runBenchCommand(opts: {
 
   let nextHint: string;
   const gateTriggered = reasons.length > 0;
+  const needsDebug = gateTriggered || (summary.totalRuns > 0 && summary.passedRuns === 0);
   if (opts.saveBaseline) {
     nextHint = `Baseline saved to ${opts.saveBaseline}. On a PR branch: agr bench ... && agr compare-baseline --current ${opts.saveBaseline} --format md --output comment.md --fail-on-regression`;
   } else if (matrixId) {
     nextHint = `Next: agr export runs --matrix-id ${matrixId} --format jsonl --output sweep.jsonl  |  agr list`;
-  } else if (gateTriggered) {
+  } else if (needsDebug) {
     if (agentConfigs.length > 1) {
       nextHint = `Inspect: agr compare --last-two --only-diff  |  agr trace --last --quality  |  agr list`;
     } else {
