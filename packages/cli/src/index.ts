@@ -464,7 +464,9 @@ cli
 cli
   .command("validate-toolkit <dir>", "Run security audit on a toolkit directory")
   .option("--strict", "Exit with code 1 on warnings as well as errors")
+  .option("--json", "Output audit result as a JSON object {dir, passed, findings[]} with {file, severity, rule, message} per finding")
   .example("agr validate-toolkit ./toolkits/jetbrains-tools")
+  .example("agr validate-toolkit ./toolkits/jetbrains-tools --json | jq .passed")
   .action(async (dir, options) => {
     try {
       await validateToolkitCommand(dir, options);
