@@ -7,7 +7,7 @@ import { runBenchmark, summaryFromRunStates, auditToolkitDirectory, hasAuditErro
 import { evaluateBenchExit } from "../lib/bench-exit";
 import { buildExtraScorers } from "../lib/extra-scorers";
 import { buildReportFromRunIds } from "../lib/report/build-report";
-import { writeReport, type ReportFormat } from "../lib/report/write-report";
+import { buildTimestampedReportPath, writeReport, type ReportFormat } from "../lib/report/write-report";
 import {
   buildBaselineSnapshotFromRunIds,
   saveBaselineSnapshot,
@@ -50,6 +50,7 @@ export async function runBenchCommand(opts: {
   minSolveRateScope?: "global" | "per-config";
   report?: ReportFormat;
   output?: string;
+  reportDir?: string;
   reportIncludeTraces?: boolean;
   saveBaseline?: string;
   sandbox?: string;
@@ -555,11 +556,11 @@ export async function runBenchCommand(opts: {
     }
   }
 
-  if (opts.report && !opts.output) {
-    console.warn(`Warning: --report ${opts.report} has no effect without --output <path>.`);
+  if (opts.report && !opts.output && !opts.reportDir) {
+    console.warn(`Warning: --report ${opts.report} has no effect without --output <path> or --report-dir <dir>.`);
   }
 
-  if (opts.report && opts.output) {
+  if (opts.report && (opts.output || opts.reportDir)) {
     const runIds = Object.values(runStates)
       .map((r) => r.runId)
       .filter((id): id is string => !!id);
@@ -570,7 +571,8 @@ export async function runBenchCommand(opts: {
       agentConfigs,
       !!opts.reportIncludeTraces,
     );
-    const path = writeReport(report, opts.report, opts.output);
+    const outputPath = opts.output ?? buildTimestampedReportPath(opts.reportDir!, opts.report);
+    const path = writeReport(report, opts.report, outputPath);
     console.log(`Report written to ${path}`);
   }
 
