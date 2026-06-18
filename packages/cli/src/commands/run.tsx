@@ -46,6 +46,7 @@ export async function runSingleCommand(
     judgeGate?: boolean;
     judgeMinScore?: number;
     repeat?: number;
+    stepTimeout?: number;
   },
 ) {
   const resolvedPath = resolveTestCasePath(testCasePath);
@@ -78,6 +79,13 @@ export async function runSingleCommand(
       console.log(formatOverrideLine("steps", before, String(opts.maxSteps), { colors: stdoutSupportsColor() }));
     }
     agentConfig = { ...agentConfig, max_steps: opts.maxSteps, maxSteps: opts.maxSteps };
+  }
+
+  if (opts.stepTimeout !== undefined) {
+    if (!opts.json) {
+      console.log(formatOverrideLine("step_timeout_ms", String(agentConfig.step_timeout_ms ?? 120000), String(opts.stepTimeout), { colors: stdoutSupportsColor() }));
+    }
+    agentConfig = { ...agentConfig, step_timeout_ms: opts.stepTimeout };
   }
 
   const adapterName = opts.adapter ?? "ai-sdk";

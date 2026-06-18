@@ -89,6 +89,7 @@ cli
   .option("--llm-judge-model <model>", "LLM judge model slug")
   .option("--judge-gate", "Fail the run when the LLM judge score is below --judge-min-score")
   .option("--judge-min-score <score>", "Minimum LLM judge score when --judge-gate is set", { default: 0.7 })
+  .option("--step-timeout <ms>", "Override step_timeout_ms for this run (ms per LLM provider call before abort)")
   .option("--json", "Output run result as a single JSON object (suppresses the live UI; useful for scripting and CI)")
   .example("agr run hello-world")
   .example("agr run hello-world --config agent.yaml --verbose")
@@ -98,7 +99,7 @@ cli
   .example("agr run hello-world --json")
   .action(async (testCase, options) => {
     try {
-      await runSingleCommand(testCase, { ...options, json: options.json, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined });
+      await runSingleCommand(testCase, { ...options, json: options.json, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined, stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined });
     } catch (err: any) {
       console.error(`Error executing run: ${err.message}`);
       process.exit(1);
@@ -150,6 +151,7 @@ cli
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
   .option("--max-steps <n>", "Override the max_steps for all agent configs in this bench run")
+  .option("--step-timeout <ms>", "Override step_timeout_ms for all agent configs in this bench run (ms per LLM provider call before abort)")
   .option("--name <substring>", "Filter test cases by name substring (case-insensitive); applied after --tags and --skip-tags. Requires --suite.")
   .option("--json", "Output bench results as a single JSON object and suppress the live dashboard; useful for scripting and CI pipelines")
   .example("agr bench hello-world")
@@ -224,6 +226,7 @@ cli
         shuffle: options.shuffle,
         model: options.model,
         maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
+        stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined,
         name: options.name,
         json: options.json,
       });
@@ -246,12 +249,14 @@ cli
   .option("--audit-toolkits", "Run security audit on toolkits referenced by the test case")
   .option("--suite <dir>", "Validate every test case found under this directory")
   .option("--tags <tags>", "Comma-separated list of tags; only validate matching test cases (requires --suite)")
+  .option("--name <substring>", "Filter test cases by name substring (case-insensitive); requires --suite")
   .option("--json", "Output validation results as a single JSON object; suppresses per-check console output")
   .example("agr validate fix-greeting")
   .example("agr validate fix-greeting --strict")
   .example("agr validate task-a task-b task-c --strict")
   .example("agr validate --suite tasks/ --strict")
   .example("agr validate --suite tasks/ --tags python --strict")
+  .example("agr validate --suite tasks/ --name fix --strict")
   .example("agr validate fix-greeting --json")
   .action(async (testCases, options) => {
     try {
@@ -260,7 +265,7 @@ cli
         process.exit(1);
       }
       const tags = options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
-      await validateCommand(testCases ?? [], { ...options, suite: options.suite, tags, json: options.json });
+      await validateCommand(testCases ?? [], { ...options, suite: options.suite, tags, json: options.json, name: options.name });
     } catch (err: any) {
       console.error(`Error executing validate: ${err.message}`);
       process.exit(1);
