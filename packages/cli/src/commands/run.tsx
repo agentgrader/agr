@@ -9,7 +9,7 @@ import { resolveAdapter } from "../lib/resolve-adapters";
 import { loadTestCase, resolveTestCasePath, testCaseToDbRow } from "../lib/load-test-case";
 import { buildExtraScorers } from "../lib/extra-scorers";
 import { buildReportFromRunIds } from "../lib/report/build-report";
-import { writeReport, type ReportFormat } from "../lib/report/write-report";
+import { buildTimestampedReportPath, writeReport, type ReportFormat } from "../lib/report/write-report";
 import { buildBaselineSnapshotFromRunIds, saveBaselineSnapshot } from "../lib/baseline";
 import { RunView, type RunSummary } from "../ui/RunView";
 import { formatDuration } from "../lib/format-relative-time";
@@ -49,6 +49,7 @@ export async function runSingleCommand(
     repeat?: number;
     stepTimeout?: number;
     saveBaseline?: string;
+    reportDir?: string;
   },
 ) {
   const resolvedPath = resolveTestCasePath(testCasePath);
@@ -337,11 +338,11 @@ export async function runSingleCommand(
       exitCode = 0;
     }
 
-    if (opts.report && !opts.output) {
-      console.warn(formatWarning(`--report ${opts.report} has no effect without --output <path>`, { colors: stdoutSupportsColor() }));
+    if (opts.report && !opts.output && !opts.reportDir) {
+      console.warn(formatWarning(`--report ${opts.report} has no effect without --output <path> or --report-dir <dir>`, { colors: stdoutSupportsColor() }));
     }
 
-    if (opts.report && opts.output) {
+    if (opts.report && (opts.output || opts.reportDir)) {
       const benchSummary = computeBenchmarkSummary([result], [agentConfig.id || agentConfig.name]);
       const report = await buildReportFromRunIds(
         db,
@@ -350,7 +351,8 @@ export async function runSingleCommand(
         [agentConfig],
         !!opts.reportIncludeTraces,
       );
-      const path = writeReport(report, opts.report, opts.output);
+      const outputPath = opts.output ?? buildTimestampedReportPath(opts.reportDir!, opts.report, "run");
+      const path = writeReport(report, opts.report, outputPath);
       console.log(formatSuccess(`report written to ${path}`, { colors: stdoutSupportsColor() }));
     }
 

@@ -20,6 +20,12 @@ export function resolveReportOutputPath(format: ReportFormat, output: string): s
   return `${output}${DEFAULT_EXT[format]}`;
 }
 
+export function buildTimestampedReportPath(dir: string, format: ReportFormat, prefix = "bench"): string {
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+  return `${dir}/${prefix}-${ts}${DEFAULT_EXT[format]}`;
+}
+
 export function writeReport(
   report: BenchReport,
   format: ReportFormat,
