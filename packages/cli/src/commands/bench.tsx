@@ -284,6 +284,26 @@ export async function runBenchCommand(opts: {
   if (opts.dryRun) {
     const cwd = process.cwd();
     const totalRuns = testCases.length * Math.max(agentConfigs.length, 1);
+    const concurrency = opts.concurrency ?? 2;
+
+    if (opts.json) {
+      console.log(JSON.stringify({
+        testCases: testCases.map((tc, i) => ({
+          name: tc.name,
+          path: relative(cwd, yamlFiles[i]!),
+          tags: tc.tags ?? [],
+        })),
+        agentConfigs: agentConfigs.map((ac) => ({
+          id: ac.id || ac.name,
+          name: ac.name,
+          model: ac.model ?? null,
+        })),
+        totalRuns,
+        concurrency,
+      }));
+      return;
+    }
+
     const configLabel = agentConfigs.length === 1 ? "config" : "configs";
     console.log(
       `\nBench dry run -- ${testCases.length} test case(s) x ${agentConfigs.length} ${configLabel} = ${totalRuns} run(s)\n`,
@@ -309,7 +329,6 @@ export async function runBenchCommand(opts: {
       }
       console.log("");
     }
-    const concurrency = opts.concurrency ?? 2;
     console.log(`Total: ${totalRuns} job(s)  concurrency: ${concurrency}`);
     console.log("\nRe-run without --dry-run to execute.");
     return;
