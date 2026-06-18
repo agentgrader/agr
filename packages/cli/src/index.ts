@@ -510,10 +510,12 @@ cli
   .option("--last-two", "Compare the two most recent runs (no run IDs needed)")
   .option("--test-case <name>", "With --last-two, compare the two most recent runs for this specific test case")
   .option("--config <name>", "With --last-two, compare the two most recent runs for this specific agent config (substring match)")
+  .option("--json", "Output comparison result as a single JSON object {runA, runB, divergentCount, totalSteps, firstDivergence, steps[]}")
   .example("agr compare <runIdA> <runIdB> --only-diff")
   .example("agr compare --last-two --only-diff")
   .example("agr compare --last-two --test-case hello-world")
   .example("agr compare --last-two --config agent-a")
+  .example("agr compare --last-two --json | jq .divergentCount")
   .action(async (runIdA, runIdB, options) => {
     try {
       await compareCommand(runIdA, runIdB, { ...options, lastTwo: options.lastTwo, testCase: options.testCase, config: options.config });

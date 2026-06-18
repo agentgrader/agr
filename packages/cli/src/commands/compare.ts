@@ -84,7 +84,7 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
 export async function compareCommand(
   runIdA: string | undefined,
   runIdB: string | undefined,
-  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; testCase?: string; config?: string },
+  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; testCase?: string; config?: string; json?: boolean },
 ) {
   const db = initDb();
 
@@ -135,13 +135,15 @@ export async function compareCommand(
     process.exit(1);
   }
 
-  console.log("");
-  printRunHeader("A", runA);
-  console.log("");
-  printRunHeader("B", runB);
-  console.log("");
+  if (!opts.json) {
+    console.log("");
+    printRunHeader("A", runA);
+    console.log("");
+    printRunHeader("B", runB);
+    console.log("");
+  }
 
-  if (runA.testCaseId !== runB.testCaseId) {
+  if (!opts.json && runA.testCaseId !== runB.testCaseId) {
     console.log(
       paint(
         "[WARN] Comparing runs of different test cases - step alignment may not be meaningful.",
@@ -160,7 +162,11 @@ export async function compareCommand(
   );
 
   if (maxIndex < 0) {
-    console.log("No steps recorded for either run.");
+    if (opts.json) {
+      console.log(JSON.stringify({ runA: runA.id, runB: runB.id, divergentCount: 0, totalSteps: 0, firstDivergence: null, steps: [] }));
+    } else {
+      console.log("No steps recorded for either run.");
+    }
     return;
   }
 
@@ -169,6 +175,47 @@ export async function compareCommand(
     if (stepsDiverge(mapA.get(i), mapB.get(i))) {
       divergentIndices.add(i);
     }
+  }
+
+  const totalSteps = maxIndex + 1;
+  const diffCount = divergentIndices.size;
+  let firstDivergence: number | null = null;
+  for (let i = 0; i <= maxIndex; i++) {
+    if (divergentIndices.has(i)) {
+      firstDivergence = i;
+      break;
+    }
+  }
+
+  if (opts.json) {
+    function runSummary(run: NonNullable<Awaited<ReturnType<typeof getRun>>>) {
+      return {
+        id: run.id,
+        testCaseId: run.testCaseId,
+        agentConfigId: run.agentConfigId,
+        status: run.status,
+        passed: run.passed ?? null,
+        stepsCount: run.stepsCount,
+        costUsd: run.costUsd,
+        durationMs: run.durationMs,
+        tokensIn: run.tokensIn ?? null,
+        tokensOut: run.tokensOut ?? null,
+        error: run.error ?? null,
+      };
+    }
+    const steps = [];
+    for (let i = 0; i <= maxIndex; i++) {
+      const stepA = mapA.get(i);
+      const stepB = mapB.get(i);
+      steps.push({
+        index: i,
+        divergent: divergentIndices.has(i),
+        a: stepA ? { kind: stepA.kind, tool: stepA.tool ?? null, content: stepA.content ?? null } : null,
+        b: stepB ? { kind: stepB.kind, tool: stepB.tool ?? null, content: stepB.content ?? null } : null,
+      });
+    }
+    console.log(JSON.stringify({ runA: runSummary(runA), runB: runSummary(runB), divergentCount: diffCount, totalSteps, firstDivergence, steps }));
+    return;
   }
 
   const visibleIndices = new Set<number>();
@@ -201,16 +248,6 @@ export async function compareCommand(
         console.log(paint(`[step ${i}] (same)`, ANSI.gray));
         console.log(`  ${line}`);
       }
-    }
-  }
-
-  const totalSteps = maxIndex + 1;
-  const diffCount = divergentIndices.size;
-  let firstDivergence: number | null = null;
-  for (let i = 0; i <= maxIndex; i++) {
-    if (divergentIndices.has(i)) {
-      firstDivergence = i;
-      break;
     }
   }
 
