@@ -149,7 +149,7 @@ function writeCI(root: string): string {
   return ciPath;
 }
 
-export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean; ci?: boolean; example?: string }) {
+export async function initCommand(dir: string | undefined, opts: { force?: boolean; blank?: boolean; ci?: boolean; example?: string; model?: string; provider?: string }) {
   const root = resolve(dir || ".");
   const agentConfigPath = resolve(root, "agent.yaml");
 
@@ -159,7 +159,14 @@ export async function initCommand(dir: string | undefined, opts: { force?: boole
     );
   }
 
-  writeFileSync(agentConfigPath, AGENT_CONFIG_YAML);
+  let agentConfigYaml = AGENT_CONFIG_YAML;
+  if (opts.model) {
+    agentConfigYaml = agentConfigYaml.replace(/^model: .+$/m, `model: ${opts.model}`);
+  }
+  if (opts.provider) {
+    agentConfigYaml = agentConfigYaml.replace(/^provider: .+$/m, `provider: ${opts.provider}`);
+  }
+  writeFileSync(agentConfigPath, agentConfigYaml);
 
   const envExamplePath = resolve(root, ".env.example");
   if (!existsSync(envExamplePath)) {
