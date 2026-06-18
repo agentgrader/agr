@@ -161,6 +161,7 @@ cli
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
   .option("--provider <provider>", "Override the provider for all agent configs in this bench run (e.g. anthropic, openai, openrouter)")
   .option("--temperature <n>", "Override the temperature for all agent configs in this bench run (0.0–1.0)")
+  .option("--repeat <n>", "Run each test case N times per config to measure solve rate with statistical significance (e.g. --repeat 5 for pass@5)")
   .option("--max-steps <n>", "Override the max_steps for all agent configs in this bench run")
   .option("--step-timeout <ms>", "Override step_timeout_ms for all agent configs in this bench run (ms per LLM provider call before abort)")
   .option("--name <substring>", "Filter test cases by name substring (case-insensitive); applied after --tags and --skip-tags. Requires --suite.")
@@ -239,6 +240,7 @@ cli
         model: options.model,
         provider: options.provider,
         temperature: options.temperature !== undefined ? Number(options.temperature) : undefined,
+        repeat: options.repeat !== undefined ? Number(options.repeat) : undefined,
         maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
         stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined,
         name: options.name,
