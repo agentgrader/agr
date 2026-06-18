@@ -112,7 +112,7 @@ async function validateOne(
 
 export async function validateCommand(
   testCasePaths: string | string[],
-  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string; tags?: string[]; json?: boolean },
+  opts?: { strict?: boolean; sandbox?: string; auditToolkits?: boolean; suite?: string; tags?: string[]; json?: boolean; name?: string },
 ) {
   const sandboxProvider = resolveSandbox(opts?.sandbox ?? "docker");
   const safeOpts = opts ?? {};
@@ -142,10 +142,27 @@ export async function validateCommand(
       }
     }
 
+    if (opts.name) {
+      const nameFilter = opts.name.toLowerCase();
+      const beforeCount = yamlFiles.length;
+      yamlFiles = yamlFiles.filter(f => {
+        const tc = loadTestCase(f);
+        return tc.name.toLowerCase().includes(nameFilter);
+      });
+      if (yamlFiles.length === 0) {
+        console.error(`--name "${opts.name}" matched no test cases in suite. Run \`agr list-tests ${opts.suite}\` to see available names.`);
+        process.exit(1);
+      }
+      if (yamlFiles.length < beforeCount) {
+        console.log(`--name "${opts.name}": ${yamlFiles.length} of ${beforeCount} test case(s) matched`);
+      }
+    }
+
     resolvedPaths = yamlFiles;
     if (!opts.json) {
       const tagNote = opts.tags?.length ? ` [tags: ${opts.tags.join(", ")}]` : "";
-      console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}${tagNote}\n`);
+      const nameNote = opts.name ? ` [name: ${opts.name}]` : "";
+      console.log(`Validating ${yamlFiles.length} test case(s) from suite: ${suiteDir}${tagNote}${nameNote}\n`);
     }
   } else {
     if (opts?.tags?.length) {

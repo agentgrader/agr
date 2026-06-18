@@ -70,6 +70,7 @@ export async function runBenchCommand(opts: {
   skipTags?: string[];
   name?: string;
   json?: boolean;
+  stepTimeout?: number;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -271,6 +272,12 @@ export async function runBenchCommand(opts: {
     const overrideSteps = opts.maxSteps;
     console.log(`Overriding max_steps for all agent config(s): ${overrideSteps}`);
     agentConfigs = agentConfigs.map((ac) => ({ ...ac, max_steps: overrideSteps, maxSteps: overrideSteps }));
+  }
+
+  if (opts.stepTimeout !== undefined) {
+    const overrideTimeout = opts.stepTimeout;
+    console.log(`Overriding step_timeout_ms for all agent config(s): ${overrideTimeout}`);
+    agentConfigs = agentConfigs.map((ac) => ({ ...ac, step_timeout_ms: overrideTimeout }));
   }
 
   if (opts.dryRun) {
