@@ -530,8 +530,10 @@ cli
 cli
   .command("cleanup", "List (or remove) leftover sandbox containers from killed/hung runs")
   .option("--yes", "Actually remove the listed containers (default: list only)")
+  .option("--json", "Output result as a JSON object {found, removed, containers[]} with {id, image, status, ageMs} per container")
   .example("agr cleanup")
   .example("agr cleanup --yes")
+  .example("agr cleanup --json | jq .found")
   .action(async (options) => {
     try {
       await cleanupCommand(options);

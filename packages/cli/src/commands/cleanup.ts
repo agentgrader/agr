@@ -12,21 +12,41 @@ import { DockerSandboxProvider } from "@agentgrader/sandbox-docker";
  * Without `--yes`, only lists what would be removed. With `--yes`, removes
  * each one (force stop + remove).
  */
-export async function cleanupCommand(opts: { yes?: boolean }) {
+export async function cleanupCommand(opts: { yes?: boolean; json?: boolean }) {
   const provider = new DockerSandboxProvider();
   const sandboxes = await provider.listSandboxes();
 
   if (sandboxes.length === 0) {
-    console.log("No leftover sandbox containers found.");
+    if (opts.json) {
+      console.log(JSON.stringify({ found: 0, removed: 0, containers: [] }));
+    } else {
+      console.log("No leftover sandbox containers found.");
+    }
     return;
   }
 
-  console.log(`Found ${sandboxes.length} sandbox container(s):\n`);
-  for (const sandbox of sandboxes) {
-    const age = sandbox.createdAt
-      ? `${Math.round((Date.now() - sandbox.createdAt) / 60000)}m old`
-      : "age unknown";
-    console.log(`  ${sandbox.id.slice(0, 12)}  ${sandbox.image.padEnd(20)} ${sandbox.status} (${age})`);
+  if (opts.json && !opts.yes) {
+    console.log(JSON.stringify({
+      found: sandboxes.length,
+      removed: 0,
+      containers: sandboxes.map((s) => ({
+        id: s.id,
+        image: s.image,
+        status: s.status,
+        ageMs: s.createdAt ? Date.now() - s.createdAt : null,
+      })),
+    }));
+    return;
+  }
+
+  if (!opts.json) {
+    console.log(`Found ${sandboxes.length} sandbox container(s):\n`);
+    for (const sandbox of sandboxes) {
+      const age = sandbox.createdAt
+        ? `${Math.round((Date.now() - sandbox.createdAt) / 60000)}m old`
+        : "age unknown";
+      console.log(`  ${sandbox.id.slice(0, 12)}  ${sandbox.image.padEnd(20)} ${sandbox.status} (${age})`);
+    }
   }
 
   if (!opts.yes) {
@@ -34,14 +54,28 @@ export async function cleanupCommand(opts: { yes?: boolean }) {
     return;
   }
 
-  console.log("");
+  if (!opts.json) console.log("");
+  let removed = 0;
+  const results: { id: string; removed: boolean; error?: string }[] = [];
   for (const sandbox of sandboxes) {
     try {
       await provider.removeSandbox(sandbox.id);
-      console.log(`Removed ${sandbox.id.slice(0, 12)}`);
+      if (!opts.json) console.log(`Removed ${sandbox.id.slice(0, 12)}`);
+      results.push({ id: sandbox.id, removed: true });
+      removed++;
     } catch (err: any) {
-      console.error(`Failed to remove ${sandbox.id.slice(0, 12)}: ${err.message}`);
+      if (!opts.json) console.error(`Failed to remove ${sandbox.id.slice(0, 12)}: ${err.message}`);
+      results.push({ id: sandbox.id, removed: false, error: err.message });
     }
   }
-  console.log("\nNext: agr bench  |  agr list");
+
+  if (opts.json) {
+    console.log(JSON.stringify({
+      found: sandboxes.length,
+      removed,
+      containers: results,
+    }));
+  } else {
+    console.log("\nNext: agr bench  |  agr list");
+  }
 }
