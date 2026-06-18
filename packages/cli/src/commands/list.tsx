@@ -11,6 +11,7 @@ export interface ListCommandOptions {
   db?: string;
   limit?: number;
   plain?: boolean;
+  json?: boolean;
   since?: string;
   testCase?: string;
   config?: string;
@@ -73,6 +74,13 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const tcLabel = options.testCase ? options.testCase : undefined;
   const cfgLabel = options.config ? options.config : undefined;
   const passedLabel = options.passed === true ? "passed only" : options.passed === false ? "failed only" : undefined;
+
+  if (options.json) {
+    const output = runs.map(({ finalDiff: _fd, ...run }) => run);
+    console.log(JSON.stringify(output));
+    return;
+  }
+
   if (options.plain || !process.stdout.isTTY) {
     printPlainList(runs, dbPath, sinceLabel, tcLabel, cfgLabel, passedLabel);
     return;

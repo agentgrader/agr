@@ -342,6 +342,7 @@ cli
   .option("--config <name>", "Only show runs for this specific agent config (substring match)")
   .option("--passed", "Only show runs that passed")
   .option("--failed", "Only show runs that failed")
+  .option("--json", "Output runs as a JSON array (suppresses plain/TUI output; useful for scripting)")
   .example("agr list")
   .example("agr list --limit 20")
   .example("agr list --plain")
@@ -349,6 +350,7 @@ cli
   .example("agr list --plain --test-case hello-world")
   .example("agr list --plain --config agent-fast")
   .example("agr list --plain --failed")
+  .example("agr list --json | jq '[.[] | select(.passed == false)] | length'")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
@@ -360,6 +362,7 @@ cli
         db: options.db,
         limit: Number(options.limit),
         plain: options.plain,
+        json: options.json,
         since: options.since,
         testCase: options.testCase,
         config: options.config,
