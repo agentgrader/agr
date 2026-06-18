@@ -67,6 +67,7 @@ export async function runBenchCommand(opts: {
   onlyFailed?: boolean;
   shuffle?: boolean;
   model?: string;
+  provider?: string;
   maxSteps?: number;
   skipTags?: string[];
   name?: string;
@@ -267,6 +268,12 @@ export async function runBenchCommand(opts: {
     const overrideModel = opts.model;
     console.log(`Overriding model for all agent config(s): ${overrideModel}`);
     agentConfigs = agentConfigs.map((ac) => ({ ...ac, model: overrideModel }));
+  }
+
+  if (opts.provider) {
+    const overrideProvider = opts.provider;
+    console.log(`Overriding provider for all agent config(s): ${overrideProvider}`);
+    agentConfigs = agentConfigs.map((ac) => ({ ...ac, provider: overrideProvider }));
   }
 
   if (opts.maxSteps !== undefined) {

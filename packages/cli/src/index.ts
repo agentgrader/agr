@@ -72,6 +72,7 @@ cli
   )
   .option("--config <config>", "Path to an AgentConfig YAML file")
   .option("--model <model>", "Override the model from the agent config for this run (e.g. claude-opus-4-8)")
+  .option("--provider <provider>", "Override the provider from the agent config for this run (e.g. anthropic, openai, openrouter)")
   .option("--max-steps <n>", "Override the max_steps from the agent config for this run")
   .option("--adapter <adapter>", "Agent adapter to use (ai-sdk, acp)", { default: "ai-sdk" })
   .option(
@@ -154,6 +155,7 @@ cli
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
+  .option("--provider <provider>", "Override the provider for all agent configs in this bench run (e.g. anthropic, openai, openrouter)")
   .option("--max-steps <n>", "Override the max_steps for all agent configs in this bench run")
   .option("--step-timeout <ms>", "Override step_timeout_ms for all agent configs in this bench run (ms per LLM provider call before abort)")
   .option("--name <substring>", "Filter test cases by name substring (case-insensitive); applied after --tags and --skip-tags. Requires --suite.")
@@ -212,6 +214,7 @@ cli
         minSolveRateScope: options.minSolveRateScope,
         report: options.report,
         output: options.output,
+        reportDir: options.reportDir,
         reportIncludeTraces: options.reportIncludeTraces,
         saveBaseline: options.saveBaseline,
         sandbox: options.sandbox,
@@ -229,6 +232,7 @@ cli
         onlyFailed: options.onlyFailed,
         shuffle: options.shuffle,
         model: options.model,
+        provider: options.provider,
         maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
         stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined,
         name: options.name,

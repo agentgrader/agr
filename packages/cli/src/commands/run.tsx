@@ -32,6 +32,7 @@ export async function runSingleCommand(
   opts: {
     config?: string;
     model?: string;
+    provider?: string;
     maxSteps?: number;
     json?: boolean;
     verbose?: boolean;
@@ -74,6 +75,13 @@ export async function runSingleCommand(
       console.log(formatOverrideLine("model", agentConfig.model ?? "?", opts.model, { colors: stdoutSupportsColor() }));
     }
     agentConfig = { ...agentConfig, model: opts.model };
+  }
+
+  if (opts.provider) {
+    if (!opts.json) {
+      console.log(formatOverrideLine("provider", agentConfig.provider ?? "?", opts.provider, { colors: stdoutSupportsColor() }));
+    }
+    agentConfig = { ...agentConfig, provider: opts.provider };
   }
 
   if (opts.maxSteps !== undefined) {
