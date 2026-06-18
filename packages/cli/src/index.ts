@@ -28,12 +28,15 @@ cli
   .option("--blank", "Only write agent.yaml and an empty tasks/ dir, without the hello-world sample test case")
   .option("--ci", "Also write a GitHub Actions workflow (.github/workflows/agr.yml) that runs agr bench on push and pull_request")
   .option("--example <lang>", "Sample test case language: js (default) or python/py (pytest-based hello-world)")
+  .option("--model <model>", "Model to use in the scaffolded agent.yaml (default: claude-haiku-4-5-20251001)")
+  .option("--provider <provider>", "Provider to use in the scaffolded agent.yaml (default: anthropic)")
   .example("agr init")
   .example("agr init my-project")
   .example("agr init --blank")
   .example("agr init --ci")
   .example("agr init --blank --ci")
   .example("agr init --example python")
+  .example("agr init --model gpt-4o --provider openai")
   .action(async (dir, options) => {
     try {
       await initCommand(dir, options);
