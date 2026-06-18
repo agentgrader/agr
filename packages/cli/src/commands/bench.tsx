@@ -69,6 +69,7 @@ export async function runBenchCommand(opts: {
   model?: string;
   provider?: string;
   temperature?: number;
+  repeat?: number;
   maxSteps?: number;
   skipTags?: string[];
   name?: string;
@@ -293,6 +294,17 @@ export async function runBenchCommand(opts: {
     const overrideTimeout = opts.stepTimeout;
     console.log(`Overriding step_timeout_ms for all agent config(s): ${overrideTimeout}`);
     agentConfigs = agentConfigs.map((ac) => ({ ...ac, step_timeout_ms: overrideTimeout }));
+  }
+
+  if (opts.repeat !== undefined && opts.repeat > 1) {
+    const n = opts.repeat;
+    const origTestCases = [...testCases];
+    const origYamlFiles = [...yamlFiles];
+    for (let i = 1; i < n; i++) {
+      testCases = testCases.concat(origTestCases);
+      yamlFiles = yamlFiles.concat(origYamlFiles);
+    }
+    if (!opts.json) console.log(`--repeat ${n}: running ${origTestCases.length} test case(s) x ${n} = ${testCases.length} total runs per config`);
   }
 
   if (opts.dryRun) {
