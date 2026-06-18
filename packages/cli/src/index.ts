@@ -387,19 +387,22 @@ cli
   .option("--last", "Trace the most recent run in .agr/db.sqlite (no runId needed)")
   .option("--test-case <name>", "With --last, trace the most recent run for this specific test case (substring match)")
   .option("--config <name>", "With --last, trace the most recent run for this specific agent config (substring match)")
+  .option("--json", "Output trace as a JSON object; default mode emits {run,steps[]}, --quality emits {run,metrics}, --tools emits {run,toolUsage}")
   .example("agr trace <runId>")
   .example("agr trace <runId> --tools")
   .example("agr trace --last")
   .example("agr trace --last --quality")
   .example("agr trace --last --test-case hello-world")
   .example("agr trace --last --config agent-a")
+  .example("agr trace --last --json | jq .run.passed")
+  .example("agr trace --last --tools --json | jq .toolUsage")
   .action(async (runId, options) => {
     try {
       if (!runId && !options.last) {
         console.error("Provide a run ID or use --last to trace the most recent run.");
         process.exit(1);
       }
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config });
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, json: options.json });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);

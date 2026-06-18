@@ -15,7 +15,7 @@ import { formatDuration } from "../lib/format-relative-time";
  * tool name appears across the run's `tool_call` steps. Useful for checking
  * whether a custom toolkit/MCP tool was actually used, vs. only available.
  */
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; json?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -49,23 +49,40 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     process.exit(1);
   }
 
-  console.log(`Run ${run.id}`);
-  console.log(`  test case:    ${run.testCaseId}`);
-  console.log(`  agent config: ${run.agentConfigId}`);
-  console.log(
-    `  status:       ${run.status}${run.passed === true ? " (passed)" : run.passed === false ? " (failed)" : ""}`,
-  );
-  console.log(`  steps:        ${run.stepsCount}`);
-  console.log(`  cost:         $${run.costUsd.toFixed(4)}`);
-  console.log(`  duration:     ${formatDuration(run.durationMs)}`);
-  if (run.tokensIn || run.tokensOut) {
-    console.log(`  tokens:       ${run.tokensIn} in / ${run.tokensOut} out`);
-  }
-  if (run.error) console.log(`  error:        ${run.error}`);
+  const runSummary = {
+    id: run.id,
+    testCaseId: run.testCaseId,
+    agentConfigId: run.agentConfigId,
+    status: run.status,
+    passed: run.passed ?? null,
+    stepsCount: run.stepsCount,
+    costUsd: run.costUsd,
+    durationMs: run.durationMs,
+    tokensIn: run.tokensIn ?? 0,
+    tokensOut: run.tokensOut ?? 0,
+    error: run.error ?? null,
+    metrics: run.metrics ? safeParseJson(run.metrics) : null,
+  };
 
-  const agentError = run.metrics ? safeParseJson(run.metrics)?.agentError : undefined;
-  if (agentError && agentError !== run.error) {
-    console.log(`  agent error:  ${agentError}`);
+  if (!opts.json) {
+    console.log(`Run ${run.id}`);
+    console.log(`  test case:    ${run.testCaseId}`);
+    console.log(`  agent config: ${run.agentConfigId}`);
+    console.log(
+      `  status:       ${run.status}${run.passed === true ? " (passed)" : run.passed === false ? " (failed)" : ""}`,
+    );
+    console.log(`  steps:        ${run.stepsCount}`);
+    console.log(`  cost:         $${run.costUsd.toFixed(4)}`);
+    console.log(`  duration:     ${formatDuration(run.durationMs)}`);
+    if (run.tokensIn || run.tokensOut) {
+      console.log(`  tokens:       ${run.tokensIn} in / ${run.tokensOut} out`);
+    }
+    if (run.error) console.log(`  error:        ${run.error}`);
+
+    const agentError = runSummary.metrics?.agentError;
+    if (agentError && agentError !== run.error) {
+      console.log(`  agent error:  ${agentError}`);
+    }
   }
 
   const tcSuffix = opts.testCase ? ` --test-case ${opts.testCase}` : "";
@@ -73,6 +90,10 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   const compareSuffix = `${tcSuffix}${cfgSuffix}`;
 
   if (opts.quality) {
+    if (opts.json) {
+      console.log(JSON.stringify({ run: runSummary, metrics: runSummary.metrics ?? null }));
+      return;
+    }
     printQualityBreakdown(run.metrics);
     console.log(`\nNext: agr trace ${resolvedRunId} --tools  |  agr compare --last-two${compareSuffix}`);
     return;
@@ -81,9 +102,29 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   const steps = await getTraces(db, resolvedRunId);
 
   if (opts.tools) {
-    printToolUsageBlock(countToolCalls(steps), { header: "\n================ TOOL USAGE ================" });
+    const toolCounts = countToolCalls(steps);
+    if (opts.json) {
+      console.log(JSON.stringify({ run: runSummary, toolUsage: toolCounts }));
+      return;
+    }
+    printToolUsageBlock(toolCounts, { header: "\n================ TOOL USAGE ================" });
     console.log("=============================================\n");
     console.log(`Next: agr trace ${resolvedRunId} --quality  |  agr compare --last-two${compareSuffix}`);
+    return;
+  }
+
+  if (opts.json) {
+    const stepsOut = steps.map((s) => ({
+      stepIndex: s.stepIndex,
+      kind: s.kind,
+      tool: s.tool ?? null,
+      content: s.content ?? null,
+      tokensIn: s.tokensIn,
+      tokensOut: s.tokensOut,
+      cachedTokens: s.cachedTokens ?? 0,
+      costUsd: s.costUsd,
+    }));
+    console.log(JSON.stringify({ run: runSummary, steps: stepsOut }));
     return;
   }
 
