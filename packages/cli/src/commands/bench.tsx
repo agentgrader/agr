@@ -68,6 +68,7 @@ export async function runBenchCommand(opts: {
   shuffle?: boolean;
   model?: string;
   provider?: string;
+  temperature?: number;
   maxSteps?: number;
   skipTags?: string[];
   name?: string;
@@ -274,6 +275,12 @@ export async function runBenchCommand(opts: {
     const overrideProvider = opts.provider;
     console.log(`Overriding provider for all agent config(s): ${overrideProvider}`);
     agentConfigs = agentConfigs.map((ac) => ({ ...ac, provider: overrideProvider }));
+  }
+
+  if (opts.temperature !== undefined) {
+    const overrideTemp = opts.temperature;
+    console.log(`Overriding temperature for all agent config(s): ${overrideTemp}`);
+    agentConfigs = agentConfigs.map((ac) => ({ ...ac, temperature: overrideTemp }));
   }
 
   if (opts.maxSteps !== undefined) {

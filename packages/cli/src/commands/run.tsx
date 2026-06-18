@@ -33,6 +33,7 @@ export async function runSingleCommand(
     config?: string;
     model?: string;
     provider?: string;
+    temperature?: number;
     maxSteps?: number;
     json?: boolean;
     verbose?: boolean;
@@ -82,6 +83,13 @@ export async function runSingleCommand(
       console.log(formatOverrideLine("provider", agentConfig.provider ?? "?", opts.provider, { colors: stdoutSupportsColor() }));
     }
     agentConfig = { ...agentConfig, provider: opts.provider };
+  }
+
+  if (opts.temperature !== undefined) {
+    if (!opts.json) {
+      console.log(formatOverrideLine("temperature", String(agentConfig.temperature ?? "default"), String(opts.temperature), { colors: stdoutSupportsColor() }));
+    }
+    agentConfig = { ...agentConfig, temperature: opts.temperature };
   }
 
   if (opts.maxSteps !== undefined) {
