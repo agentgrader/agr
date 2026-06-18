@@ -10,6 +10,7 @@ import { loadTestCase, resolveTestCasePath, testCaseToDbRow } from "../lib/load-
 import { buildExtraScorers } from "../lib/extra-scorers";
 import { buildReportFromRunIds } from "../lib/report/build-report";
 import { writeReport, type ReportFormat } from "../lib/report/write-report";
+import { buildBaselineSnapshotFromRunIds, saveBaselineSnapshot } from "../lib/baseline";
 import { RunView, type RunSummary } from "../ui/RunView";
 import { formatDuration } from "../lib/format-relative-time";
 import { findEnvFile } from "../lib/load-env";
@@ -47,6 +48,7 @@ export async function runSingleCommand(
     judgeMinScore?: number;
     repeat?: number;
     stepTimeout?: number;
+    saveBaseline?: string;
   },
 ) {
   const resolvedPath = resolveTestCasePath(testCasePath);
@@ -188,6 +190,13 @@ export async function runSingleCommand(
     console.log(`  Result: ${passed}/${repeat} PASS (${(solveRate * 100).toFixed(1)}%)`);
     console.log(`  Cost:   $${totalCost.toFixed(4)} total  avg: $${avgCost.toFixed(4)}/run`);
     console.log(`  Duration: avg ${formatDuration(avgDuration)}`);
+
+    if (opts.saveBaseline) {
+      const runIds = results.map((r) => r.runId);
+      const snapshot = await buildBaselineSnapshotFromRunIds(db, runIds, { configs: [agentConfig.id || agentConfig.name] });
+      const savedPath = saveBaselineSnapshot(snapshot, opts.saveBaseline);
+      console.log(formatSuccess(`baseline saved to ${savedPath}`, { colors: stdoutSupportsColor() }));
+    }
 
     if (opts.failOnFailure && passed < results.length) {
       console.log(`\nInspect: agr trace --last --test-case ${testCase.name}  |  agr list --plain --failed`);
@@ -343,6 +352,12 @@ export async function runSingleCommand(
       );
       const path = writeReport(report, opts.report, opts.output);
       console.log(formatSuccess(`report written to ${path}`, { colors: stdoutSupportsColor() }));
+    }
+
+    if (opts.saveBaseline) {
+      const snapshot = await buildBaselineSnapshotFromRunIds(db, [runId], { configs: [agentConfig.id || agentConfig.name] });
+      const savedPath = saveBaselineSnapshot(snapshot, opts.saveBaseline);
+      console.log(formatSuccess(`baseline saved to ${savedPath}`, { colors: stdoutSupportsColor() }));
     }
   } catch (err: any) {
     rerender(
