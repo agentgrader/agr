@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -88,6 +88,50 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     ? runs.reduce((acc, r) => acc + (r.durationMs ?? 0), 0) / runs.length
     : 0;
   const solveRate = runs.length > 0 ? (passedRuns / runs.length) * 100 : 0;
+
+  if (opts.trend && opts.since && !opts.byConfig && !opts.byTestCase && !opts.byModel && !opts.bySandbox && !opts.byMatrix) {
+    const sinceTs = parseSince(opts.since);
+    const nowTs = Math.floor(Date.now() / 1000);
+    const windowSec = nowTs - sinceTs;
+    const prevStart = sinceTs - windowSec;
+    let prevRuns = (await listRuns(db)).filter((r) => r.createdAt >= prevStart && r.createdAt < sinceTs);
+    if (opts.testCase) prevRuns = prevRuns.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!));
+    if (opts.config) prevRuns = prevRuns.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    if (opts.sandbox) prevRuns = prevRuns.filter((r) => (r.sandboxProvider ?? "").toLowerCase().includes(opts.sandbox!.toLowerCase()));
+    if (opts.passed !== undefined) prevRuns = prevRuns.filter((r) => r.passed === opts.passed);
+
+    const prevPassed = prevRuns.filter((r) => r.passed === true).length;
+    const prevSolveRate = prevRuns.length > 0 ? (prevPassed / prevRuns.length) * 100 : 0;
+    const prevCostUsd = prevRuns.reduce((acc, r) => acc + (r.costUsd ?? 0), 0);
+    const prevAvgCost = prevRuns.length > 0 ? prevCostUsd / prevRuns.length : 0;
+
+    const solveRateDelta = solveRate - prevSolveRate;
+    const avgCostDelta = avgCostUsd - prevAvgCost;
+    const runsDelta = runs.length - prevRuns.length;
+
+    function arrow(delta: number): string { return delta > 0 ? "↑" : delta < 0 ? "↓" : "="; }
+    function sign(v: number, decimals = 1): string { return v > 0 ? `+${v.toFixed(decimals)}` : v.toFixed(decimals); }
+
+    if (opts.json) {
+      const trend = {
+        window: opts.since,
+        current: { total: runs.length, passed: passedRuns, solveRate, avgCostUsd },
+        previous: { total: prevRuns.length, passed: prevPassed, solveRate: prevSolveRate, avgCostUsd: prevAvgCost },
+        delta: { runs: runsDelta, solveRatePp: solveRateDelta, avgCostUsd: avgCostDelta },
+      };
+      console.log(JSON.stringify({ exists: true, dbPath, trend }, null, 2));
+      return;
+    }
+
+    console.log(`Database: ${dbPath}\n`);
+    console.log(`Trend: last ${opts.since} vs previous ${opts.since}\n`);
+    console.log(`  Solve rate:  ${prevSolveRate.toFixed(1)}% -> ${solveRate.toFixed(1)}%  (${sign(solveRateDelta)}pp) ${arrow(solveRateDelta)}`);
+    console.log(`  Runs:        ${prevRuns.length} -> ${runs.length}  (${sign(runsDelta, 0)})`);
+    console.log(`  Avg cost:    $${prevAvgCost.toFixed(4)} -> $${avgCostUsd.toFixed(4)}/run  (${sign(avgCostDelta * 100, 2)}c) ${arrow(-avgCostDelta)}`);
+    console.log("");
+    console.log(`Next: agr status --since ${opts.since} --by-config  |  agr status --since ${opts.since} --by-model`);
+    return;
+  }
 
   if (opts.byMatrix) {
     const allMatrixRuns = runs.filter((r) => r.matrixId);
