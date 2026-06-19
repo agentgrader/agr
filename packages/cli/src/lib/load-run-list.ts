@@ -24,7 +24,7 @@ export interface EnrichedRun {
 
 export type RunSortField = "date" | "cost" | "duration" | "steps";
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField, matrixId?: string, lastMatrix?: boolean): Promise<EnrichedRun[]> {
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField, matrixId?: string, lastMatrix?: boolean, sandboxFilter?: string): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
   let resolvedMatrixId = matrixId;
   if (lastMatrix && !resolvedMatrixId) {
@@ -32,7 +32,10 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
     resolvedMatrixId = mr?.matrixId ?? undefined;
   }
   const matrixFiltered = resolvedMatrixId ? rows.filter((r) => r.matrixId === resolvedMatrixId) : rows;
-  const filtered = sinceTs !== undefined ? matrixFiltered.filter((r) => r.createdAt >= sinceTs) : matrixFiltered;
+  const sandboxFiltered = sandboxFilter
+    ? matrixFiltered.filter((r) => (r.sandboxProvider ?? "").toLowerCase().includes(sandboxFilter.toLowerCase()))
+    : matrixFiltered;
+  const filtered = sinceTs !== undefined ? sandboxFiltered.filter((r) => r.createdAt >= sinceTs) : sandboxFiltered;
   const tcFiltered = testCaseFilter
     ? filtered.filter((r) => r.testCaseId === testCaseFilter || r.testCaseId.includes(testCaseFilter))
     : filtered;
