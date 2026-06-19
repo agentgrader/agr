@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -88,6 +88,60 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     ? runs.reduce((acc, r) => acc + (r.durationMs ?? 0), 0) / runs.length
     : 0;
   const solveRate = runs.length > 0 ? (passedRuns / runs.length) * 100 : 0;
+
+  if (opts.byMatrix) {
+    const allMatrixRuns = runs.filter((r) => r.matrixId);
+    if (allMatrixRuns.length === 0) {
+      if (opts.json) {
+        console.log(JSON.stringify({ exists: true, dbPath, byMatrix: [] }, null, 2));
+      } else {
+        console.log(`Database: ${dbPath}\n`);
+        console.log("No matrix runs found. Run `agr bench --matrix` first.");
+      }
+      return;
+    }
+    const matrixMap = new Map<string, typeof allMatrixRuns>();
+    for (const run of allMatrixRuns) {
+      const key = run.matrixId!;
+      if (!matrixMap.has(key)) matrixMap.set(key, []);
+      matrixMap.get(key)!.push(run);
+    }
+    const matrixStats = Array.from(matrixMap.entries()).map(([matrixId, mRuns]) => {
+      const p = mRuns.filter((r) => r.passed === true).length;
+      const f = mRuns.filter((r) => r.passed === false).length;
+      const cost = mRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      const dur = mRuns.reduce((s, r) => s + (r.durationMs ?? 0), 0);
+      const earliest = mRuns.reduce((min, r) => Math.min(min, r.createdAt), Infinity);
+      return {
+        matrixId,
+        total: mRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: mRuns.length > 0 ? (p / mRuns.length) * 100 : 0,
+        avgCostUsd: mRuns.length > 0 ? cost / mRuns.length : 0,
+        avgDurationMs: mRuns.length > 0 ? dur / mRuns.length : 0,
+        startedAt: earliest,
+      };
+    }).sort((a, b) => b.startedAt - a.startedAt);
+    const matrixStatsCapped = opts.top ? matrixStats.slice(0, opts.top) : matrixStats;
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, byMatrix: matrixStatsCapped }, null, 2));
+      return;
+    }
+
+    const topNote = opts.top && opts.top < matrixStats.length ? ` (top ${opts.top} of ${matrixStats.length})` : "";
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    console.log(`Per-matrix breakdown (${matrixStatsCapped.length} sweep(s)${topNote}, newest first):\n`);
+    for (const ms of matrixStatsCapped) {
+      const date = new Date(ms.startedAt * 1000).toISOString().slice(0, 16).replace("T", " ");
+      console.log(`  ${ms.matrixId.slice(0, 8)}  ${date}`);
+      console.log(`    runs: ${ms.total}  (${ms.passed} passed, ${ms.failed} failed)  solve rate: ${ms.solveRate.toFixed(1)}%`);
+      console.log(`    avg cost: $${ms.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(ms.avgDurationMs)}`);
+    }
+    console.log(`\nNext: agr list --matrix-id <id>  |  agr status --last-matrix --by-model`);
+    return;
+  }
 
   if (opts.byModel) {
     const cfgRows = await db.select().from(agentConfigs);
