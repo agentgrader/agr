@@ -330,6 +330,8 @@ cli
   .option("--by-model", "Show a per-model breakdown (solve rate, avg cost, avg duration, avg tokens), sorted by solve rate; useful for comparing haiku vs opus vs sonnet across all runs")
   .option("--by-sandbox", "Show a per-sandbox breakdown (solve rate, avg cost, avg duration), sorted by solve rate; useful for comparing docker vs e2b performance")
   .option("--top <n>", "With --by-config, --by-test-case, --by-model, or --by-sandbox, show only the top N entries")
+  .option("--matrix-id <id>", "Restrict stats to runs belonging to a specific bench matrix sweep")
+  .option("--last-matrix", "Restrict stats to runs from the most recent bench matrix sweep")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
@@ -349,7 +351,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, top: options.top !== undefined ? Number(options.top) : undefined });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
