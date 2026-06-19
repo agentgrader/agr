@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -122,9 +122,16 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
 
   const allSteps = await getTraces(db, resolvedRunId);
   const stepsRange = parseStepsRange(opts.steps);
-  const steps = stepsRange
+  const rangeFiltered = stepsRange
     ? allSteps.filter((s) => s.stepIndex >= stepsRange.from && s.stepIndex <= stepsRange.to)
     : allSteps;
+  const grepPattern = opts.grep?.toLowerCase();
+  const steps = grepPattern
+    ? rangeFiltered.filter((s) => {
+        const label = s.tool ? `${s.kind}:${s.tool}` : s.kind;
+        return label.toLowerCase().includes(grepPattern) || (s.content ?? "").toLowerCase().includes(grepPattern);
+      })
+    : rangeFiltered;
 
   if (opts.tools) {
     const toolCounts = countToolCalls(steps);
@@ -151,13 +158,18 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     }));
     const out: Record<string, unknown> = { run: runSummary, steps: stepsOut };
     if (stepsRange) out.stepsRange = stepsRange;
+    if (grepPattern) out.grep = opts.grep;
     console.log(JSON.stringify(out));
     return;
   }
 
-  const stepsLabel = stepsRange
+  let stepsLabel = stepsRange
     ? `${steps.length} step(s) [${stepsRange.from}-${stepsRange.to}] of ${allSteps.length} total`
     : `${steps.length} step(s)`;
+  if (grepPattern) {
+    const pool = stepsRange ? rangeFiltered.length : allSteps.length;
+    stepsLabel = `${steps.length} matching step(s) for "${opts.grep}" of ${pool} total`;
+  }
   console.log(`\n${stepsLabel}:`);
   let totalCachedTokens = 0;
   let totalTokensIn = 0;

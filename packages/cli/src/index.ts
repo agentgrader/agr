@@ -495,12 +495,15 @@ cli
   .option("--failed", "With --last, trace the most recent run that failed")
   .option("--json", "Output trace as a JSON object; default mode emits {run,steps[]}, --quality emits {run,metrics}, --tools emits {run,toolUsage}")
   .option("--steps <range>", "Show only a range of steps by stepIndex (e.g. --steps 40-60 or --steps 42); useful for navigating long traces")
+  .option("--grep <pattern>", "Show only steps whose label or content contains this substring (case-insensitive); combinable with --steps")
   .example("agr trace <runId>")
   .example("agr trace <runId> --tools")
   .example("agr trace <runId> --steps 40-60")
   .example("agr trace --last")
   .example("agr trace --last --quality")
   .example("agr trace --last --steps 0-9")
+  .example("agr trace --last --grep error")
+  .example("agr trace --last --grep tool_view_structure")
   .example("agr trace --last --test-case hello-world")
   .example("agr trace --last --config agent-a")
   .example("agr trace --last --model haiku --failed")
@@ -517,7 +520,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps });
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);
