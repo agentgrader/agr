@@ -461,6 +461,8 @@ cli
   .option("--config <id>", "Filter exported runs/traces to those with a matching agentConfigId (substring match)")
   .option("--passed", "Export only runs/traces that passed")
   .option("--failed", "Export only runs/traces that failed")
+  .option("--model <name>", "Filter exported runs by model name substring (e.g. haiku, gpt-4o)")
+  .option("--sort <field>", "Sort exported runs by field: date (default), cost, duration, steps")
   .example("agr export runs --format jsonl --output runs.jsonl")
   .example("agr export runs --format csv --output runs.csv")
   .example("agr export runs --since 24h --format jsonl --output today.jsonl")
@@ -491,6 +493,8 @@ cli
         testCase: options.testCase,
         config: options.config,
         passed: passedFilter,
+        model: options.model,
+        sort: options.sort,
       });
     } catch (err: any) {
       console.error(`Error executing export: ${err.message}`);
