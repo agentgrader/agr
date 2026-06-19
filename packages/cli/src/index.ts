@@ -479,6 +479,9 @@ cli
   .option("--last", "Trace the most recent run in .agr/db.sqlite (no runId needed)")
   .option("--test-case <name>", "With --last, trace the most recent run for this specific test case (substring match)")
   .option("--config <name>", "With --last, trace the most recent run for this specific agent config (substring match)")
+  .option("--model <model>", "With --last, trace the most recent run where the agent model contains this substring")
+  .option("--passed", "With --last, trace the most recent run that passed")
+  .option("--failed", "With --last, trace the most recent run that failed")
   .option("--json", "Output trace as a JSON object; default mode emits {run,steps[]}, --quality emits {run,metrics}, --tools emits {run,toolUsage}")
   .example("agr trace <runId>")
   .example("agr trace <runId> --tools")
@@ -486,6 +489,7 @@ cli
   .example("agr trace --last --quality")
   .example("agr trace --last --test-case hello-world")
   .example("agr trace --last --config agent-a")
+  .example("agr trace --last --model haiku --failed")
   .example("agr trace --last --json | jq .run.passed")
   .example("agr trace --last --tools --json | jq .toolUsage")
   .action(async (runId, options) => {
@@ -494,7 +498,12 @@ cli
         console.error("Provide a run ID or use --last to trace the most recent run.");
         process.exit(1);
       }
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, json: options.json });
+      if (options.passed && options.failed) {
+        console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const passed = options.passed ? true : options.failed ? false : undefined;
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);

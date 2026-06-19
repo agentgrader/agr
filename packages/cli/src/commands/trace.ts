@@ -1,4 +1,4 @@
-import { getRun, getTraces, initDb, listRuns } from "@agentgrader/store";
+import { getRun, getTraces, initDb, listRuns, agentConfigs } from "@agentgrader/store";
 import { countToolCalls, printToolUsageBlock } from "../lib/tool-usage";
 import { formatDuration } from "../lib/format-relative-time";
 
@@ -15,7 +15,7 @@ import { formatDuration } from "../lib/format-relative-time";
  * tool name appears across the run's `tool_call` steps. Useful for checking
  * whether a custom toolkit/MCP tool was actually used, vs. only available.
  */
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; json?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -27,10 +27,22 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     if (opts.config) {
       filtered = filtered.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
     }
+    if (opts.model) {
+      const cfgRows = await db.select().from(agentConfigs);
+      const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? ""]));
+      const mf = opts.model.toLowerCase();
+      filtered = filtered.filter((r) => (modelByConfigId.get(r.agentConfigId) ?? "").toLowerCase().includes(mf));
+    }
+    if (opts.passed !== undefined) {
+      filtered = filtered.filter((r) => r.passed === opts.passed);
+    }
     if (filtered.length === 0) {
       const parts: string[] = [];
       if (opts.testCase) parts.push(`test case "${opts.testCase}"`);
       if (opts.config) parts.push(`config "${opts.config}"`);
+      if (opts.model) parts.push(`model "${opts.model}"`);
+      if (opts.passed === true) parts.push("passed runs");
+      if (opts.passed === false) parts.push("failed runs");
       const scope = parts.length ? ` for ${parts.join(" and ")}` : "";
       console.error(`No runs found${scope} in .agr/db.sqlite. Run \`agr run\` or \`agr bench\` first.`);
       process.exit(1);
