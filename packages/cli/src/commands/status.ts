@@ -12,7 +12,9 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean }) {
+type StatusSortField = "solve-rate" | "cost" | "runs";
+
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -253,7 +255,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgTokensIn: mRuns.length > 0 ? ti / mRuns.length : 0,
         avgTokensOut: mRuns.length > 0 ? to / mRuns.length : 0,
       };
-    }).sort((a, b) => b.solveRate - a.solveRate);
+    }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : b.solveRate - a.solveRate);
     const modelStatsCapped = opts.top ? modelStats.slice(0, opts.top) : modelStats;
 
     if (opts.json) {
@@ -265,7 +267,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
     const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
     console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}\n`);
-    console.log(`Per-model breakdown (${modelStatsCapped.length} model(s)${topNote}, sorted by solve rate):\n`);
+    const modelSortLabel = opts.sortBy === "cost" ? "most expensive first" : opts.sortBy === "runs" ? "most runs first" : "solve rate desc";
+    console.log(`Per-model breakdown (${modelStatsCapped.length} model(s)${topNote}, ${modelSortLabel}):\n`);
     for (const ms of modelStatsCapped) {
       const hasTokens = ms.avgTokensIn > 0 || ms.avgTokensOut > 0;
       const tokLine = hasTokens ? `  avg tok: ${Math.round(ms.avgTokensIn)}in/${Math.round(ms.avgTokensOut)}out` : "";
@@ -342,7 +345,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgTokensIn: cfgRuns.length > 0 ? ti / cfgRuns.length : 0,
         avgTokensOut: cfgRuns.length > 0 ? to / cfgRuns.length : 0,
       };
-    }).sort((a, b) => b.solveRate - a.solveRate);
+    }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : b.solveRate - a.solveRate);
     const cfgStatsCapped = opts.top ? cfgStats.slice(0, opts.top) : cfgStats;
 
     if (opts.json) {
@@ -353,7 +356,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
     const topNote = opts.top && opts.top < cfgStats.length ? ` (top ${opts.top} of ${cfgStats.length})` : "";
     console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}\n`);
-    console.log(`Per-config breakdown (${cfgStatsCapped.length} config(s)${topNote}, sorted by solve rate):\n`);
+    const cfgSortLabel = opts.sortBy === "cost" ? "most expensive first" : opts.sortBy === "runs" ? "most runs first" : "solve rate desc";
+    console.log(`Per-config breakdown (${cfgStatsCapped.length} config(s)${topNote}, ${cfgSortLabel}):\n`);
     for (const cfg of cfgStatsCapped) {
       const hasTokens = cfg.avgTokensIn > 0 || cfg.avgTokensOut > 0;
       const tokLine = hasTokens ? `  avg tok: ${Math.round(cfg.avgTokensIn)}in/${Math.round(cfg.avgTokensOut)}out` : "";
@@ -386,7 +390,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgCostUsd: tcRuns.length > 0 ? cost / tcRuns.length : 0,
         avgDurationMs: tcRuns.length > 0 ? dur / tcRuns.length : 0,
       };
-    }).sort((a, b) => a.solveRate - b.solveRate);
+    }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : a.solveRate - b.solveRate);
     const tcStatsCapped = opts.top ? tcStats.slice(0, opts.top) : tcStats;
 
     if (opts.json) {
@@ -397,7 +401,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
     const topNote = opts.top && opts.top < tcStats.length ? ` (top ${opts.top} of ${tcStats.length})` : "";
     console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${cfgScope}\n`);
-    console.log(`Per-test-case breakdown (${tcStatsCapped.length} test case(s)${topNote}, sorted by solve rate asc):\n`);
+    const tcSortLabel = opts.sortBy === "cost" ? "most expensive first" : opts.sortBy === "runs" ? "most runs first" : "solve rate asc";
+    console.log(`Per-test-case breakdown (${tcStatsCapped.length} test case(s)${topNote}, ${tcSortLabel}):\n`);
     for (const tc of tcStatsCapped) {
       console.log(`  ${tc.testCaseId}`);
       console.log(`    runs: ${tc.total}  (${tc.passed} passed, ${tc.failed} failed)  solve rate: ${tc.solveRate.toFixed(1)}%`);
