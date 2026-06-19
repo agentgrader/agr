@@ -336,10 +336,13 @@ cli
   .option("--matrix-id <id>", "Restrict stats to runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Restrict stats to runs from the most recent bench matrix sweep")
   .option("--trend", "Compare the --since window to the equal-length window before it (solve rate delta, run count delta, avg cost delta); requires --since")
+  .option("--by-day", "Show a per-day breakdown (runs, solve rate, total cost), oldest first; useful for spotting when a regression started; combinable with --since and all filter flags")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
   .example("agr status --since 24h --trend")
+  .example("agr status --since 7d --by-day")
+  .example("agr status --since 30d --by-day --top 7")
   .example("agr status --since 7d --trend --test-case hello-world")
   .example("agr status --test-case hello-world")
   .example("agr status --config agent-fast")
@@ -358,7 +361,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
