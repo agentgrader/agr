@@ -1,7 +1,7 @@
 import { render } from "ink";
 import React from "react";
 import { getTraces, initDb } from "@agentgrader/store";
-import { loadEnrichedRuns, formatRunStatus, shortRunId } from "../lib/load-run-list";
+import { loadEnrichedRuns, formatRunStatus, shortRunId, type RunSortField } from "../lib/load-run-list";
 import { formatRunWhen, formatDuration } from "../lib/format-relative-time";
 import { clearTerminalScreen, enterAlternateScreen, leaveAlternateScreen } from "../lib/list-table-layout";
 import { RunListApp, type TracePreviewStep } from "../ui/RunListApp";
@@ -17,6 +17,7 @@ export interface ListCommandOptions {
   config?: string;
   passed?: boolean;
   model?: string;
+  sort?: RunSortField;
 }
 
 function printPlainList(
@@ -69,7 +70,7 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
   const sinceTs = options.since ? parseSince(options.since) : undefined;
-  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed, options.model);
+  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed, options.model, options.sort);
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   const tcLabel = options.testCase ? options.testCase : undefined;
