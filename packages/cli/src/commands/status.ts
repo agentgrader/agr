@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; top?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -29,6 +29,13 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const db = initDb(dbPath);
   let runs = await listRuns(db);
   let sinceLabel: string | undefined;
+
+  if (opts.lastMatrix && !opts.matrixId) {
+    const mr = runs.find((r) => r.matrixId);
+    if (mr?.matrixId) runs = runs.filter((r) => r.matrixId === mr.matrixId);
+  } else if (opts.matrixId) {
+    runs = runs.filter((r) => r.matrixId === opts.matrixId);
+  }
 
   if (opts.since) {
     const sinceTs = parseSince(opts.since);
