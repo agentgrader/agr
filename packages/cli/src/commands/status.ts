@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { initDb, listRuns } from "@agentgrader/store";
+import { initDb, listRuns, agentConfigs } from "@agentgrader/store";
 import { formatCompactWhen, formatDuration } from "../lib/format-relative-time";
 import { parseSince } from "../lib/parse-since";
 
@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; top?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; top?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -41,6 +41,12 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   }
   if (opts.config) {
     runs = runs.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+  }
+  if (opts.model) {
+    const cfgRows = await db.select().from(agentConfigs);
+    const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? ""]));
+    const mf = opts.model.toLowerCase();
+    runs = runs.filter((r) => (modelByConfigId.get(r.agentConfigId) ?? "").toLowerCase().includes(mf));
   }
   if (opts.passed !== undefined) {
     runs = runs.filter((r) => r.passed === opts.passed);
@@ -169,6 +175,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       since: opts.since ?? null,
       testCase: opts.testCase ?? null,
       config: opts.config ?? null,
+      model: opts.model ?? null,
       passed: opts.passed ?? null,
       totalRuns: runs.length,
       passedRuns,
@@ -194,9 +201,10 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const lastRunDetail = lastRun ? `  (${lastRun.testCaseId} with ${lastRun.agentConfigId})` : "";
   const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
   const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
+  const modelScope = opts.model ? `  [model: ${opts.model}]` : "";
   const passedScope = opts.passed === true ? "  [passed only]" : opts.passed === false ? "  [failed only]" : "";
 
-  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}${passedScope}\n`);
+  console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}${modelScope}${passedScope}\n`);
   console.log(`  Runs:       ${runs.length} total  (${passedRuns} passed, ${failedRuns} failed${erroredRuns > 0 ? `, ${erroredRuns} errored` : ""})`);
   if (runs.length > 0 && (passedRuns > 0 || failedRuns > 0)) {
     console.log(`  Solve rate: ${solveRate.toFixed(1)}%`);

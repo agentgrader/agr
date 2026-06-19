@@ -316,6 +316,7 @@ cli
   .option("--since <duration|date>", "Restrict stats to runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
   .option("--test-case <name>", "Restrict stats to runs for this specific test case (substring match)")
   .option("--config <name>", "Restrict stats to runs for this specific agent config (substring match)")
+  .option("--model <model>", "Restrict stats to runs where the agent model contains this substring (case-insensitive)")
   .option("--passed", "Restrict stats to runs that passed")
   .option("--failed", "Restrict stats to runs that failed")
   .option("--by-config", "Show a per-config breakdown (solve rate, avg cost, avg duration), sorted by solve rate")
@@ -326,6 +327,7 @@ cli
   .example("agr status --since 24h")
   .example("agr status --test-case hello-world")
   .example("agr status --config agent-fast")
+  .example("agr status --model haiku")
   .example("agr status --failed")
   .example("agr status --by-config")
   .example("agr status --by-config --test-case hello-world")
@@ -337,7 +339,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, top: options.top !== undefined ? Number(options.top) : undefined });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, top: options.top !== undefined ? Number(options.top) : undefined });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
