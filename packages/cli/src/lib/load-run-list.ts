@@ -24,7 +24,7 @@ export interface EnrichedRun {
 
 export type RunSortField = "date" | "cost" | "duration" | "steps";
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField, matrixId?: string, lastMatrix?: boolean, sandboxFilter?: string): Promise<EnrichedRun[]> {
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField, matrixId?: string, lastMatrix?: boolean, sandboxFilter?: string, errorFilter?: string): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
   let resolvedMatrixId = matrixId;
   if (lastMatrix && !resolvedMatrixId) {
@@ -45,7 +45,10 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
   const passedFiltered = passedFilter !== undefined
     ? cfgFiltered.filter((r) => r.passed === passedFilter)
     : cfgFiltered;
-  const limited = limit && !modelFilter ? passedFiltered.slice(0, limit) : passedFiltered;
+  const errorFiltered = errorFilter
+    ? passedFiltered.filter((r) => (r.error ?? "").toLowerCase().includes(errorFilter.toLowerCase()))
+    : passedFiltered;
+  const limited = limit && !modelFilter && !errorFilter ? errorFiltered.slice(0, limit) : errorFiltered;
   if (limited.length === 0) return [];
 
   const [tcRows, cfgRows] = await Promise.all([
