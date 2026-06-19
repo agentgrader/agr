@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; top?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; top?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -126,6 +126,46 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`    avg cost: $${ms.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(ms.avgDurationMs)}${tokLine}`);
     }
     console.log(`\nNext: agr status --model <name>  |  agr bench --suite tasks/ --model <name>`);
+    return;
+  }
+
+  if (opts.bySandbox) {
+    const sandboxMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      const key = run.sandboxProvider ?? "unknown";
+      if (!sandboxMap.has(key)) sandboxMap.set(key, []);
+      sandboxMap.get(key)!.push(run);
+    }
+    const sandboxStats = Array.from(sandboxMap.entries()).map(([sandbox, sRuns]) => {
+      const p = sRuns.filter((r) => r.passed === true).length;
+      const f = sRuns.filter((r) => r.passed === false).length;
+      const cost = sRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      const dur = sRuns.reduce((s, r) => s + (r.durationMs ?? 0), 0);
+      return {
+        sandbox,
+        total: sRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: sRuns.length > 0 ? (p / sRuns.length) * 100 : 0,
+        avgCostUsd: sRuns.length > 0 ? cost / sRuns.length : 0,
+        avgDurationMs: sRuns.length > 0 ? dur / sRuns.length : 0,
+      };
+    }).sort((a, b) => b.solveRate - a.solveRate);
+    const sandboxStatsCapped = opts.top ? sandboxStats.slice(0, opts.top) : sandboxStats;
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, bySandbox: sandboxStatsCapped }, null, 2));
+      return;
+    }
+
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    console.log(`Per-sandbox breakdown (${sandboxStatsCapped.length} sandbox(es), sorted by solve rate):\n`);
+    for (const ss of sandboxStatsCapped) {
+      console.log(`  ${ss.sandbox}`);
+      console.log(`    runs: ${ss.total}  (${ss.passed} passed, ${ss.failed} failed)  solve rate: ${ss.solveRate.toFixed(1)}%`);
+      console.log(`    avg cost: $${ss.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(ss.avgDurationMs)}`);
+    }
+    console.log(`\nNext: agr bench --sandbox e2b  |  agr bench --sandbox docker`);
     return;
   }
 
