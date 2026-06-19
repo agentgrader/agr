@@ -16,6 +16,7 @@ export interface ListCommandOptions {
   testCase?: string;
   config?: string;
   passed?: boolean;
+  model?: string;
 }
 
 function printPlainList(
@@ -68,7 +69,7 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
   const sinceTs = options.since ? parseSince(options.since) : undefined;
-  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed);
+  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed, options.model);
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   const tcLabel = options.testCase ? options.testCase : undefined;

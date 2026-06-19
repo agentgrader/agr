@@ -354,6 +354,7 @@ cli
   .option("--config <name>", "Only show runs for this specific agent config (substring match)")
   .option("--passed", "Only show runs that passed")
   .option("--failed", "Only show runs that failed")
+  .option("--model <model>", "Only show runs for this specific model (substring match on agentModel)")
   .option("--json", "Output runs as a JSON array (suppresses plain/TUI output; useful for scripting)")
   .example("agr list")
   .example("agr list --limit 20")
@@ -362,6 +363,7 @@ cli
   .example("agr list --plain --test-case hello-world")
   .example("agr list --plain --config agent-fast")
   .example("agr list --plain --failed")
+  .example("agr list --plain --model claude-haiku")
   .example("agr list --json | jq '[.[] | select(.passed == false)] | length'")
   .action(async (options) => {
     try {
@@ -379,6 +381,7 @@ cli
         testCase: options.testCase,
         config: options.config,
         passed,
+        model: options.model,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);

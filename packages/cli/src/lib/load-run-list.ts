@@ -22,7 +22,7 @@ export interface EnrichedRun {
   completedAt: number | null;
 }
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean): Promise<EnrichedRun[]> {
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
   const filtered = sinceTs !== undefined ? rows.filter((r) => r.createdAt >= sinceTs) : rows;
   const tcFiltered = testCaseFilter
@@ -34,7 +34,7 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
   const passedFiltered = passedFilter !== undefined
     ? cfgFiltered.filter((r) => r.passed === passedFilter)
     : cfgFiltered;
-  const limited = limit ? passedFiltered.slice(0, limit) : passedFiltered;
+  const limited = limit && !modelFilter ? passedFiltered.slice(0, limit) : passedFiltered;
   if (limited.length === 0) return [];
 
   const [tcRows, cfgRows] = await Promise.all([
@@ -45,7 +45,7 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
   const tcById = new Map(tcRows.map((r) => [r.id, r]));
   const cfgById = new Map(cfgRows.map((r) => [r.id, r]));
 
-  return limited.map((run) => {
+  let enriched = limited.map((run) => {
     const tc = tcById.get(run.testCaseId);
     const cfg = cfgById.get(run.agentConfigId);
     return {
@@ -70,6 +70,14 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
       completedAt: run.completedAt ?? null,
     };
   });
+
+  if (modelFilter) {
+    const mf = modelFilter.toLowerCase();
+    enriched = enriched.filter((r) => r.agentModel.toLowerCase().includes(mf));
+    if (limit) enriched = enriched.slice(0, limit);
+  }
+
+  return enriched;
 }
 
 export function shortRunId(id: string): string {
