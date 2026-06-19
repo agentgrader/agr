@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -180,7 +180,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
       `  [${step.stepIndex}] ${label} (in:${step.tokensIn} out:${step.tokensOut}${cached} $${step.costUsd.toFixed(4)})`,
     );
     if (step.content) {
-      const preview = step.content.length > 200 ? `${step.content.slice(0, 200)}...` : step.content;
+      const preview = !opts.full && step.content.length > 200 ? `${step.content.slice(0, 200)}...` : step.content;
       console.log(`      ${preview.replace(/\n/g, "\n      ")}`);
     }
     totalCachedTokens += step.cachedTokens || 0;
