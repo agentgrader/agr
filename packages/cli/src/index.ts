@@ -671,8 +671,11 @@ cli
 cli
   .command("toolkit-list <dir>", "List a toolkit's bin/ tools and their SKILL.md descriptions")
   .option("--check-config <file>", "Diff the toolkit's bin/ tools against an agent config's track_tools")
+  .option("--json", "Output as a JSON object {tools[], auditFindings[], untracked?, ok} for CI scripting")
   .example("agr toolkit-list ./toolkits/jetbrains-tools")
   .example("agr toolkit-list ./toolkits/jetbrains-tools --check-config matrix-jetbrains-toolkits.yaml")
+  .example("agr toolkit-list ./toolkits/jetbrains-tools --json")
+  .example("agr toolkit-list ./toolkits/jetbrains-tools --check-config agent.yaml --json | jq .ok")
   .action(async (dir, options) => {
     try {
       await toolkitListCommand(dir, options);
