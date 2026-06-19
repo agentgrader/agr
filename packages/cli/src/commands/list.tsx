@@ -21,6 +21,7 @@ export interface ListCommandOptions {
   matrixId?: string;
   lastMatrix?: boolean;
   sandbox?: string;
+  error?: string;
 }
 
 function printPlainList(
@@ -73,7 +74,7 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const db = initDb(dbPath);
   const limit = options.limit ?? 100;
   const sinceTs = options.since ? parseSince(options.since) : undefined;
-  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed, options.model, options.sort, options.matrixId, options.lastMatrix, options.sandbox);
+  const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed, options.model, options.sort, options.matrixId, options.lastMatrix, options.sandbox, options.error);
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   const tcLabel = options.testCase ? options.testCase : undefined;

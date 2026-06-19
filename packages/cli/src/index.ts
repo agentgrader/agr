@@ -374,6 +374,7 @@ cli
   .option("--matrix-id <id>", "Only show runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Only show runs from the most recent bench matrix sweep")
   .option("--sandbox <provider>", "Only show runs with this sandbox provider (substring match, e.g. docker, e2b)")
+  .option("--error <substring>", "Only show runs whose error message contains this substring (case-insensitive); useful for finding all runs that failed with a specific error")
   .option("--json", "Output runs as a JSON array (suppresses plain/TUI output; useful for scripting)")
   .example("agr list")
   .example("agr list --limit 20")
@@ -412,6 +413,7 @@ cli
         matrixId: options.matrixId,
         lastMatrix: options.lastMatrix,
         sandbox: options.sandbox,
+        error: options.error,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);
