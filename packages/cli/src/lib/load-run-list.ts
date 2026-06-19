@@ -22,7 +22,9 @@ export interface EnrichedRun {
   completedAt: number | null;
 }
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string): Promise<EnrichedRun[]> {
+export type RunSortField = "date" | "cost" | "duration" | "steps";
+
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
   const filtered = sinceTs !== undefined ? rows.filter((r) => r.createdAt >= sinceTs) : rows;
   const tcFiltered = testCaseFilter
@@ -75,6 +77,11 @@ export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: numb
     const mf = modelFilter.toLowerCase();
     enriched = enriched.filter((r) => r.agentModel.toLowerCase().includes(mf));
     if (limit) enriched = enriched.slice(0, limit);
+  }
+
+  if (sort && sort !== "date") {
+    const key: keyof EnrichedRun = sort === "cost" ? "costUsd" : sort === "duration" ? "durationMs" : "stepsCount";
+    enriched = [...enriched].sort((a, b) => (b[key] as number) - (a[key] as number));
   }
 
   return enriched;

@@ -355,6 +355,7 @@ cli
   .option("--passed", "Only show runs that passed")
   .option("--failed", "Only show runs that failed")
   .option("--model <model>", "Only show runs for this specific model (substring match on agentModel)")
+  .option("--sort <field>", "Sort runs by field: date (default), cost, duration, steps")
   .option("--json", "Output runs as a JSON array (suppresses plain/TUI output; useful for scripting)")
   .example("agr list")
   .example("agr list --limit 20")
@@ -364,11 +365,17 @@ cli
   .example("agr list --plain --config agent-fast")
   .example("agr list --plain --failed")
   .example("agr list --plain --model claude-haiku")
+  .example("agr list --plain --sort cost")
   .example("agr list --json | jq '[.[] | select(.passed == false)] | length'")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
         console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const validSorts = ["date", "cost", "duration", "steps"];
+      if (options.sort && !validSorts.includes(options.sort)) {
+        console.error(`Error: --sort must be one of: ${validSorts.join(", ")}`);
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
@@ -382,6 +389,7 @@ cli
         config: options.config,
         passed,
         model: options.model,
+        sort: options.sort,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);
