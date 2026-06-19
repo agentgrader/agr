@@ -24,9 +24,15 @@ export interface EnrichedRun {
 
 export type RunSortField = "date" | "cost" | "duration" | "steps";
 
-export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField): Promise<EnrichedRun[]> {
+export async function loadEnrichedRuns(db: AgrDb, limit?: number, sinceTs?: number, testCaseFilter?: string, configFilter?: string, passedFilter?: boolean, modelFilter?: string, sort?: RunSortField, matrixId?: string, lastMatrix?: boolean): Promise<EnrichedRun[]> {
   const rows = await listRuns(db);
-  const filtered = sinceTs !== undefined ? rows.filter((r) => r.createdAt >= sinceTs) : rows;
+  let resolvedMatrixId = matrixId;
+  if (lastMatrix && !resolvedMatrixId) {
+    const mr = rows.find((r) => r.matrixId);
+    resolvedMatrixId = mr?.matrixId ?? undefined;
+  }
+  const matrixFiltered = resolvedMatrixId ? rows.filter((r) => r.matrixId === resolvedMatrixId) : rows;
+  const filtered = sinceTs !== undefined ? matrixFiltered.filter((r) => r.createdAt >= sinceTs) : matrixFiltered;
   const tcFiltered = testCaseFilter
     ? filtered.filter((r) => r.testCaseId === testCaseFilter || r.testCaseId.includes(testCaseFilter))
     : filtered;
