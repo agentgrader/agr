@@ -373,6 +373,7 @@ cli
   .option("--sort <field>", "Sort runs by field: date (default), cost, duration, steps")
   .option("--matrix-id <id>", "Only show runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Only show runs from the most recent bench matrix sweep")
+  .option("--sandbox <provider>", "Only show runs with this sandbox provider (substring match, e.g. docker, e2b)")
   .option("--json", "Output runs as a JSON array (suppresses plain/TUI output; useful for scripting)")
   .example("agr list")
   .example("agr list --limit 20")
@@ -410,6 +411,7 @@ cli
         sort: options.sort,
         matrixId: options.matrixId,
         lastMatrix: options.lastMatrix,
+        sandbox: options.sandbox,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);
