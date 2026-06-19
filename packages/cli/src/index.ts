@@ -162,6 +162,7 @@ cli
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
+  .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
   .option("--provider <provider>", "Override the provider for all agent configs in this bench run (e.g. anthropic, openai, openrouter)")
   .option("--temperature <n>", "Override the temperature for all agent configs in this bench run (0.0–1.0)")
@@ -243,6 +244,7 @@ cli
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
         onlyFailed: options.onlyFailed,
         shuffle: options.shuffle,
+        sample: options.sample !== undefined ? Number(options.sample) : undefined,
         model: options.model,
         provider: options.provider,
         temperature: options.temperature !== undefined ? Number(options.temperature) : undefined,

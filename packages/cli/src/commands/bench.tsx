@@ -66,6 +66,7 @@ export async function runBenchCommand(opts: {
   limit?: number;
   onlyFailed?: boolean;
   shuffle?: boolean;
+  sample?: number;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -230,6 +231,19 @@ export async function runBenchCommand(opts: {
     testCases = indices.map((i) => testCases[i]!);
     yamlFiles = indices.map((i) => yamlFiles[i]!);
     console.log(`--shuffle: randomized order of ${testCases.length} test case(s)`);
+  }
+
+  if (opts.sample && opts.sample < testCases.length) {
+    const n = opts.sample;
+    const indices = testCases.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j]!, indices[i]!];
+    }
+    const picked = indices.slice(0, n);
+    testCases = picked.map((i) => testCases[i]!);
+    yamlFiles = picked.map((i) => yamlFiles[i]!);
+    console.log(`--sample ${n}: randomly selected ${n} of ${indices.length} test case(s): ${testCases.map(tc => tc.name).join(", ")}`);
   }
 
   if (opts.onlyFailed) {
