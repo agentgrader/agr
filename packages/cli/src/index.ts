@@ -19,6 +19,7 @@ import { traceCommand } from "./commands/trace";
 import { validateCommand } from "./commands/validate";
 import { validateToolkitCommand } from "./commands/validate-toolkit";
 import { statusCommand } from "./commands/status";
+import { countCommand } from "./commands/count";
 
 const cli = cac("agr");
 
@@ -355,6 +356,49 @@ cli
       await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("count", "Count runs matching the given filters and print the total")
+  .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .option("--since <duration|date>", "Only count runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
+  .option("--test-case <name>", "Only count runs for this specific test case (substring match)")
+  .option("--config <name>", "Only count runs for this specific agent config (substring match)")
+  .option("--model <model>", "Only count runs where the agent model contains this substring")
+  .option("--sandbox <provider>", "Only count runs with this sandbox provider (substring match)")
+  .option("--passed", "Only count runs that passed")
+  .option("--failed", "Only count runs that failed")
+  .option("--matrix-id <id>", "Only count runs belonging to a specific bench matrix sweep")
+  .option("--last-matrix", "Only count runs from the most recent bench matrix sweep")
+  .option("--json", "Output as JSON {total, passed, failed, dbPath} instead of a plain number")
+  .example("agr count")
+  .example("agr count --passed --since 24h")
+  .example("agr count --failed --test-case hello-world")
+  .example("agr count --last-matrix --json")
+  .example("agr count --model haiku --since 7d")
+  .action(async (options) => {
+    try {
+      if (options.passed && options.failed) {
+        console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const passed = options.passed ? true : options.failed ? false : undefined;
+      await countCommand({
+        db: options.db,
+        since: options.since,
+        testCase: options.testCase,
+        config: options.config,
+        model: options.model,
+        sandbox: options.sandbox,
+        passed,
+        matrixId: options.matrixId,
+        lastMatrix: options.lastMatrix,
+        json: options.json,
+      });
+    } catch (err: any) {
+      console.error(`Error executing count: ${err.message}`);
       process.exit(1);
     }
   });
