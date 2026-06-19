@@ -168,12 +168,14 @@ cli
   .option("--max-steps <n>", "Override the max_steps for all agent configs in this bench run")
   .option("--step-timeout <ms>", "Override step_timeout_ms for all agent configs in this bench run (ms per LLM provider call before abort)")
   .option("--name <substring>", "Filter test cases by name substring (case-insensitive); applied after --tags and --skip-tags. Requires --suite.")
+  .option("--config-filter <name>", "Filter loaded agent configs by name substring (case-insensitive); useful with --configs-dir or --manifest to run a subset without editing files")
   .option("--json", "Output bench results as a single JSON object and suppress the live dashboard; useful for scripting and CI pipelines")
   .example("agr bench hello-world")
   .example("agr bench hello-world --matrix matrix.yaml")
   .example("agr bench task-a task-b --configs agent.yaml")
   .example("agr bench --manifest bench.yaml")
   .example("agr bench --suite tasks --configs-dir ./agents")
+  .example("agr bench --suite tasks --configs-dir ./agents --config-filter fast")
   .example("agr bench --suite tasks --configs agent.yaml,agent-openrouter.yaml")
   .example("agr bench --suite tasks --matrix optimizer-matrix.yaml")
   .action(async (testCases, options) => {
@@ -247,6 +249,7 @@ cli
         maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
         stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined,
         name: options.name,
+        configFilter: options.configFilter,
         json: options.json,
       });
     } catch (err: any) {
