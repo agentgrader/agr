@@ -1,8 +1,10 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { initDb, getTraces, listRuns, type AgrDb } from "@agentgrader/store";
+import { initDb, getTraces, listRuns, agentConfigs, type AgrDb } from "@agentgrader/store";
 import { tracesToOtelJson, tracesToOtelJsonl } from "../lib/export/otel";
 import { parseSince } from "../lib/parse-since";
+
+export type ExportSortField = "date" | "cost" | "duration" | "steps";
 
 export async function exportCommand(
   subcommand: string,
@@ -19,6 +21,8 @@ export async function exportCommand(
     testCase?: string;
     config?: string;
     passed?: boolean;
+    model?: string;
+    sort?: ExportSortField;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -165,6 +169,21 @@ export async function exportCommand(
         process.exit(1);
       }
       console.log(`Filtering to ${runs.length} run(s) for config "${cfg}"`);
+    }
+    if (opts.model) {
+      const cfgRows = await db.select().from(agentConfigs);
+      const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? ""]));
+      const mf = opts.model.toLowerCase();
+      runs = runs.filter((r) => (modelByConfigId.get(r.agentConfigId) ?? "").toLowerCase().includes(mf));
+      if (runs.length === 0) {
+        console.error(`No runs found for model "${opts.model}". Check model names with \`agr status --by-model\`.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) for model matching "${opts.model}"`);
+    }
+    if (opts.sort && opts.sort !== "date") {
+      const key = opts.sort === "cost" ? "costUsd" : opts.sort === "duration" ? "durationMs" : "stepsCount";
+      runs = [...runs].sort((a, b) => ((b[key] as number | null) ?? 0) - ((a[key] as number | null) ?? 0));
     }
     if (opts.limit) runs = runs.slice(0, opts.limit);
     const payload = runs.map((r) => ({
