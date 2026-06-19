@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -130,6 +130,45 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     console.log(`  Avg cost:    $${prevAvgCost.toFixed(4)} -> $${avgCostUsd.toFixed(4)}/run  (${sign(avgCostDelta * 100, 2)}c) ${arrow(-avgCostDelta)}`);
     console.log("");
     console.log(`Next: agr status --since ${opts.since} --by-config  |  agr status --since ${opts.since} --by-model`);
+    return;
+  }
+
+  if (opts.byDay) {
+    const dayMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      const day = new Date(run.createdAt * 1000).toISOString().slice(0, 10);
+      if (!dayMap.has(day)) dayMap.set(day, []);
+      dayMap.get(day)!.push(run);
+    }
+    const dayStats = Array.from(dayMap.entries()).map(([day, dRuns]) => {
+      const p = dRuns.filter((r) => r.passed === true).length;
+      const f = dRuns.filter((r) => r.passed === false).length;
+      const cost = dRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      return {
+        day,
+        total: dRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: dRuns.length > 0 ? (p / dRuns.length) * 100 : 0,
+        totalCostUsd: cost,
+        avgCostUsd: dRuns.length > 0 ? cost / dRuns.length : 0,
+      };
+    }).sort((a, b) => a.day.localeCompare(b.day));
+    const dayStatsCapped = opts.top ? dayStats.slice(-opts.top) : dayStats;
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, byDay: dayStatsCapped }, null, 2));
+      return;
+    }
+
+    const topNote = opts.top && opts.top < dayStats.length ? ` (last ${opts.top} of ${dayStats.length} days)` : "";
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    console.log(`Per-day breakdown (${dayStatsCapped.length} day(s)${topNote}, oldest first):\n`);
+    for (const ds of dayStatsCapped) {
+      const solveStr = ds.total > 0 && (ds.passed > 0 || ds.failed > 0) ? `  solve: ${ds.solveRate.toFixed(1)}%` : "";
+      console.log(`  ${ds.day}  runs: ${ds.total} (${ds.passed} passed, ${ds.failed} failed)${solveStr}  cost: $${ds.totalCostUsd.toFixed(4)}`);
+    }
+    console.log(`\nNext: agr status --since 7d --trend  |  agr export runs --since 7d --format csv --output week.csv`);
     return;
   }
 
