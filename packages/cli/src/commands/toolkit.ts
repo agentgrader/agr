@@ -121,7 +121,7 @@ export async function toolkitAddCommand(name: string, opts: { dir?: string }) {
  * `track_tools`, but not to every config that references the same
  * toolkit).
  */
-export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig?: string }) {
+export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig?: string; json?: boolean }) {
   const dir = resolve(toolkitDir);
   const binDir = resolve(dir, "bin");
 
@@ -140,31 +140,49 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
 
   const skills = discoverSkills(dir);
   const descriptionByName = new Map(skills.map((skill) => [skill.frontmatter.name, skill.frontmatter.description]));
-
-  console.log(`Tools in ${toolkitDir}:`);
-  for (const name of toolNames) {
-    const description = descriptionByName.get(name);
-    if (description) {
-      console.log(`  ${name.padEnd(22)} ${description}`);
-    } else {
-      console.log(`  ${name.padEnd(22)} (no .claude/skills/${name}/SKILL.md)`);
-    }
-  }
-  const withSkill = toolNames.filter((name) => descriptionByName.has(name)).length;
-  console.log("");
-  console.log(`${toolNames.length} tool(s), ${withSkill} with SKILL.md.`);
-
   const findings = auditToolkitDirectory(dir);
-  if (findings.length > 0) {
-    console.log("");
-    console.log("Security audit:");
-    for (const finding of findings) {
-      const label = finding.severity === "error" ? "FAIL" : "WARN";
-      console.log(`  [${label}] ${finding.rule}: ${finding.message}`);
-    }
-  }
+
+  const tools = toolNames.map((name) => ({
+    name,
+    description: descriptionByName.get(name) ?? null,
+    hasSkill: descriptionByName.has(name),
+  }));
 
   if (!opts.checkConfig) {
+    if (opts.json) {
+      const withSkill = tools.filter((t) => t.hasSkill).length;
+      const hasErrors = findings.some((f) => f.severity === "error");
+      console.log(JSON.stringify({
+        toolkitDir,
+        tools,
+        auditFindings: findings,
+        ok: findings.length === 0,
+        summary: { total: toolNames.length, withSkill, hasErrors },
+      }, null, 2));
+      return;
+    }
+
+    console.log(`Tools in ${toolkitDir}:`);
+    for (const tool of tools) {
+      if (tool.description) {
+        console.log(`  ${tool.name.padEnd(22)} ${tool.description}`);
+      } else {
+        console.log(`  ${tool.name.padEnd(22)} (no .claude/skills/${tool.name}/SKILL.md)`);
+      }
+    }
+    const withSkill = tools.filter((t) => t.hasSkill).length;
+    console.log("");
+    console.log(`${toolNames.length} tool(s), ${withSkill} with SKILL.md.`);
+
+    if (findings.length > 0) {
+      console.log("");
+      console.log("Security audit:");
+      for (const finding of findings) {
+        const label = finding.severity === "error" ? "FAIL" : "WARN";
+        console.log(`  [${label}] ${finding.rule}: ${finding.message}`);
+      }
+    }
+
     if (findings.length > 0) {
       console.log(`\nNext: agr validate-toolkit ${toolkitDir}  |  agr toolkit-list ${toolkitDir} --check-config <agent.yaml>`);
     } else {
@@ -190,6 +208,43 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
 
   const untracked = toolNames.filter((name) => !tracked.has(name));
   const trackedButMissing = [...tracked].filter((name) => !toolNames.includes(name));
+  const needsFix = untracked.length > 0 || trackedButMissing.length > 0 || findings.length > 0;
+
+  if (opts.json) {
+    const withSkill = tools.filter((t) => t.hasSkill).length;
+    console.log(JSON.stringify({
+      toolkitDir,
+      checkConfig: opts.checkConfig,
+      tools,
+      auditFindings: findings,
+      untracked,
+      trackedButMissing,
+      ok: !needsFix,
+      summary: { total: toolNames.length, withSkill, untrackedCount: untracked.length, trackedButMissingCount: trackedButMissing.length },
+    }, null, 2));
+    return;
+  }
+
+  console.log(`Tools in ${toolkitDir}:`);
+  for (const tool of tools) {
+    if (tool.description) {
+      console.log(`  ${tool.name.padEnd(22)} ${tool.description}`);
+    } else {
+      console.log(`  ${tool.name.padEnd(22)} (no .claude/skills/${tool.name}/SKILL.md)`);
+    }
+  }
+  const withSkill = tools.filter((t) => t.hasSkill).length;
+  console.log("");
+  console.log(`${toolNames.length} tool(s), ${withSkill} with SKILL.md.`);
+
+  if (findings.length > 0) {
+    console.log("");
+    console.log("Security audit:");
+    for (const finding of findings) {
+      const label = finding.severity === "error" ? "FAIL" : "WARN";
+      console.log(`  [${label}] ${finding.rule}: ${finding.message}`);
+    }
+  }
 
   console.log("");
   console.log(`Checking against ${opts.checkConfig} (track_tools + require_tools_before_submit):`);
@@ -204,7 +259,6 @@ export async function toolkitListCommand(toolkitDir: string, opts: { checkConfig
   if (trackedButMissing.length > 0) {
     console.log(`  Tracked but not in ${toolkitDir}/bin/: ${trackedButMissing.join(", ")}`);
   }
-  const needsFix = untracked.length > 0 || trackedButMissing.length > 0 || findings.length > 0;
   if (needsFix) {
     console.log(`\nFix the issues above, then re-run: agr toolkit-list ${toolkitDir} --check-config ${opts.checkConfig}`);
   } else {
