@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -54,6 +54,10 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? ""]));
     const mf = opts.model.toLowerCase();
     runs = runs.filter((r) => (modelByConfigId.get(r.agentConfigId) ?? "").toLowerCase().includes(mf));
+  }
+  if (opts.sandbox) {
+    const sf = opts.sandbox.toLowerCase();
+    runs = runs.filter((r) => (r.sandboxProvider ?? "").toLowerCase().includes(sf));
   }
   if (opts.passed !== undefined) {
     runs = runs.filter((r) => r.passed === opts.passed);

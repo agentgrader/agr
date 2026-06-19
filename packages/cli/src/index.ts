@@ -323,6 +323,7 @@ cli
   .option("--test-case <name>", "Restrict stats to runs for this specific test case (substring match)")
   .option("--config <name>", "Restrict stats to runs for this specific agent config (substring match)")
   .option("--model <model>", "Restrict stats to runs where the agent model contains this substring (case-insensitive)")
+  .option("--sandbox <provider>", "Restrict stats to runs with this sandbox provider (substring match, e.g. docker, e2b)")
   .option("--passed", "Restrict stats to runs that passed")
   .option("--failed", "Restrict stats to runs that failed")
   .option("--by-config", "Show a per-config breakdown (solve rate, avg cost, avg duration), sorted by solve rate")
@@ -351,7 +352,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
