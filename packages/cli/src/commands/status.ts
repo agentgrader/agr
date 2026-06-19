@@ -14,7 +14,7 @@ import { parseSince } from "../lib/parse-since";
  */
 type StatusSortField = "solve-rate" | "cost" | "runs";
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -409,6 +409,48 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(tc.avgDurationMs)}`);
     }
     console.log(`\nNext: agr status --test-case <name>  |  agr bench --only-failed --suite tasks/`);
+    return;
+  }
+
+  if (opts.errors) {
+    const errorRuns = runs.filter((r) => r.error);
+    if (errorRuns.length === 0) {
+      if (opts.json) {
+        console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, errors: [] }, null, 2));
+      } else {
+        console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+        console.log("No error messages recorded in matching runs.");
+      }
+      return;
+    }
+    const byMsg = new Map<string, { count: number; exampleRunId: string; testCaseIds: Set<string> }>();
+    for (const r of errorRuns) {
+      const msg = r.error!;
+      const entry = byMsg.get(msg) ?? { count: 0, exampleRunId: r.id, testCaseIds: new Set() };
+      entry.count++;
+      entry.testCaseIds.add(r.testCaseId);
+      byMsg.set(msg, entry);
+    }
+    const sorted = [...byMsg.entries()].sort((a, b) => b[1].count - a[1].count);
+    if (opts.json) {
+      const out = sorted.map(([message, e]) => ({
+        message,
+        count: e.count,
+        exampleRunId: e.exampleRunId,
+        testCaseIds: [...e.testCaseIds],
+      }));
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, errors: out }, null, 2));
+      return;
+    }
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    console.log(`Error breakdown (${sorted.length} distinct error(s) across ${errorRuns.length} run(s)):\n`);
+    for (const [msg, e] of sorted) {
+      const tcList = [...e.testCaseIds].join(", ");
+      console.log(`  [${e.count}x] ${msg}`);
+      console.log(`       test cases: ${tcList}`);
+      console.log(`       example:    agr trace ${e.exampleRunId}`);
+    }
+    console.log(`\nNext: agr trace <runId>  |  agr status --failed --by-test-case`);
     return;
   }
 
