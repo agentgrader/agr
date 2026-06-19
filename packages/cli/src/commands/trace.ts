@@ -15,7 +15,16 @@ import { formatDuration } from "../lib/format-relative-time";
  * tool name appears across the run's `tool_call` steps. Useful for checking
  * whether a custom toolkit/MCP tool was actually used, vs. only available.
  */
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean }) {
+function parseStepsRange(range: string | undefined): { from: number; to: number } | undefined {
+  if (!range) return undefined;
+  const m = range.match(/^(\d+)(?:-(\d+))?$/);
+  if (!m) return undefined;
+  const from = parseInt(m[1]!, 10);
+  const to = m[2] !== undefined ? parseInt(m[2]!, 10) : from;
+  return { from, to };
+}
+
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -111,7 +120,11 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     return;
   }
 
-  const steps = await getTraces(db, resolvedRunId);
+  const allSteps = await getTraces(db, resolvedRunId);
+  const stepsRange = parseStepsRange(opts.steps);
+  const steps = stepsRange
+    ? allSteps.filter((s) => s.stepIndex >= stepsRange.from && s.stepIndex <= stepsRange.to)
+    : allSteps;
 
   if (opts.tools) {
     const toolCounts = countToolCalls(steps);
@@ -136,11 +149,16 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
       cachedTokens: s.cachedTokens ?? 0,
       costUsd: s.costUsd,
     }));
-    console.log(JSON.stringify({ run: runSummary, steps: stepsOut }));
+    const out: Record<string, unknown> = { run: runSummary, steps: stepsOut };
+    if (stepsRange) out.stepsRange = stepsRange;
+    console.log(JSON.stringify(out));
     return;
   }
 
-  console.log(`\n${steps.length} step(s):`);
+  const stepsLabel = stepsRange
+    ? `${steps.length} step(s) [${stepsRange.from}-${stepsRange.to}] of ${allSteps.length} total`
+    : `${steps.length} step(s)`;
+  console.log(`\n${stepsLabel}:`);
   let totalCachedTokens = 0;
   let totalTokensIn = 0;
   for (const step of steps) {
