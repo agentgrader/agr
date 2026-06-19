@@ -75,6 +75,7 @@ export async function runBenchCommand(opts: {
   name?: string;
   json?: boolean;
   stepTimeout?: number;
+  configFilter?: string;
 }) {
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
@@ -264,6 +265,19 @@ export async function runBenchCommand(opts: {
     console.log(
       `Using shared agent_config from agr.yaml: ${sharedAgentConfig} (${agentConfigs.length} ${acLabel}).`,
     );
+  }
+
+  if (opts.configFilter) {
+    const cf = opts.configFilter.toLowerCase();
+    const allNames = agentConfigs.map((ac) => ac.name);
+    agentConfigs = agentConfigs.filter((ac) => ac.name.toLowerCase().includes(cf));
+    if (agentConfigs.length === 0) {
+      console.error(`--config-filter "${opts.configFilter}" matched no agent configs. Available: ${allNames.join(", ")}`);
+      process.exit(1);
+    }
+    if (agentConfigs.length < allNames.length) {
+      console.log(`--config-filter "${opts.configFilter}": ${agentConfigs.length} of ${allNames.length} config(s) matched: ${agentConfigs.map(ac => ac.name).join(", ")}`);
+    }
   }
 
   if (opts.model) {
