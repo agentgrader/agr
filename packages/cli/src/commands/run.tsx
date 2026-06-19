@@ -52,6 +52,7 @@ export async function runSingleCommand(
     stepTimeout?: number;
     saveBaseline?: string;
     reportDir?: string;
+    dryRun?: boolean;
   },
 ) {
   const resolvedPath = resolveTestCasePath(testCasePath);
@@ -105,6 +106,38 @@ export async function runSingleCommand(
       console.log(formatOverrideLine("step_timeout_ms", String(agentConfig.step_timeout_ms ?? 120000), String(opts.stepTimeout), { colors: stdoutSupportsColor() }));
     }
     agentConfig = { ...agentConfig, step_timeout_ms: opts.stepTimeout };
+  }
+
+  if (opts.dryRun) {
+    const summary = {
+      testCase: testCase.name,
+      testCasePath: resolvedPath,
+      agentConfig: agentConfig.name,
+      model: agentConfig.model ?? null,
+      provider: agentConfig.provider ?? null,
+      temperature: agentConfig.temperature ?? null,
+      maxSteps: agentConfig.max_steps ?? agentConfig.maxSteps ?? null,
+      stepTimeoutMs: agentConfig.step_timeout_ms ?? null,
+      sandbox: opts.sandbox ?? "docker",
+      repeat: opts.repeat && opts.repeat > 1 ? opts.repeat : 1,
+    };
+    if (opts.json) {
+      console.log(JSON.stringify(summary));
+    } else {
+      console.log(`\nRun dry run -- 1 test case\n`);
+      console.log(`  Test case:    ${summary.testCase}`);
+      console.log(`  Path:         ${summary.testCasePath}`);
+      console.log(`  Config:       ${summary.agentConfig}`);
+      console.log(`  Model:        ${summary.model ?? "(from config)"}`);
+      if (summary.provider) console.log(`  Provider:     ${summary.provider}`);
+      if (summary.temperature !== null) console.log(`  Temperature:  ${summary.temperature}`);
+      if (summary.maxSteps !== null) console.log(`  Max steps:    ${summary.maxSteps}`);
+      if (summary.stepTimeoutMs !== null) console.log(`  Step timeout: ${summary.stepTimeoutMs}ms`);
+      console.log(`  Sandbox:      ${summary.sandbox}`);
+      if (summary.repeat > 1) console.log(`  Repeat:       ${summary.repeat}x`);
+      console.log(`\nRe-run without --dry-run to execute.`);
+    }
+    return;
   }
 
   const adapterName = opts.adapter ?? "ai-sdk";
