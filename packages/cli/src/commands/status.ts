@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; top?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; top?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -77,6 +77,57 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     ? runs.reduce((acc, r) => acc + (r.durationMs ?? 0), 0) / runs.length
     : 0;
   const solveRate = runs.length > 0 ? (passedRuns / runs.length) * 100 : 0;
+
+  if (opts.byModel) {
+    const cfgRows = await db.select().from(agentConfigs);
+    const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? "unknown"]));
+    const modelMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      const key = modelByConfigId.get(run.agentConfigId) ?? "unknown";
+      if (!modelMap.has(key)) modelMap.set(key, []);
+      modelMap.get(key)!.push(run);
+    }
+    const modelStats = Array.from(modelMap.entries()).map(([model, mRuns]) => {
+      const p = mRuns.filter((r) => r.passed === true).length;
+      const f = mRuns.filter((r) => r.passed === false).length;
+      const cost = mRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      const dur = mRuns.reduce((s, r) => s + (r.durationMs ?? 0), 0);
+      const ti = mRuns.reduce((s, r) => s + (r.tokensIn ?? 0), 0);
+      const to = mRuns.reduce((s, r) => s + (r.tokensOut ?? 0), 0);
+      return {
+        model,
+        total: mRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: mRuns.length > 0 ? (p / mRuns.length) * 100 : 0,
+        avgCostUsd: mRuns.length > 0 ? cost / mRuns.length : 0,
+        avgDurationMs: mRuns.length > 0 ? dur / mRuns.length : 0,
+        avgTokensIn: mRuns.length > 0 ? ti / mRuns.length : 0,
+        avgTokensOut: mRuns.length > 0 ? to / mRuns.length : 0,
+      };
+    }).sort((a, b) => b.solveRate - a.solveRate);
+    const modelStatsCapped = opts.top ? modelStats.slice(0, opts.top) : modelStats;
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, testCase: opts.testCase ?? null, config: opts.config ?? null, byModel: modelStatsCapped }, null, 2));
+      return;
+    }
+
+    const topNote = opts.top && opts.top < modelStats.length ? ` (top ${opts.top} of ${modelStats.length})` : "";
+    const tcScope = opts.testCase ? `  [test case: ${opts.testCase}]` : "";
+    const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${tcScope}${cfgScope}\n`);
+    console.log(`Per-model breakdown (${modelStatsCapped.length} model(s)${topNote}, sorted by solve rate):\n`);
+    for (const ms of modelStatsCapped) {
+      const hasTokens = ms.avgTokensIn > 0 || ms.avgTokensOut > 0;
+      const tokLine = hasTokens ? `  avg tok: ${Math.round(ms.avgTokensIn)}in/${Math.round(ms.avgTokensOut)}out` : "";
+      console.log(`  ${ms.model}`);
+      console.log(`    runs: ${ms.total}  (${ms.passed} passed, ${ms.failed} failed)  solve rate: ${ms.solveRate.toFixed(1)}%`);
+      console.log(`    avg cost: $${ms.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(ms.avgDurationMs)}${tokLine}`);
+    }
+    console.log(`\nNext: agr status --model <name>  |  agr bench --suite tasks/ --model <name>`);
+    return;
+  }
 
   if (opts.byConfig) {
     const cfgMap = new Map<string, typeof runs>();
