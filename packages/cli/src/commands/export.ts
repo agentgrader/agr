@@ -23,6 +23,8 @@ export async function exportCommand(
     passed?: boolean;
     model?: string;
     sort?: ExportSortField;
+    sandbox?: string;
+    error?: string;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -180,6 +182,24 @@ export async function exportCommand(
         process.exit(1);
       }
       console.log(`Filtering to ${runs.length} run(s) for model matching "${opts.model}"`);
+    }
+    if (opts.sandbox) {
+      const sf = opts.sandbox.toLowerCase();
+      runs = runs.filter((r) => (r.sandboxProvider ?? "").toLowerCase().includes(sf));
+      if (runs.length === 0) {
+        console.error(`No runs found for sandbox "${opts.sandbox}". Check sandbox names with \`agr status --by-sandbox\`.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) for sandbox matching "${opts.sandbox}"`);
+    }
+    if (opts.error) {
+      const ef = opts.error.toLowerCase();
+      runs = runs.filter((r) => (r.error ?? "").toLowerCase().includes(ef));
+      if (runs.length === 0) {
+        console.error(`No runs found with error matching "${opts.error}". Check error messages with \`agr list --plain --failed\`.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) with error matching "${opts.error}"`);
     }
     if (opts.sort && opts.sort !== "date") {
       const key = opts.sort === "cost" ? "costUsd" : opts.sort === "duration" ? "durationMs" : "stepsCount";
