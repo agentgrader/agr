@@ -22,6 +22,10 @@ export interface ListCommandOptions {
   lastMatrix?: boolean;
   sandbox?: string;
   error?: string;
+  minCost?: number;
+  maxCost?: number;
+  minSteps?: number;
+  maxSteps?: number;
 }
 
 function printPlainList(
@@ -76,19 +80,26 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   const sinceTs = options.since ? parseSince(options.since) : undefined;
   const runs = await loadEnrichedRuns(db, limit, sinceTs, options.testCase, options.config, options.passed, options.model, options.sort, options.matrixId, options.lastMatrix, options.sandbox, options.error);
 
+  let filteredRuns = runs;
+  if (options.minCost !== undefined) filteredRuns = filteredRuns.filter((r) => r.costUsd >= options.minCost!);
+  if (options.maxCost !== undefined) filteredRuns = filteredRuns.filter((r) => r.costUsd <= options.maxCost!);
+  if (options.minSteps !== undefined) filteredRuns = filteredRuns.filter((r) => r.stepsCount >= options.minSteps!);
+  if (options.maxSteps !== undefined) filteredRuns = filteredRuns.filter((r) => r.stepsCount <= options.maxSteps!);
+  const effectiveRuns = filteredRuns;
+
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
   const tcLabel = options.testCase ? options.testCase : undefined;
   const cfgLabel = options.config ? options.config : undefined;
   const passedLabel = options.passed === true ? "passed only" : options.passed === false ? "failed only" : undefined;
 
   if (options.json) {
-    const output = runs.map(({ finalDiff: _fd, ...run }) => run);
+    const output = effectiveRuns.map(({ finalDiff: _fd, ...run }) => run);
     console.log(JSON.stringify(output));
     return;
   }
 
   if (options.plain || !process.stdout.isTTY) {
-    printPlainList(runs, dbPath, sinceLabel, tcLabel, cfgLabel, passedLabel);
+    printPlainList(effectiveRuns, dbPath, sinceLabel, tcLabel, cfgLabel, passedLabel);
     return;
   }
 
@@ -106,7 +117,7 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   clearTerminalScreen(process.stdout);
 
   const { waitUntilExit } = render(
-    <RunListApp runs={runs} dbPath={dbPath} loadTraces={loadTraces} />,
+    <RunListApp runs={effectiveRuns} dbPath={dbPath} loadTraces={loadTraces} />,
   );
 
   try {
