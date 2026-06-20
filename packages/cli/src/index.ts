@@ -348,6 +348,7 @@ cli
   .option("--percentiles", "Add p50 and p95 percentile stats for cost and duration to the base status output and --json; useful for spotting outliers that skew the average")
   .option("--below <n>", "With --by-test-case, --by-config, or --by-model: only show entries with solve rate strictly below n% (0-100). Useful for filtering to failing/underperforming entries (e.g. --below 100 shows anything with at least one failure, --below 50 shows those failing more than half the time)")
   .option("--grid", "Show a cross-tab matrix: rows are test cases, columns are agent configs, each cell shows latest PASS/FAIL/-- for that (test case, config) pair; combinable with --since, --test-case, --config, and filter flags; --json emits {testCaseIds, configIds, grid[{testCaseId, configs{}}]}")
+  .option("--min-runs <n>", "With --by-test-case, --by-config, or --by-model: only show entries with at least N total runs; useful for excluding test cases that haven't been run enough to be statistically significant")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
@@ -380,7 +381,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay, sortBy: options.sortBy as "solve-rate" | "cost" | "runs" | undefined, errors: options.errors, flaky: options.flaky, percentiles: options.percentiles, below: options.below !== undefined ? Number(options.below) : undefined, grid: options.grid });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay, sortBy: options.sortBy as "solve-rate" | "cost" | "runs" | undefined, errors: options.errors, flaky: options.flaky, percentiles: options.percentiles, below: options.below !== undefined ? Number(options.below) : undefined, grid: options.grid, minRuns: options.minRuns !== undefined ? Number(options.minRuns) : undefined });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
