@@ -20,6 +20,7 @@ import { validateCommand } from "./commands/validate";
 import { validateToolkitCommand } from "./commands/validate-toolkit";
 import { statusCommand } from "./commands/status";
 import { countCommand } from "./commands/count";
+import { costCommand } from "./commands/cost";
 
 const cli = cac("agr");
 
@@ -431,6 +432,49 @@ cli
       });
     } catch (err: any) {
       console.error(`Error executing count: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("cost", "Print total cost for runs matching the given filters (default: all runs); plain output is a single dollar amount, useful for scripting")
+  .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .option("--since <duration|date>", "Only include runs after this point (e.g. 1h, 24h, 7d, or ISO date)")
+  .option("--test-case <name>", "Only include runs for this specific test case (substring match)")
+  .option("--config <name>", "Only include runs for this specific agent config (substring match)")
+  .option("--model <model>", "Only include runs where the agent model contains this substring")
+  .option("--sandbox <provider>", "Only include runs with this sandbox provider (substring match)")
+  .option("--passed", "Only include runs that passed")
+  .option("--failed", "Only include runs that failed")
+  .option("--matrix-id <id>", "Only include runs belonging to a specific bench matrix sweep")
+  .option("--last-matrix", "Only include runs from the most recent bench matrix sweep")
+  .option("--json", "Output as JSON {totalCostUsd, avgCostUsd, total, dbPath} instead of a plain dollar amount")
+  .example("agr cost")
+  .example("agr cost --since 24h")
+  .example("agr cost --last-matrix")
+  .example("agr cost --test-case hello-world --since 7d")
+  .example("agr cost --json | jq .avgCostUsd")
+  .action(async (options) => {
+    try {
+      if (options.passed && options.failed) {
+        console.error("Error: --passed and --failed are mutually exclusive.");
+        process.exit(1);
+      }
+      const passed = options.passed ? true : options.failed ? false : undefined;
+      await costCommand({
+        db: options.db,
+        since: options.since,
+        testCase: options.testCase,
+        config: options.config,
+        model: options.model,
+        sandbox: options.sandbox,
+        passed,
+        matrixId: options.matrixId,
+        lastMatrix: options.lastMatrix,
+        json: options.json,
+      });
+    } catch (err: any) {
+      console.error(`Error executing cost: ${err.message}`);
       process.exit(1);
     }
   });
