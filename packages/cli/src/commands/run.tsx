@@ -49,6 +49,8 @@ export async function runSingleCommand(
     judgeGate?: boolean;
     judgeMinScore?: number;
     repeat?: number;
+    untilPass?: boolean;
+    maxAttempts?: number;
     stepTimeout?: number;
     saveBaseline?: string;
     reportDir?: string;
@@ -253,6 +255,85 @@ export async function runSingleCommand(
       process.exit(1);
     }
     console.log(`\nNext: agr trace --last --test-case ${testCase.name}  |  agr bench ${testCase.name}`);
+    process.exit(0);
+  }
+
+  if (opts.untilPass) {
+    const maxAttempts = opts.maxAttempts ?? 5;
+    await saveTestCase(db, testCaseToDbRow(testCase));
+    await saveAgentConfig(db, {
+      id: agentConfig.id || agentConfig.name,
+      name: agentConfig.name,
+      model: agentConfig.model,
+      maxSteps: agentConfig.max_steps,
+      temperature: agentConfig.temperature,
+      createdAt: Math.floor(Date.now() / 1000),
+    });
+    if (!opts.json) {
+      console.log(
+        formatSuccess(`until-pass ${testCase.name} · ${agentConfig.model} (max ${maxAttempts} attempts)`, {
+          colors: stdoutSupportsColor(),
+        }) + "\n",
+      );
+    }
+    const results: Array<{ passed: boolean | null; costUsd: number; durationMs: number; runId: string; error?: string }> = [];
+    for (let i = 0; i < maxAttempts; i++) {
+      const runId = randomUUID();
+      if (!opts.json) process.stdout.write(`  [${i + 1}/${maxAttempts}] running...`);
+      let result: { passed: boolean | null; costUsd: number; durationMs: number } | null = null;
+      try {
+        result = await runSingle({
+          testCase,
+          agentConfig,
+          adapter,
+          sandboxProvider,
+          db,
+          runId,
+          extraScorers: buildExtraScorers({
+            llmJudge: opts.llmJudge,
+            llmJudgeProvider: opts.llmJudgeProvider,
+            llmJudgeModel: opts.llmJudgeModel,
+            judgeGate: opts.judgeGate,
+            judgeMinScore: opts.judgeMinScore,
+          }),
+        });
+        if (!opts.json) {
+          const status = result.passed === true ? "PASS" : result.passed === false ? "FAIL" : "ERROR";
+          process.stdout.write(`\r  [${i + 1}/${maxAttempts}] ${status.padEnd(5)} $${result.costUsd.toFixed(4)}  ${formatDuration(result.durationMs)}  ${runId.slice(0, 8)}\n`);
+        }
+        results.push({ passed: result.passed, costUsd: result.costUsd, durationMs: result.durationMs, runId });
+        if (result.passed === true) break;
+      } catch (err: any) {
+        if (!opts.json) process.stdout.write(`\r  [${i + 1}/${maxAttempts}] ERROR ${err.message}\n`);
+        results.push({ passed: null, costUsd: 0, durationMs: 0, runId, error: err.message });
+      }
+    }
+    const didPass = results.some((r) => r.passed === true);
+    const totalCost = results.reduce((s, r) => s + r.costUsd, 0);
+    if (opts.json) {
+      console.log(JSON.stringify({
+        testCaseId: testCase.name,
+        agentConfigId: agentConfig.id || agentConfig.name,
+        model: agentConfig.model,
+        passed: didPass,
+        attempts: results.length,
+        maxAttempts,
+        totalCostUsd: totalCost,
+        runs: results,
+      }));
+      if (!didPass && opts.failOnFailure) process.exit(1);
+      process.exit(0);
+    }
+    console.log(`\nUntil-pass summary (${results.length} attempt(s)):`);
+    if (didPass) {
+      console.log(`  PASS on attempt ${results.findIndex((r) => r.passed === true) + 1} of ${results.length}`);
+    } else {
+      console.log(`  FAIL: did not pass in ${maxAttempts} attempt(s)`);
+    }
+    console.log(`  Total cost: $${totalCost.toFixed(4)}`);
+    const lastRunId = results[results.length - 1]?.runId ?? "";
+    console.log(`\nNext: agr trace ${lastRunId}  |  agr status --flaky --test-case ${testCase.name}`);
+    if (!didPass && opts.failOnFailure) process.exit(1);
     process.exit(0);
   }
 

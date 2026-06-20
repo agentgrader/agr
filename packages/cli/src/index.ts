@@ -86,6 +86,8 @@ cli
   )
   .option("--fail-on-failure", "Exit with code 1 if the run does not pass")
   .option("--repeat <n>", "Run the test case N times and print a solve-rate summary (useful for flakiness testing)")
+  .option("--until-pass", "Run the test case until it passes, up to --max-attempts (default 5); useful for checking if a flaky fix actually works")
+  .option("--max-attempts <n>", "Maximum number of attempts for --until-pass (default: 5)")
   .option("--report <format>", "Write a report (json, jsonl, html, md)")
   .option("--output <path>", "Output path for --report")
   .option("--report-dir <dir>", "Directory for auto-named report files (e.g. reports/); generates run-<timestamp>.<ext> when --output is not given")
@@ -111,7 +113,7 @@ cli
   .example("agr run hello-world --json")
   .action(async (testCase, options) => {
     try {
-      await runSingleCommand(testCase, { ...options, json: options.json, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined, stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined, temperature: options.temperature !== undefined ? Number(options.temperature) : undefined, saveBaseline: options.saveBaseline, dryRun: options.dryRun });
+      await runSingleCommand(testCase, { ...options, json: options.json, repeat: options.repeat !== undefined ? Number(options.repeat) : undefined, untilPass: options.untilPass, maxAttempts: options.maxAttempts !== undefined ? Number(options.maxAttempts) : undefined, maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined, stepTimeout: options.stepTimeout !== undefined ? Number(options.stepTimeout) : undefined, temperature: options.temperature !== undefined ? Number(options.temperature) : undefined, saveBaseline: options.saveBaseline, dryRun: options.dryRun });
     } catch (err: any) {
       console.error(`Error executing run: ${err.message}`);
       process.exit(1);
