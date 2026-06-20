@@ -442,6 +442,10 @@ cli
   .option("--last-matrix", "Only show runs from the most recent bench matrix sweep")
   .option("--sandbox <provider>", "Only show runs with this sandbox provider (substring match, e.g. docker, e2b)")
   .option("--error <substring>", "Only show runs whose error message contains this substring (case-insensitive); useful for finding all runs that failed with a specific error")
+  .option("--min-cost <amount>", "Only show runs costing at least this many USD (e.g. 0.05 to find expensive outliers)")
+  .option("--max-cost <amount>", "Only show runs costing at most this many USD (e.g. 0.01 to find cheap runs)")
+  .option("--min-steps <n>", "Only show runs with at least this many steps")
+  .option("--max-steps <n>", "Only show runs with at most this many steps")
   .option("--json", "Output runs as a JSON array (suppresses plain/TUI output; useful for scripting)")
   .example("agr list")
   .example("agr list --limit 20")
@@ -481,6 +485,10 @@ cli
         lastMatrix: options.lastMatrix,
         sandbox: options.sandbox,
         error: options.error,
+        minCost: options.minCost !== undefined ? Number(options.minCost) : undefined,
+        maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined,
+        minSteps: options.minSteps !== undefined ? Number(options.minSteps) : undefined,
+        maxSteps: options.maxSteps !== undefined ? Number(options.maxSteps) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);
