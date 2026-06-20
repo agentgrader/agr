@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -268,7 +268,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgTokensOut: mRuns.length > 0 ? to / mRuns.length : 0,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : b.solveRate - a.solveRate);
-    const modelStatsFiltered = opts.below !== undefined ? modelStats.filter((s) => s.solveRate < opts.below!) : modelStats;
+    const modelStatsFiltered = modelStats
+      .filter((s) => opts.minRuns === undefined || s.total >= opts.minRuns)
+      .filter((s) => opts.below === undefined || s.solveRate < opts.below!);
     const modelStatsCapped = opts.top ? modelStatsFiltered.slice(0, opts.top) : modelStatsFiltered;
 
     if (opts.json) {
@@ -359,7 +361,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgTokensOut: cfgRuns.length > 0 ? to / cfgRuns.length : 0,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : b.solveRate - a.solveRate);
-    const cfgStatsFiltered = opts.below !== undefined ? cfgStats.filter((s) => s.solveRate < opts.below!) : cfgStats;
+    const cfgStatsFiltered = cfgStats
+      .filter((s) => opts.minRuns === undefined || s.total >= opts.minRuns)
+      .filter((s) => opts.below === undefined || s.solveRate < opts.below!);
     const cfgStatsCapped = opts.top ? cfgStatsFiltered.slice(0, opts.top) : cfgStatsFiltered;
 
     if (opts.json) {
@@ -405,7 +409,9 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgDurationMs: tcRuns.length > 0 ? dur / tcRuns.length : 0,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : a.solveRate - b.solveRate);
-    const tcStatsFiltered = opts.below !== undefined ? tcStats.filter((s) => s.solveRate < opts.below!) : tcStats;
+    const tcStatsFiltered = tcStats
+      .filter((s) => opts.minRuns === undefined || s.total >= opts.minRuns)
+      .filter((s) => opts.below === undefined || s.solveRate < opts.below!);
     const tcStatsCapped = opts.top ? tcStatsFiltered.slice(0, opts.top) : tcStatsFiltered;
 
     if (opts.json) {
