@@ -14,7 +14,7 @@ import { parseSince } from "../lib/parse-since";
  */
 type StatusSortField = "solve-rate" | "cost" | "runs";
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -409,6 +409,53 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(tc.avgDurationMs)}`);
     }
     console.log(`\nNext: agr status --test-case <name>  |  agr bench --only-failed --suite tasks/`);
+    return;
+  }
+
+  if (opts.flaky) {
+    const tcMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      if (!tcMap.has(run.testCaseId)) tcMap.set(run.testCaseId, []);
+      tcMap.get(run.testCaseId)!.push(run);
+    }
+    const flakyStats = Array.from(tcMap.entries())
+      .map(([testCaseId, tcRuns]) => {
+        const p = tcRuns.filter((r) => r.passed === true).length;
+        const f = tcRuns.filter((r) => r.passed === false).length;
+        const cost = tcRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+        return {
+          testCaseId,
+          total: tcRuns.length,
+          passed: p,
+          failed: f,
+          solveRate: (p / tcRuns.length) * 100,
+          avgCostUsd: cost / tcRuns.length,
+          variance: Math.abs(0.5 - p / tcRuns.length),
+        };
+      })
+      .filter((tc) => tc.passed > 0 && tc.failed > 0)
+      .sort((a, b) => a.variance - b.variance);
+    const flakyStatsCapped = opts.top ? flakyStats.slice(0, opts.top) : flakyStats;
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, flaky: flakyStatsCapped }, null, 2));
+      return;
+    }
+
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    if (flakyStats.length === 0) {
+      console.log("No flaky test cases found (every test case has a consistent pass or fail record).");
+      console.log(`\nNext: agr status --by-test-case  |  agr status --errors`);
+      return;
+    }
+    const topNote = opts.top && opts.top < flakyStats.length ? ` (top ${opts.top} of ${flakyStats.length})` : "";
+    console.log(`Flaky test cases (${flakyStatsCapped.length} case(s)${topNote}, most 50/50 first):\n`);
+    for (const tc of flakyStatsCapped) {
+      console.log(`  ${tc.testCaseId}`);
+      console.log(`    runs: ${tc.total}  (${tc.passed} passed, ${tc.failed} failed)  solve rate: ${tc.solveRate.toFixed(1)}%`);
+      console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run`);
+    }
+    console.log(`\nNext: agr status --test-case <name>  |  agr trace --last --test-case <name>`);
     return;
   }
 
