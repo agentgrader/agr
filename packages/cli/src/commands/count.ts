@@ -14,6 +14,8 @@ export async function countCommand(opts: {
   matrixId?: string;
   lastMatrix?: boolean;
   json?: boolean;
+  byTestCase?: boolean;
+  byConfig?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -61,6 +63,50 @@ export async function countCommand(opts: {
   }
   if (opts.passed !== undefined) {
     runs = runs.filter((r) => r.passed === opts.passed);
+  }
+
+  if (opts.byTestCase) {
+    const tcMap = new Map<string, { total: number; passed: number; failed: number }>();
+    for (const r of runs) {
+      const entry = tcMap.get(r.testCaseId) ?? { total: 0, passed: 0, failed: 0 };
+      entry.total++;
+      if (r.passed === true) entry.passed++;
+      if (r.passed === false) entry.failed++;
+      tcMap.set(r.testCaseId, entry);
+    }
+    const byTestCase = [...tcMap.entries()]
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([testCaseId, c]) => ({ testCaseId, ...c }));
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, dbPath, byTestCase }));
+    } else {
+      for (const tc of byTestCase) {
+        console.log(`${tc.total}\t${tc.testCaseId}\t(${tc.passed} passed, ${tc.failed} failed)`);
+      }
+    }
+    return;
+  }
+
+  if (opts.byConfig) {
+    const cfgMap = new Map<string, { total: number; passed: number; failed: number }>();
+    for (const r of runs) {
+      const entry = cfgMap.get(r.agentConfigId) ?? { total: 0, passed: 0, failed: 0 };
+      entry.total++;
+      if (r.passed === true) entry.passed++;
+      if (r.passed === false) entry.failed++;
+      cfgMap.set(r.agentConfigId, entry);
+    }
+    const byConfig = [...cfgMap.entries()]
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([agentConfigId, c]) => ({ agentConfigId, ...c }));
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, dbPath, byConfig }));
+    } else {
+      for (const cfg of byConfig) {
+        console.log(`${cfg.total}\t${cfg.agentConfigId}\t(${cfg.passed} passed, ${cfg.failed} failed)`);
+      }
+    }
+    return;
   }
 
   const total = runs.length;

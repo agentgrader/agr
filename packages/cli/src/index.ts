@@ -399,11 +399,15 @@ cli
   .option("--matrix-id <id>", "Only count runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Only count runs from the most recent bench matrix sweep")
   .option("--json", "Output as JSON {total, passed, failed, dbPath} instead of a plain number")
+  .option("--by-test-case", "Print a count per test case (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byTestCase: [{testCaseId, total, passed, failed}]}")
+  .option("--by-config", "Print a count per agent config (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byConfig: [{agentConfigId, total, passed, failed}]}")
   .example("agr count")
   .example("agr count --passed --since 24h")
   .example("agr count --failed --test-case hello-world")
   .example("agr count --last-matrix --json")
   .example("agr count --model haiku --since 7d")
+  .example("agr count --by-test-case --json | jq '.byTestCase[] | select(.total < 3)'")
+  .example("agr count --by-config --since 7d")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
@@ -422,6 +426,8 @@ cli
         matrixId: options.matrixId,
         lastMatrix: options.lastMatrix,
         json: options.json,
+        byTestCase: options.byTestCase,
+        byConfig: options.byConfig,
       });
     } catch (err: any) {
       console.error(`Error executing count: ${err.message}`);
