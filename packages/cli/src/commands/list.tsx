@@ -26,6 +26,7 @@ export interface ListCommandOptions {
   maxCost?: number;
   minSteps?: number;
   maxSteps?: number;
+  latest?: boolean;
 }
 
 function printPlainList(
@@ -85,6 +86,15 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   if (options.maxCost !== undefined) filteredRuns = filteredRuns.filter((r) => r.costUsd <= options.maxCost!);
   if (options.minSteps !== undefined) filteredRuns = filteredRuns.filter((r) => r.stepsCount >= options.minSteps!);
   if (options.maxSteps !== undefined) filteredRuns = filteredRuns.filter((r) => r.stepsCount <= options.maxSteps!);
+  if (options.latest) {
+    const seen = new Set<string>();
+    filteredRuns = filteredRuns.filter((r) => {
+      const key = `${r.testCaseId}::${r.agentConfigId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
   const effectiveRuns = filteredRuns;
 
   const sinceLabel = options.since ? `${options.since} (${new Date((sinceTs ?? 0) * 1000).toISOString()})` : undefined;
