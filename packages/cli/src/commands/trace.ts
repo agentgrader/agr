@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -132,9 +132,12 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
         return label.toLowerCase().includes(grepPattern) || (s.content ?? "").toLowerCase().includes(grepPattern);
       })
     : rangeFiltered;
-  const steps = opts.topCost
-    ? [...grepFiltered].sort((a, b) => b.costUsd - a.costUsd).slice(0, opts.topCost)
+  const kindFiltered = opts.kind
+    ? grepFiltered.filter((s) => s.kind === opts.kind || (s.tool && `${s.kind}:${s.tool}` === opts.kind))
     : grepFiltered;
+  const steps = opts.topCost
+    ? [...kindFiltered].sort((a, b) => b.costUsd - a.costUsd).slice(0, opts.topCost)
+    : kindFiltered;
 
   if (opts.tools) {
     const toolCounts = countToolCalls(steps);
@@ -173,8 +176,11 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     const pool = stepsRange ? rangeFiltered.length : allSteps.length;
     stepsLabel = `${steps.length} matching step(s) for "${opts.grep}" of ${pool} total`;
   }
+  if (opts.kind) {
+    stepsLabel = `${kindFiltered.length} step(s) of kind "${opts.kind}" of ${grepFiltered.length} total`;
+  }
   if (opts.topCost) {
-    stepsLabel = `top ${steps.length} most expensive step(s) of ${grepFiltered.length} total (sorted by cost desc)`;
+    stepsLabel = `top ${steps.length} most expensive step(s) of ${kindFiltered.length} total (sorted by cost desc)`;
   }
   console.log(`\n${stepsLabel}:`);
   let totalCachedTokens = 0;
