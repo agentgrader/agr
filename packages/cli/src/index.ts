@@ -341,6 +341,7 @@ cli
   .option("--by-day", "Show a per-day breakdown (runs, solve rate, total cost), oldest first; useful for spotting when a regression started; combinable with --since and all filter flags")
   .option("--sort-by <field>", "Sort --by-test-case, --by-config, and --by-model breakdowns by: solve-rate (default), cost (avg cost/run, most expensive first), or runs (most runs first)")
   .option("--errors", "Show a deduplicated list of error messages across errored/failed runs, sorted by frequency; combinable with --since, --test-case, --config, and all filter flags")
+  .option("--flaky", "Show test cases with inconsistent pass/fail results across runs, sorted by closest to 50/50; requires at least one pass and one fail in the matching runs")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
@@ -362,6 +363,8 @@ cli
   .example("agr status --by-matrix")
   .example("agr status --errors")
   .example("agr status --errors --since 24h")
+  .example("agr status --flaky")
+  .example("agr status --flaky --since 7d")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
@@ -369,7 +372,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay, sortBy: options.sortBy as "solve-rate" | "cost" | "runs" | undefined, errors: options.errors });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay, sortBy: options.sortBy as "solve-rate" | "cost" | "runs" | undefined, errors: options.errors, flaky: options.flaky });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);
