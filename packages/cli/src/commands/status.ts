@@ -14,7 +14,13 @@ import { parseSince } from "../lib/parse-since";
  */
 type StatusSortField = "solve-rate" | "cost" | "runs";
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean }) {
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.ceil((p / 100) * sorted.length) - 1;
+  return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
+}
+
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -90,6 +96,12 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     ? runs.reduce((acc, r) => acc + (r.durationMs ?? 0), 0) / runs.length
     : 0;
   const solveRate = runs.length > 0 ? (passedRuns / runs.length) * 100 : 0;
+  const sortedCosts = [...runs.map((r) => r.costUsd ?? 0)].sort((a, b) => a - b);
+  const sortedDurations = [...runs.map((r) => r.durationMs ?? 0)].sort((a, b) => a - b);
+  const p50CostUsd = percentile(sortedCosts, 50);
+  const p95CostUsd = percentile(sortedCosts, 95);
+  const p50DurationMs = percentile(sortedDurations, 50);
+  const p95DurationMs = percentile(sortedDurations, 95);
 
   if (opts.trend && opts.since && !opts.byConfig && !opts.byTestCase && !opts.byModel && !opts.bySandbox && !opts.byMatrix) {
     const sinceTs = parseSince(opts.since);
@@ -521,6 +533,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       totalCostUsd,
       avgCostUsd,
       avgDurationMs,
+      ...(opts.percentiles ? { p50CostUsd, p95CostUsd, p50DurationMs, p95DurationMs } : {}),
       totalTokensIn,
       totalTokensOut,
       lastRunAt: lastRun?.createdAt ?? null,
@@ -551,8 +564,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   if (matrixRuns > 0) {
     console.log(`  Matrix:     ${matrixRuns} run(s) from matrix sweeps`);
   }
-  console.log(`  Total cost: $${totalCostUsd.toFixed(4)}  avg: $${avgCostUsd.toFixed(4)}/run`);
-  console.log(`  Avg duration: ${formatDuration(avgDurationMs)}`);
+  console.log(`  Total cost: $${totalCostUsd.toFixed(4)}  avg: $${avgCostUsd.toFixed(4)}/run${opts.percentiles ? `  p50: $${p50CostUsd.toFixed(4)}  p95: $${p95CostUsd.toFixed(4)}` : ""}`);
+  console.log(`  Avg duration: ${formatDuration(avgDurationMs)}${opts.percentiles ? `  p50: ${formatDuration(p50DurationMs)}  p95: ${formatDuration(p95DurationMs)}` : ""}`);
   if (totalTokensIn > 0 || totalTokensOut > 0) {
     console.log(`  Tokens:     ${totalTokensIn.toLocaleString()} in / ${totalTokensOut.toLocaleString()} out`);
   }
