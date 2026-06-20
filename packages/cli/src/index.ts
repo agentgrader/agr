@@ -662,6 +662,7 @@ cli
     "Show only divergent steps plus one step of context before and after each",
   )
   .option("--last-two", "Compare the two most recent runs (no run IDs needed)")
+  .option("--first-and-last", "Compare the oldest and most recent runs (useful for tracking progress over time); combine with --test-case to scope to a single test case")
   .option("--test-case <name>", "With --last-two, compare the two most recent runs for this specific test case")
   .option("--config <name>", "With --last-two, compare the two most recent runs for this specific agent config (substring match)")
   .option("--json", "Output comparison result as a single JSON object {runA, runB, divergentCount, totalSteps, firstDivergence, steps[]}")
@@ -670,9 +671,11 @@ cli
   .example("agr compare --last-two --test-case hello-world")
   .example("agr compare --last-two --config agent-a")
   .example("agr compare --last-two --json | jq .divergentCount")
+  .example("agr compare --first-and-last --test-case hello-world")
+  .example("agr compare --first-and-last --test-case hello-world --only-diff")
   .action(async (runIdA, runIdB, options) => {
     try {
-      await compareCommand(runIdA, runIdB, { ...options, lastTwo: options.lastTwo, testCase: options.testCase, config: options.config });
+      await compareCommand(runIdA, runIdB, { ...options, lastTwo: options.lastTwo, firstAndLast: options.firstAndLast, testCase: options.testCase, config: options.config });
     } catch (err: any) {
       console.error(`Error executing compare: ${err.message}`);
       process.exit(1);
