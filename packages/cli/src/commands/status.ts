@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -513,6 +513,45 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`       example:    agr trace ${e.exampleRunId}`);
     }
     console.log(`\nNext: agr trace <runId>  |  agr status --failed --by-test-case`);
+    return;
+  }
+
+  if (opts.grid) {
+    const testCaseIds = [...new Set(runs.map((r) => r.testCaseId))].sort();
+    const configIds = [...new Set(runs.map((r) => r.agentConfigId))].sort();
+    // runs are sorted newest-first; keep first occurrence per (tc, cfg) pair
+    const latestResult = new Map<string, boolean | null>();
+    for (const r of runs) {
+      const key = `${r.testCaseId}::${r.agentConfigId}`;
+      if (!latestResult.has(key)) latestResult.set(key, r.passed ?? null);
+    }
+    if (opts.json) {
+      const cells = testCaseIds.map((tc) => ({
+        testCaseId: tc,
+        configs: Object.fromEntries(configIds.map((cfg) => [cfg, latestResult.get(`${tc}::${cfg}`) ?? null])),
+      }));
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, testCaseIds, configIds, grid: cells }, null, 2));
+      return;
+    }
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    if (testCaseIds.length === 0) {
+      console.log("No runs to display.");
+      return;
+    }
+    const tcWidth = Math.max(...testCaseIds.map((tc) => tc.length), 12);
+    const cfgWidth = Math.max(...configIds.map((c) => Math.min(c.length, 18)), 6);
+    const header = "".padEnd(tcWidth + 2) + configIds.map((c) => c.slice(0, cfgWidth).padEnd(cfgWidth + 2)).join("");
+    console.log(header);
+    for (const tc of testCaseIds) {
+      const cells = configIds.map((cfg) => {
+        const r = latestResult.get(`${tc}::${cfg}`);
+        const label = r === true ? "PASS" : r === false ? "FAIL" : "--  ";
+        return label.padEnd(cfgWidth + 2);
+      }).join("");
+      console.log(`${tc.padEnd(tcWidth + 2)}${cells}`);
+    }
+    console.log(`\n${testCaseIds.length} test case(s) x ${configIds.length} config(s) -- latest run per pair`);
+    console.log(`\nNext: agr status --by-test-case --below 100  |  agr status --by-config`);
     return;
   }
 
