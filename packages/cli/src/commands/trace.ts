@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -126,12 +126,15 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     ? allSteps.filter((s) => s.stepIndex >= stepsRange.from && s.stepIndex <= stepsRange.to)
     : allSteps;
   const grepPattern = opts.grep?.toLowerCase();
-  const steps = grepPattern
+  const grepFiltered = grepPattern
     ? rangeFiltered.filter((s) => {
         const label = s.tool ? `${s.kind}:${s.tool}` : s.kind;
         return label.toLowerCase().includes(grepPattern) || (s.content ?? "").toLowerCase().includes(grepPattern);
       })
     : rangeFiltered;
+  const steps = opts.topCost
+    ? [...grepFiltered].sort((a, b) => b.costUsd - a.costUsd).slice(0, opts.topCost)
+    : grepFiltered;
 
   if (opts.tools) {
     const toolCounts = countToolCalls(steps);
@@ -169,6 +172,9 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   if (grepPattern) {
     const pool = stepsRange ? rangeFiltered.length : allSteps.length;
     stepsLabel = `${steps.length} matching step(s) for "${opts.grep}" of ${pool} total`;
+  }
+  if (opts.topCost) {
+    stepsLabel = `top ${steps.length} most expensive step(s) of ${grepFiltered.length} total (sorted by cost desc)`;
   }
   console.log(`\n${stepsLabel}:`);
   let totalCachedTokens = 0;
