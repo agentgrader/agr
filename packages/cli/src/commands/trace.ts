@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -135,9 +135,14 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   const kindFiltered = opts.kind
     ? grepFiltered.filter((s) => s.kind === opts.kind || (s.tool && `${s.kind}:${s.tool}` === opts.kind))
     : grepFiltered;
+  const costFiltered = kindFiltered.filter((s) => {
+    if (opts.minCost !== undefined && s.costUsd < opts.minCost) return false;
+    if (opts.maxCost !== undefined && s.costUsd > opts.maxCost) return false;
+    return true;
+  });
   const steps = opts.topCost
-    ? [...kindFiltered].sort((a, b) => b.costUsd - a.costUsd).slice(0, opts.topCost)
-    : kindFiltered;
+    ? [...costFiltered].sort((a, b) => b.costUsd - a.costUsd).slice(0, opts.topCost)
+    : costFiltered;
 
   if (opts.stepCount) {
     if (opts.json) {
@@ -188,8 +193,14 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   if (opts.kind) {
     stepsLabel = `${kindFiltered.length} step(s) of kind "${opts.kind}" of ${grepFiltered.length} total`;
   }
+  if (opts.minCost !== undefined || opts.maxCost !== undefined) {
+    const rangeNote = opts.minCost !== undefined && opts.maxCost !== undefined
+      ? `$${opts.minCost}-$${opts.maxCost}`
+      : opts.minCost !== undefined ? `>= $${opts.minCost}` : `<= $${opts.maxCost}`;
+    stepsLabel = `${costFiltered.length} step(s) costing ${rangeNote} of ${kindFiltered.length} total`;
+  }
   if (opts.topCost) {
-    stepsLabel = `top ${steps.length} most expensive step(s) of ${kindFiltered.length} total (sorted by cost desc)`;
+    stepsLabel = `top ${steps.length} most expensive step(s) of ${costFiltered.length} total (sorted by cost desc)`;
   }
   console.log(`\n${stepsLabel}:`);
   let totalCachedTokens = 0;
