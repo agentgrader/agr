@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { appendFileSync } from "node:fs";
 import { basename, dirname, relative, resolve } from "path";
 import { render } from "ink";
 import React from "react";
@@ -73,6 +74,7 @@ export async function runBenchCommand(opts: {
   printIds?: boolean;
   showFailures?: boolean;
   configGrid?: boolean;
+  githubStepSummary?: boolean;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -728,6 +730,34 @@ export async function runBenchCommand(opts: {
         const errNote = r.error ? `  -- ${r.error.slice(0, 80)}` : "";
         console.log(`  ${r.testCaseId}${idNote}${errNote}`);
       }
+    }
+  }
+
+  if (opts.githubStepSummary) {
+    const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+    if (!summaryFile) {
+      if (opts.githubStepSummary) console.warn("[warn] --github-step-summary: GITHUB_STEP_SUMMARY env var not set; skipping.");
+    } else {
+      const totalCostForSummary = Object.values(runStates).reduce((acc, r) => acc + (r.costUsd || 0), 0);
+      const pct = summary.totalRuns > 0 ? ((summary.solveRate) * 100).toFixed(0) : "0";
+      const statusEmoji = summary.passedRuns === summary.totalRuns ? "✅" : summary.passedRuns === 0 ? "❌" : "⚠️";
+      let md = `\n## ${statusEmoji} Bench: ${summary.passedRuns}/${summary.totalRuns} PASS (${pct}%)\n\n`;
+      md += `**Cost:** $${totalCostForSummary.toFixed(4)} total`;
+      if (summary.totalRuns > 1) md += `  avg: $${(totalCostForSummary / summary.totalRuns).toFixed(4)}/run`;
+      md += `\n\n`;
+      if (agentConfigs.length > 1) {
+        md += `| Config | Pass | Total | Solve Rate |\n|---|---|---|---|\n`;
+        for (const cfg of agentConfigs) {
+          const cfgId = cfg.id || cfg.name;
+          const cfgRuns = Object.values(runStates).filter(r => r.agentConfigId === cfgId);
+          const cfgPassed = cfgRuns.filter(r => r.passed).length;
+          const cfgPct = cfgRuns.length > 0 ? ((cfgPassed / cfgRuns.length) * 100).toFixed(0) : "0";
+          md += `| ${cfgId} | ${cfgPassed} | ${cfgRuns.length} | ${cfgPct}% |\n`;
+        }
+        md += "\n";
+      }
+      appendFileSync(summaryFile, md, "utf-8");
+      console.log(`GitHub step summary written to ${summaryFile}`);
     }
   }
 
