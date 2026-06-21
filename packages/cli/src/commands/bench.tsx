@@ -67,6 +67,7 @@ export async function runBenchCommand(opts: {
   onlyFailed?: boolean;
   shuffle?: boolean;
   sample?: number;
+  printIds?: boolean;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -665,6 +666,13 @@ export async function runBenchCommand(opts: {
     .map((r) => r.runId)
     .filter((id): id is string => !!id);
   await maybeAutoExportOnBench(db, matrixId, runIdsForExport);
+
+  if (opts.printIds && runIdsForExport.length > 0) {
+    console.log("\nRun IDs:");
+    for (const id of runIdsForExport) {
+      console.log(id);
+    }
+  }
 
   const { exitCode, reasons } = evaluateBenchExit(summary, {
     failOnFailure: opts.failOnFailure,
