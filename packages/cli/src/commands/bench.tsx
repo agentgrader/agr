@@ -69,6 +69,7 @@ export async function runBenchCommand(opts: {
   sample?: number;
   printIds?: boolean;
   showFailures?: boolean;
+  configGrid?: boolean;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -684,6 +685,28 @@ export async function runBenchCommand(opts: {
         const errNote = r.error ? `  -- ${r.error.slice(0, 80)}` : "";
         console.log(`  ${r.testCaseId}${idNote}${errNote}`);
       }
+    }
+  }
+
+  if (opts.configGrid && agentConfigs.length > 1) {
+    const states = Object.values(runStates);
+    const tcIds = [...new Set(states.map((r) => r.testCaseId))].sort();
+    const cfgIds = agentConfigs.map((c) => c.id || c.name);
+    const resultMap = new Map<string, boolean | null>();
+    for (const r of states) {
+      resultMap.set(`${r.testCaseId}::${r.agentConfigId}`, r.status === "completed" ? r.passed : null);
+    }
+    const tcWidth = Math.max(...tcIds.map((tc) => tc.length), 12);
+    const cfgWidth = Math.max(...cfgIds.map((c) => Math.min(c.length, 16)), 6);
+    console.log("\nConfig grid (current bench):\n");
+    console.log("".padEnd(tcWidth + 2) + cfgIds.map((c) => c.slice(0, cfgWidth).padEnd(cfgWidth + 2)).join(""));
+    for (const tc of tcIds) {
+      const cells = cfgIds.map((cfg) => {
+        const r = resultMap.get(`${tc}::${cfg}`);
+        const label = r === true ? "PASS" : r === false ? "FAIL" : "--  ";
+        return label.padEnd(cfgWidth + 2);
+      }).join("");
+      console.log(`${tc.padEnd(tcWidth + 2)}${cells}`);
     }
   }
 
