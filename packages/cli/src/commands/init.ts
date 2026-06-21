@@ -117,10 +117,18 @@ jobs:
       - name: Install agentgrader
         run: npm install -g agentgrader
 
-      - name: Run comparison sweep
+      - name: Run eval bench
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-        run: agr bench --suite tasks/ --fail-on-failure
+        run: |
+          agr bench --suite tasks/ \\
+            --fail-on-failure \\
+            --github-step-summary \\
+            --show-failures
+
+      - name: Bench summary
+        if: always()
+        run: agr status --summary
 `;
 
 /**
