@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number; rolling?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -249,7 +249,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       if (!modelMap.has(key)) modelMap.set(key, []);
       modelMap.get(key)!.push(run);
     }
-    const modelStats = Array.from(modelMap.entries()).map(([model, mRuns]) => {
+    const modelStats = Array.from(modelMap.entries()).map(([model, allMRuns]) => {
+      const mRuns = opts.rolling ? allMRuns.slice(0, opts.rolling) : allMRuns;
       const p = mRuns.filter((r) => r.passed === true).length;
       const f = mRuns.filter((r) => r.passed === false).length;
       const cost = mRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
@@ -342,7 +343,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       if (!cfgMap.has(key)) cfgMap.set(key, []);
       cfgMap.get(key)!.push(run);
     }
-    const cfgStats = Array.from(cfgMap.entries()).map(([configId, cfgRuns]) => {
+    const cfgStats = Array.from(cfgMap.entries()).map(([configId, allCfgRuns]) => {
+      const cfgRuns = opts.rolling ? allCfgRuns.slice(0, opts.rolling) : allCfgRuns;
       const p = cfgRuns.filter((r) => r.passed === true).length;
       const f = cfgRuns.filter((r) => r.passed === false).length;
       const cost = cfgRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
@@ -394,7 +396,8 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       if (!tcMap.has(key)) tcMap.set(key, []);
       tcMap.get(key)!.push(run);
     }
-    const tcStats = Array.from(tcMap.entries()).map(([testCaseId, tcRuns]) => {
+    const tcStats = Array.from(tcMap.entries()).map(([testCaseId, allTcRuns]) => {
+      const tcRuns = opts.rolling ? allTcRuns.slice(0, opts.rolling) : allTcRuns;
       const p = tcRuns.filter((r) => r.passed === true).length;
       const f = tcRuns.filter((r) => r.passed === false).length;
       const cost = tcRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
