@@ -606,6 +606,7 @@ cli
     "--tools",
     "Show only a tool-usage breakdown (call count per tool name) instead of the full trace",
   )
+  .option("--kind-summary", "Show a compact table counting all steps by kind (llm_response, tool_call, tool_result, etc.) with a mini bar chart; --json emits {total, kinds: [{kind, count}]}")
   .option("--last", "Trace the most recent run in .agr/db.sqlite (no runId needed)")
   .option("--test-case <name>", "With --last, trace the most recent run for this specific test case (substring match)")
   .option("--config <name>", "With --last, trace the most recent run for this specific agent config (substring match)")
@@ -645,7 +646,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, stepCount: options.stepCount, minCost: options.minCost !== undefined ? Number(options.minCost) : undefined, maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined });
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, kindSummary: options.kindSummary, stepCount: options.stepCount, minCost: options.minCost !== undefined ? Number(options.minCost) : undefined, maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);
