@@ -14,6 +14,8 @@ export async function costCommand(opts: {
   matrixId?: string;
   lastMatrix?: boolean;
   json?: boolean;
+  byTestCase?: boolean;
+  byConfig?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -61,6 +63,48 @@ export async function costCommand(opts: {
   }
   if (opts.passed !== undefined) {
     runs = runs.filter((r) => r.passed === opts.passed);
+  }
+
+  if (opts.byTestCase) {
+    const tcMap = new Map<string, { total: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const entry = tcMap.get(r.testCaseId) ?? { total: 0, totalCostUsd: 0 };
+      entry.total++;
+      entry.totalCostUsd += r.costUsd ?? 0;
+      tcMap.set(r.testCaseId, entry);
+    }
+    const byTestCase = [...tcMap.entries()]
+      .map(([testCaseId, e]) => ({ testCaseId, total: e.total, totalCostUsd: e.totalCostUsd, avgCostUsd: e.totalCostUsd / e.total }))
+      .sort((a, b) => b.totalCostUsd - a.totalCostUsd);
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, totalCostUsd: runs.reduce((s, r) => s + (r.costUsd ?? 0), 0), dbPath, byTestCase }));
+    } else {
+      for (const tc of byTestCase) {
+        console.log(`$${tc.totalCostUsd.toFixed(4)}\t${tc.testCaseId}\t(${tc.total} runs, avg $${tc.avgCostUsd.toFixed(4)}/run)`);
+      }
+    }
+    return;
+  }
+
+  if (opts.byConfig) {
+    const cfgMap = new Map<string, { total: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const entry = cfgMap.get(r.agentConfigId) ?? { total: 0, totalCostUsd: 0 };
+      entry.total++;
+      entry.totalCostUsd += r.costUsd ?? 0;
+      cfgMap.set(r.agentConfigId, entry);
+    }
+    const byConfig = [...cfgMap.entries()]
+      .map(([agentConfigId, e]) => ({ agentConfigId, total: e.total, totalCostUsd: e.totalCostUsd, avgCostUsd: e.totalCostUsd / e.total }))
+      .sort((a, b) => b.totalCostUsd - a.totalCostUsd);
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, totalCostUsd: runs.reduce((s, r) => s + (r.costUsd ?? 0), 0), dbPath, byConfig }));
+    } else {
+      for (const cfg of byConfig) {
+        console.log(`$${cfg.totalCostUsd.toFixed(4)}\t${cfg.agentConfigId}\t(${cfg.total} runs, avg $${cfg.avgCostUsd.toFixed(4)}/run)`);
+      }
+    }
+    return;
   }
 
   const total = runs.length;
