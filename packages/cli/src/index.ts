@@ -173,6 +173,7 @@ cli
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
   .option("--only-unrun", "Run only the test cases with no recorded runs in the DB (no history); natural companion to agr list-tests --unrun; useful for initial coverage of a large suite")
+  .option("--skip-passing-since <window>", "Skip test cases that have a passing run within the given time window (e.g. 24h, 7d); enables incremental bench runs for large suites where you only want to re-run what hasn't passed recently")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
   .option("--print-ids", "Print all completed run IDs to stdout after the bench (one per line); enables shell pipelines like piping to agr trace")
@@ -259,6 +260,7 @@ cli
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
         onlyFailed: options.onlyFailed,
         onlyUnrun: options.onlyUnrun,
+        skipPassingSince: options.skipPassingSince,
         shuffle: options.shuffle,
         sample: options.sample !== undefined ? Number(options.sample) : undefined,
         printIds: options.printIds,
