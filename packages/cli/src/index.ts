@@ -601,6 +601,7 @@ cli
   .option("--full", "Print full step content without the 200-character truncation")
   .option("--top-cost <n>", "Show only the N most expensive steps, sorted by cost descending; useful for finding where a run's budget was spent")
   .option("--kind <type>", "Show only steps whose kind exactly matches this value (e.g. llm_response, tool_call, tool_result); combinable with --steps, --grep, --full, and all run-selection flags")
+  .option("--step-count", "Print the total number of steps as a plain number (ignores all view/filter flags except run selection); --json emits {stepCount, filteredCount, runId}")
   .example("agr trace <runId>")
   .example("agr trace <runId> --tools")
   .example("agr trace <runId> --steps 40-60")
@@ -625,7 +626,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind });
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, stepCount: options.stepCount });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);
