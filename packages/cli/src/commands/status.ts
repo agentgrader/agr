@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number; rolling?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -267,6 +267,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgDurationMs: mRuns.length > 0 ? dur / mRuns.length : 0,
         avgTokensIn: mRuns.length > 0 ? ti / mRuns.length : 0,
         avgTokensOut: mRuns.length > 0 ? to / mRuns.length : 0,
+        lastRunId: allMRuns[0]?.id ?? null,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : b.solveRate - a.solveRate);
     const modelStatsFiltered = modelStats
@@ -291,6 +292,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`  ${ms.model}`);
       console.log(`    runs: ${ms.total}  (${ms.passed} passed, ${ms.failed} failed)  solve rate: ${ms.solveRate.toFixed(1)}%`);
       console.log(`    avg cost: $${ms.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(ms.avgDurationMs)}${tokLine}`);
+      if (opts.showIds && ms.lastRunId) console.log(`    last run: agr trace ${ms.lastRunId}`);
     }
     console.log(`\nNext: agr status --model <name>  |  agr bench --suite tasks/ --model <name>`);
     return;
@@ -361,6 +363,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgDurationMs: cfgRuns.length > 0 ? dur / cfgRuns.length : 0,
         avgTokensIn: cfgRuns.length > 0 ? ti / cfgRuns.length : 0,
         avgTokensOut: cfgRuns.length > 0 ? to / cfgRuns.length : 0,
+        lastRunId: allCfgRuns[0]?.id ?? null,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : b.solveRate - a.solveRate);
     const cfgStatsFiltered = cfgStats
@@ -384,6 +387,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`  ${cfg.configId}`);
       console.log(`    runs: ${cfg.total}  (${cfg.passed} passed, ${cfg.failed} failed)  solve rate: ${cfg.solveRate.toFixed(1)}%`);
       console.log(`    avg cost: $${cfg.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(cfg.avgDurationMs)}${tokLine}`);
+      if (opts.showIds && cfg.lastRunId) console.log(`    last run: agr trace ${cfg.lastRunId}`);
     }
     console.log(`\nNext: agr status --config <name>  |  agr bench --suite tasks/ --configs-dir ./agents`);
     return;
@@ -410,6 +414,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         solveRate: tcRuns.length > 0 ? (p / tcRuns.length) * 100 : 0,
         avgCostUsd: tcRuns.length > 0 ? cost / tcRuns.length : 0,
         avgDurationMs: tcRuns.length > 0 ? dur / tcRuns.length : 0,
+        lastRunId: allTcRuns[0]?.id ?? null,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : a.solveRate - b.solveRate);
     const tcStatsFiltered = tcStats
@@ -431,6 +436,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`  ${tc.testCaseId}`);
       console.log(`    runs: ${tc.total}  (${tc.passed} passed, ${tc.failed} failed)  solve rate: ${tc.solveRate.toFixed(1)}%`);
       console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(tc.avgDurationMs)}`);
+      if (opts.showIds && tc.lastRunId) console.log(`    last run: agr trace ${tc.lastRunId}`);
     }
     console.log(`\nNext: agr status --test-case <name>  |  agr bench --only-failed --suite tasks/`);
     return;
