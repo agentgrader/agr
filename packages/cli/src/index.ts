@@ -643,6 +643,7 @@ cli
   .option("--sort <field>", "Sort exported runs by field: date (default), cost, duration, steps")
   .option("--sandbox <provider>", "Filter exported runs by sandbox provider substring (e.g. docker, e2b)")
   .option("--error <substring>", "Filter exported runs to those with a matching error message substring")
+  .option("--columns <list>", "Comma-separated list of columns to include (for runs): id,testCaseId,agentConfigId,passed,costUsd,durationMs,stepsCount,tokensIn,tokensOut,matrixId,metrics; omit metrics to avoid large JSON blobs in CSV")
   .example("agr export runs --format jsonl --output runs.jsonl")
   .example("agr export runs --format csv --output runs.csv")
   .example("agr export runs --since 24h --format jsonl --output today.jsonl")
@@ -677,6 +678,7 @@ cli
         sort: options.sort,
         sandbox: options.sandbox,
         error: options.error,
+        columns: options.columns ? (options.columns as string).split(",").map((c: string) => c.trim()) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing export: ${err.message}`);
