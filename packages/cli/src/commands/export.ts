@@ -26,6 +26,7 @@ export async function exportCommand(
     sandbox?: string;
     error?: string;
     columns?: string[];
+    all?: boolean;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -37,13 +38,13 @@ export async function exportCommand(
     const hasFilters = opts.testCase || opts.config || opts.since || opts.passed !== undefined;
     const hasRunSelector = opts.runId || opts.last;
 
-    if (!hasRunSelector && !hasFilters) {
-      console.error("--run-id is required for `agr export traces` (or use --last, --test-case, or --config)");
+    if (!hasRunSelector && !hasFilters && !opts.all) {
+      console.error("--run-id is required for `agr export traces` (or use --last, --test-case, --config, or --all)");
       process.exit(1);
     }
 
-    if (hasFilters && !hasRunSelector) {
-      // Multi-run trace export filtered by test case / config / since / passed / limit
+    if ((hasFilters || opts.all) && !hasRunSelector) {
+      // Multi-run trace export filtered by test case / config / since / passed / limit (or all)
       let runs = await listRuns(db);
       if (opts.testCase) {
         const tc = opts.testCase;
