@@ -168,6 +168,7 @@ cli
   .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
   .option("--print-ids", "Print all completed run IDs to stdout after the bench (one per line); enables shell pipelines like piping to agr trace")
   .option("--show-failures", "After bench completes, print a compact list of failing test cases with their run IDs and error messages; useful for quickly knowing which tasks to investigate")
+  .option("--config-grid", "After multi-config bench completes, print a PASS/FAIL grid (test cases x configs) showing which test cases passed for which configs; requires at least 2 configs")
   .option("--model <model>", "Override the model for all agent configs in this bench run (e.g. claude-opus-4-8)")
   .option("--provider <provider>", "Override the provider for all agent configs in this bench run (e.g. anthropic, openai, openrouter)")
   .option("--temperature <n>", "Override the temperature for all agent configs in this bench run (0.0–1.0)")
@@ -252,6 +253,7 @@ cli
         sample: options.sample !== undefined ? Number(options.sample) : undefined,
         printIds: options.printIds,
         showFailures: options.showFailures,
+        configGrid: options.configGrid,
         model: options.model,
         provider: options.provider,
         temperature: options.temperature !== undefined ? Number(options.temperature) : undefined,
