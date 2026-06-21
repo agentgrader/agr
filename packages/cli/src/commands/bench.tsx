@@ -72,6 +72,7 @@ export async function runBenchCommand(opts: {
   shuffle?: boolean;
   sample?: number;
   printIds?: boolean;
+  outputRunIds?: string;
   showFailures?: boolean;
   configGrid?: boolean;
   githubStepSummary?: boolean;
@@ -719,6 +720,14 @@ export async function runBenchCommand(opts: {
     for (const id of runIdsForExport) {
       console.log(id);
     }
+  }
+
+  if (opts.outputRunIds && runIdsForExport.length > 0) {
+    const { writeFileSync } = await import("node:fs");
+    const { resolve: resolvePath } = await import("node:path");
+    const outPath = resolvePath(opts.outputRunIds);
+    writeFileSync(outPath, runIdsForExport.join("\n") + "\n", "utf-8");
+    console.log(`Run IDs written to ${outPath} (${runIdsForExport.length} run(s))`);
   }
 
   if (opts.showFailures) {

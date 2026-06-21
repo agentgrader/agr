@@ -177,6 +177,7 @@ cli
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
   .option("--print-ids", "Print all completed run IDs to stdout after the bench (one per line); enables shell pipelines like piping to agr trace")
+  .option("--output-run-ids <file>", "Write all completed run IDs to a file (one per line) after the bench; useful in CI where stdout capture is awkward; complements --print-ids")
   .option("--show-failures", "After bench completes, print a compact list of failing test cases with their run IDs and error messages; useful for quickly knowing which tasks to investigate")
   .option("--config-grid", "After multi-config bench completes, print a PASS/FAIL grid (test cases x configs) showing which test cases passed for which configs; requires at least 2 configs")
   .option("--github-step-summary", "Append bench results as Markdown to $GITHUB_STEP_SUMMARY (GitHub Actions step summary); no-op with a warning if the env var is not set")
@@ -265,6 +266,7 @@ cli
         shuffle: options.shuffle,
         sample: options.sample !== undefined ? Number(options.sample) : undefined,
         printIds: options.printIds,
+        outputRunIds: options.outputRunIds,
         showFailures: options.showFailures,
         configGrid: options.configGrid,
         githubStepSummary: options.githubStepSummary,
