@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { findAllTestCases } from "../lib/load-test-case";
+import { initDb, listRuns } from "@agentgrader/store";
 
 /**
  * `agr list-tests [dir]`
@@ -11,7 +13,7 @@ import { findAllTestCases } from "../lib/load-test-case";
  * The printed `name` values (and each test case's directory basename) are
  * what `agr run`/`agr bench` accept as a short form instead of a full path.
  */
-export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[]; count?: boolean; name?: string }) {
+export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[]; count?: boolean; name?: string; unrun?: boolean; db?: string }) {
   const root = resolve(dir || ".");
   let testCases = findAllTestCases(root);
 
@@ -23,6 +25,42 @@ export async function listTestsCommand(dir: string | undefined, opts?: { json?: 
   if (opts?.name) {
     const nameFilter = opts.name.toLowerCase();
     testCases = testCases.filter(tc => tc.name.toLowerCase().includes(nameFilter));
+  }
+
+  if (opts?.unrun) {
+    const dbPath = opts.db ?? ".agr/db.sqlite";
+    const runTestCaseIds = new Set<string>();
+    if (existsSync(resolve(dbPath))) {
+      const db = initDb(dbPath);
+      const runs = await listRuns(db);
+      for (const r of runs) runTestCaseIds.add(r.testCaseId);
+    }
+    testCases = testCases.filter((tc) => !runTestCaseIds.has(tc.name));
+    if (opts?.count) {
+      console.log(String(testCases.length));
+      return;
+    }
+    if (opts?.json) {
+      const output = testCases.map(tc => ({
+        name: tc.name,
+        path: tc.path,
+        relativePath: relative(root, tc.path),
+        ...(tc.description ? { description: tc.description } : {}),
+        ...(tc.tags?.length ? { tags: tc.tags } : {}),
+      }));
+      console.log(JSON.stringify(output, null, 2));
+      return;
+    }
+    if (testCases.length === 0) {
+      console.log("All test cases have at least one recorded run. Nothing unrun.");
+      return;
+    }
+    console.log(`Unrun test cases (${testCases.length} with no recorded runs):\n`);
+    for (const tc of testCases) {
+      console.log(`  ${tc.name}  ${relative(root, tc.path)}`);
+    }
+    console.log(`\nRun with \`agr bench --suite ${relative(process.cwd(), root) || root}\` or \`agr run <name>\`.`);
+    return;
   }
 
   if (opts?.count) {
