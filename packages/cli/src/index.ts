@@ -3,6 +3,9 @@ import { loadProjectEnv } from "./lib/load-env";
 loadProjectEnv();
 
 import { cac } from "cac";
+import { createRequire } from "node:module";
+const _require = createRequire(import.meta.url);
+const _pkg = _require("../package.json") as { version: string };
 import { cleanupCommand } from "./commands/cleanup";
 import { compareCommand } from "./commands/compare";
 import { compareBaselineCommand } from "./commands/compare-baseline";
@@ -23,6 +26,7 @@ import { countCommand } from "./commands/count";
 import { costCommand } from "./commands/cost";
 
 const cli = cac("agr");
+cli.version(_pkg.version);
 
 cli
   .command("init [dir]", "Scaffold a minimal, runnable agentgrader project (agent config + sample test case)")
