@@ -25,6 +25,7 @@ export async function exportCommand(
     sort?: ExportSortField;
     sandbox?: string;
     error?: string;
+    columns?: string[];
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -206,7 +207,15 @@ export async function exportCommand(
       runs = [...runs].sort((a, b) => ((b[key] as number | null) ?? 0) - ((a[key] as number | null) ?? 0));
     }
     if (opts.limit) runs = runs.slice(0, opts.limit);
-    const payload = runs.map((r) => ({
+    const allColumns = ["id", "testCaseId", "agentConfigId", "passed", "costUsd", "durationMs", "stepsCount", "tokensIn", "tokensOut", "matrixId", "metrics"] as const;
+    const selectedColumns = opts.columns && opts.columns.length > 0
+      ? allColumns.filter((c) => opts.columns!.includes(c))
+      : allColumns;
+    if (opts.columns && opts.columns.length > 0) {
+      const unknown = opts.columns.filter((c) => !allColumns.includes(c as typeof allColumns[number]));
+      if (unknown.length > 0) console.warn(`[warn] Unknown column(s) ignored: ${unknown.join(", ")}. Valid: ${allColumns.join(", ")}`);
+    }
+    const fullPayload = runs.map((r) => ({
       id: r.id,
       testCaseId: r.testCaseId,
       agentConfigId: r.agentConfigId,
@@ -219,11 +228,12 @@ export async function exportCommand(
       matrixId: r.matrixId,
       metrics: r.metrics ? JSON.parse(r.metrics) : null,
     }));
+    const payload = fullPayload.map((row) => Object.fromEntries(selectedColumns.map((c) => [c, row[c]])));
     let content: string;
     if (format === "jsonl") {
       content = `${payload.map((row) => JSON.stringify(row)).join("\n")}\n`;
     } else if (format === "csv") {
-      content = runsToCSV(payload);
+      content = runsToCSV(fullPayload, selectedColumns as string[]);
     } else {
       content = JSON.stringify(payload, null, 2);
     }
@@ -257,39 +267,26 @@ function runsToCSV(
     matrixId: string | null | undefined;
     metrics: unknown;
   }>,
+  columns?: string[],
 ): string {
-  const headers = [
-    "id",
-    "testCaseId",
-    "agentConfigId",
-    "passed",
-    "costUsd",
-    "durationMs",
-    "stepsCount",
-    "tokensIn",
-    "tokensOut",
-    "matrixId",
-    "metrics",
-  ];
+  const allHeaders = ["id", "testCaseId", "agentConfigId", "passed", "costUsd", "durationMs", "stepsCount", "tokensIn", "tokensOut", "matrixId", "metrics"];
+  const headers = columns && columns.length > 0 ? allHeaders.filter((h) => columns.includes(h)) : allHeaders;
   const lines = [headers.join(",")];
   for (const row of rows) {
-    lines.push(
-      [
-        row.id,
-        row.testCaseId,
-        row.agentConfigId,
-        row.passed,
-        row.costUsd,
-        row.durationMs,
-        row.stepsCount,
-        row.tokensIn,
-        row.tokensOut,
-        row.matrixId ?? null,
-        row.metrics,
-      ]
-        .map(csvCell)
-        .join(","),
-    );
+    const allValues: Record<string, unknown> = {
+      id: row.id,
+      testCaseId: row.testCaseId,
+      agentConfigId: row.agentConfigId,
+      passed: row.passed,
+      costUsd: row.costUsd,
+      durationMs: row.durationMs,
+      stepsCount: row.stepsCount,
+      tokensIn: row.tokensIn,
+      tokensOut: row.tokensOut,
+      matrixId: row.matrixId ?? null,
+      metrics: row.metrics,
+    };
+    lines.push(headers.map((h) => csvCell(allValues[h])).join(","));
   }
   return `${lines.join("\n")}\n`;
 }
