@@ -357,6 +357,7 @@ cli
   .option("--min-runs <n>", "With --by-test-case, --by-config, or --by-model: only show entries with at least N total runs; useful for excluding test cases that haven't been run enough to be statistically significant")
   .option("--rolling <n>", "With --by-test-case, --by-config, or --by-model: compute solve rate using only the most recent N runs per entry (newest first); useful for evaluating current agent quality without historical failures dragging down the score")
   .option("--show-ids", "With --by-test-case, --by-config, or --by-model: append the most recent run ID to each row as an agr trace shortcut; also included in --json output")
+  .option("--solve-rate", "Print solve rate as a plain number (e.g. 83.3); with --json emits {solveRate, passedRuns, failedRuns, totalRuns, dbPath}; combinable with all filter flags; useful for CI shell conditions")
   .example("agr status")
   .example("agr status --json")
   .example("agr status --since 24h")
@@ -389,7 +390,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay, sortBy: options.sortBy as "solve-rate" | "cost" | "runs" | undefined, errors: options.errors, flaky: options.flaky, percentiles: options.percentiles, below: options.below !== undefined ? Number(options.below) : undefined, grid: options.grid, minRuns: options.minRuns !== undefined ? Number(options.minRuns) : undefined, rolling: options.rolling !== undefined ? Number(options.rolling) : undefined, showIds: options.showIds });
+      await statusCommand({ db: options.db, json: options.json, since: options.since, testCase: options.testCase, config: options.config, model: options.model, sandbox: options.sandbox, passed, byConfig: options.byConfig, byTestCase: options.byTestCase, byModel: options.byModel, bySandbox: options.bySandbox, byMatrix: options.byMatrix, top: options.top !== undefined ? Number(options.top) : undefined, matrixId: options.matrixId, lastMatrix: options.lastMatrix, trend: options.trend, byDay: options.byDay, sortBy: options.sortBy as "solve-rate" | "cost" | "runs" | undefined, errors: options.errors, flaky: options.flaky, percentiles: options.percentiles, below: options.below !== undefined ? Number(options.below) : undefined, grid: options.grid, minRuns: options.minRuns !== undefined ? Number(options.minRuns) : undefined, rolling: options.rolling !== undefined ? Number(options.rolling) : undefined, showIds: options.showIds, solveRate: options.solveRate });
     } catch (err: any) {
       console.error(`Error executing status: ${err.message}`);
       process.exit(1);

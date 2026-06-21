@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -102,6 +102,15 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const p95CostUsd = percentile(sortedCosts, 95);
   const p50DurationMs = percentile(sortedDurations, 50);
   const p95DurationMs = percentile(sortedDurations, 95);
+
+  if (opts.solveRate) {
+    if (opts.json) {
+      console.log(JSON.stringify({ solveRate, passedRuns, failedRuns, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(solveRate.toFixed(1));
+    }
+    return;
+  }
 
   if (opts.trend && opts.since && !opts.byConfig && !opts.byTestCase && !opts.byModel && !opts.bySandbox && !opts.byMatrix) {
     const sinceTs = parseSince(opts.since);
