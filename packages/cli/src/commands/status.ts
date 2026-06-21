@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -109,6 +109,25 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     } else {
       console.log(solveRate.toFixed(1));
     }
+    return;
+  }
+
+  if (opts.summary) {
+    const lastWhen = lastRun ? formatCompactWhen(lastRun.createdAt) : "never";
+    const solveStr = runs.length > 0 && (passedRuns > 0 || failedRuns > 0) ? ` (${solveRate.toFixed(0)}%)` : "";
+    const scopeParts: string[] = [];
+    if (sinceLabel) scopeParts.push(`since ${opts.since}`);
+    if (opts.testCase) scopeParts.push(`tc:${opts.testCase}`);
+    if (opts.config) scopeParts.push(`cfg:${opts.config}`);
+    const scopeSuffix = scopeParts.length ? `  [${scopeParts.join(", ")}]` : "";
+    if (opts.json) {
+      console.log(JSON.stringify({ totalRuns: runs.length, passedRuns, failedRuns, solveRate, totalCostUsd, avgCostUsd, lastRunAt: lastRun?.createdAt ?? null, dbPath }));
+      return;
+    }
+    const runsSummary = `${runs.length} runs: ${passedRuns} PASS${solveStr}`;
+    const costSummary = `$${totalCostUsd.toFixed(4)} total  avg: $${avgCostUsd.toFixed(4)}/run`;
+    const lastSummary = `last: ${lastWhen}`;
+    console.log(`${runsSummary}  |  ${costSummary}  |  ${lastSummary}${scopeSuffix}`);
     return;
   }
 
