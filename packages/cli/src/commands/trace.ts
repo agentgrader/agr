@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -150,6 +150,29 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     } else {
       console.log(String(allSteps.length));
     }
+    return;
+  }
+
+  if (opts.kindSummary) {
+    const kindCounts = new Map<string, number>();
+    for (const s of allSteps) {
+      const label = s.tool ? `${s.kind}:${s.tool}` : s.kind;
+      kindCounts.set(label, (kindCounts.get(label) ?? 0) + 1);
+    }
+    const sorted = [...kindCounts.entries()].sort((a, b) => b[1] - a[1]);
+    if (opts.json) {
+      const kinds = sorted.map(([kind, count]) => ({ kind, count }));
+      console.log(JSON.stringify({ run: runSummary, total: allSteps.length, kinds }));
+      return;
+    }
+    console.log(`\nStep kinds (${allSteps.length} total):\n`);
+    const maxCount = Math.max(...sorted.map(([, c]) => c));
+    const barWidth = 20;
+    for (const [kind, count] of sorted) {
+      const bar = "█".repeat(Math.round((count / maxCount) * barWidth));
+      console.log(`  ${kind.padEnd(24)} ${String(count).padStart(4)}  ${bar}`);
+    }
+    console.log(`\nNext: agr trace ${resolvedRunId} --tools  |  agr trace ${resolvedRunId} --kind <kind>`);
     return;
   }
 
