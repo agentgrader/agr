@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -138,6 +138,15 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   const steps = opts.topCost
     ? [...kindFiltered].sort((a, b) => b.costUsd - a.costUsd).slice(0, opts.topCost)
     : kindFiltered;
+
+  if (opts.stepCount) {
+    if (opts.json) {
+      console.log(JSON.stringify({ stepCount: allSteps.length, filteredCount: steps.length, runId: resolvedRunId }));
+    } else {
+      console.log(String(allSteps.length));
+    }
+    return;
+  }
 
   if (opts.tools) {
     const toolCounts = countToolCalls(steps);
