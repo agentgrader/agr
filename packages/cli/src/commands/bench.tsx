@@ -65,6 +65,7 @@ export async function runBenchCommand(opts: {
   tags?: string[];
   limit?: number;
   onlyFailed?: boolean;
+  onlyUnrun?: boolean;
   shuffle?: boolean;
   sample?: number;
   printIds?: boolean;
@@ -270,6 +271,22 @@ export async function runBenchCommand(opts: {
     testCases = pairs.map(p => p.tc);
     yamlFiles = pairs.map(p => p.yaml);
     console.log(`--only-failed: ${testCases.length} of ${beforeCount} test case(s) failed on last run: ${testCases.map(tc => tc.name).join(", ")}`);
+  }
+
+  if (opts.onlyUnrun) {
+    const earlyDb = initDb();
+    const allRuns = await listRuns(earlyDb);
+    const runIds = new Set(allRuns.map((r) => r.testCaseId));
+    const beforeCount = testCases.length;
+    const pairs = testCases.map((tc, i) => ({ tc, yaml: yamlFiles[i]! })).filter(({ tc }) => !runIds.has(tc.name));
+    if (pairs.length === 0) {
+      console.log(`--only-unrun: all test cases have at least one recorded run. Nothing to run.`);
+      console.log("Remove --only-unrun to re-run everything, or use --only-failed to re-run failures.");
+      process.exit(0);
+    }
+    testCases = pairs.map(p => p.tc);
+    yamlFiles = pairs.map(p => p.yaml);
+    console.log(`--only-unrun: ${testCases.length} of ${beforeCount} test case(s) have no recorded runs: ${testCases.map(tc => tc.name).join(", ")}`);
   }
 
   if (agentConfigs.length === 0) {
