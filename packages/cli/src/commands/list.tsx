@@ -26,6 +26,8 @@ export interface ListCommandOptions {
   maxCost?: number;
   minSteps?: number;
   maxSteps?: number;
+  minDuration?: number;
+  maxDuration?: number;
   latest?: boolean;
 }
 
@@ -86,6 +88,8 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   if (options.maxCost !== undefined) filteredRuns = filteredRuns.filter((r) => r.costUsd <= options.maxCost!);
   if (options.minSteps !== undefined) filteredRuns = filteredRuns.filter((r) => r.stepsCount >= options.minSteps!);
   if (options.maxSteps !== undefined) filteredRuns = filteredRuns.filter((r) => r.stepsCount <= options.maxSteps!);
+  if (options.minDuration !== undefined) filteredRuns = filteredRuns.filter((r) => r.durationMs >= options.minDuration!);
+  if (options.maxDuration !== undefined) filteredRuns = filteredRuns.filter((r) => r.durationMs <= options.maxDuration!);
   if (options.latest) {
     const seen = new Set<string>();
     filteredRuns = filteredRuns.filter((r) => {
