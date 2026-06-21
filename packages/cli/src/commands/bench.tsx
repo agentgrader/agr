@@ -68,6 +68,7 @@ export async function runBenchCommand(opts: {
   shuffle?: boolean;
   sample?: number;
   printIds?: boolean;
+  showFailures?: boolean;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -671,6 +672,18 @@ export async function runBenchCommand(opts: {
     console.log("\nRun IDs:");
     for (const id of runIdsForExport) {
       console.log(id);
+    }
+  }
+
+  if (opts.showFailures) {
+    const failedStates = Object.values(runStates).filter((r) => r.status === "failed" || (r.status === "completed" && !r.passed));
+    if (failedStates.length > 0) {
+      console.log(`\nFailed test cases (${failedStates.length}):`);
+      for (const r of failedStates) {
+        const idNote = r.runId ? `  [agr trace ${r.runId}]` : "";
+        const errNote = r.error ? `  -- ${r.error.slice(0, 80)}` : "";
+        console.log(`  ${r.testCaseId}${idNote}${errNote}`);
+      }
     }
   }
 
