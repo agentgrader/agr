@@ -418,7 +418,8 @@ cli
   .option("--model <model>", "Only count runs where the agent model contains this substring")
   .option("--sandbox <provider>", "Only count runs with this sandbox provider (substring match)")
   .option("--passed", "Only count runs that passed")
-  .option("--failed", "Only count runs that failed")
+  .option("--failed", "Only count runs that failed (passed === false)")
+  .option("--errored", "Only count runs that errored (run crashed before scoring, distinct from a scored failure)")
   .option("--matrix-id <id>", "Only count runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Only count runs from the most recent bench matrix sweep")
   .option("--json", "Output as JSON {total, passed, failed, dbPath} instead of a plain number")
@@ -431,6 +432,7 @@ cli
   .example("agr count --model haiku --since 7d")
   .example("agr count --by-test-case --json | jq '.byTestCase[] | select(.total < 3)'")
   .example("agr count --by-config --since 7d")
+  .example("agr count --errored --since 24h")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
@@ -451,6 +453,7 @@ cli
         json: options.json,
         byTestCase: options.byTestCase,
         byConfig: options.byConfig,
+        errored: options.errored,
       });
     } catch (err: any) {
       console.error(`Error executing count: ${err.message}`);

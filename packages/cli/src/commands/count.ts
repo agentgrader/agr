@@ -16,6 +16,7 @@ export async function countCommand(opts: {
   json?: boolean;
   byTestCase?: boolean;
   byConfig?: boolean;
+  errored?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -61,7 +62,9 @@ export async function countCommand(opts: {
     const mf = opts.model.toLowerCase();
     runs = runs.filter((r) => (modelByConfigId.get(r.agentConfigId) ?? "").toLowerCase().includes(mf));
   }
-  if (opts.passed !== undefined) {
+  if (opts.errored) {
+    runs = runs.filter((r) => r.status === "failed" && r.passed == null);
+  } else if (opts.passed !== undefined) {
     runs = runs.filter((r) => r.passed === opts.passed);
   }
 
