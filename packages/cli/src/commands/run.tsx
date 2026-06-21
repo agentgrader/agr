@@ -49,6 +49,7 @@ export async function runSingleCommand(
     judgeGate?: boolean;
     judgeMinScore?: number;
     repeat?: number;
+    minPassRate?: number;
     untilPass?: boolean;
     maxAttempts?: number;
     stepTimeout?: number;
@@ -250,6 +251,11 @@ export async function runSingleCommand(
       console.log(formatSuccess(`baseline saved to ${savedPath}`, { colors: stdoutSupportsColor() }));
     }
 
+    if (opts.minPassRate !== undefined && solveRate < opts.minPassRate) {
+      console.log(`\n[FAIL] Solve rate ${(solveRate * 100).toFixed(1)}% is below --min-pass-rate ${(opts.minPassRate * 100).toFixed(1)}%`);
+      console.log(`Inspect: agr trace --last --test-case ${testCase.name}  |  agr list --plain --failed`);
+      process.exit(1);
+    }
     if (opts.failOnFailure && passed < results.length) {
       console.log(`\nInspect: agr trace --last --test-case ${testCase.name}  |  agr list --plain --failed`);
       process.exit(1);
