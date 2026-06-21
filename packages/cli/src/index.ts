@@ -54,6 +54,8 @@ cli
   .option("--count", "Print only the number of matching test cases (useful for scripting)")
   .option("--tags <tags>", "Comma-separated list of tags; only show test cases with at least one matching tag")
   .option("--name <substring>", "Filter by test case name substring (case-insensitive)")
+  .option("--unrun", "Only show test cases with no recorded runs in .agr/db.sqlite; useful for finding tasks in the suite that have never been executed")
+  .option("--db <path>", "Path to the SQLite database for --unrun (default: .agr/db.sqlite)")
   .example("agr list-tests")
   .example("agr list-tests tasks/")
   .example("agr list-tests --json")
@@ -63,7 +65,7 @@ cli
   .action(async (dir, options) => {
     try {
       const tags = options.tags ? (options.tags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined;
-      await listTestsCommand(dir, { json: options.json, count: options.count, tags, name: options.name });
+      await listTestsCommand(dir, { json: options.json, count: options.count, tags, name: options.name, unrun: options.unrun, db: options.db });
     } catch (err: any) {
       console.error(`Error executing list-tests: ${err.message}`);
       process.exit(1);
