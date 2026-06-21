@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -192,6 +192,48 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`  ${ds.day}  runs: ${ds.total} (${ds.passed} passed, ${ds.failed} failed)${solveStr}  cost: $${ds.totalCostUsd.toFixed(4)}`);
     }
     console.log(`\nNext: agr status --since 7d --trend  |  agr export runs --since 7d --format csv --output week.csv`);
+    return;
+  }
+
+  if (opts.byWeek) {
+    const weekMap = new Map<string, typeof runs>();
+    for (const run of runs) {
+      const d = new Date(run.createdAt * 1000);
+      const jan1 = new Date(d.getUTCFullYear(), 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      const week = `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+      if (!weekMap.has(week)) weekMap.set(week, []);
+      weekMap.get(week)!.push(run);
+    }
+    const weekStats = Array.from(weekMap.entries()).map(([week, wRuns]) => {
+      const p = wRuns.filter((r) => r.passed === true).length;
+      const f = wRuns.filter((r) => r.passed === false).length;
+      const cost = wRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+      return {
+        week,
+        total: wRuns.length,
+        passed: p,
+        failed: f,
+        solveRate: wRuns.length > 0 ? (p / wRuns.length) * 100 : 0,
+        totalCostUsd: cost,
+        avgCostUsd: wRuns.length > 0 ? cost / wRuns.length : 0,
+      };
+    }).sort((a, b) => a.week.localeCompare(b.week));
+    const weekStatsCapped = opts.top ? weekStats.slice(-opts.top) : weekStats;
+
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, since: opts.since ?? null, byWeek: weekStatsCapped }, null, 2));
+      return;
+    }
+
+    const topNote = opts.top && opts.top < weekStats.length ? ` (last ${opts.top} of ${weekStats.length} weeks)` : "";
+    console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}\n`);
+    console.log(`Per-week breakdown (${weekStatsCapped.length} week(s)${topNote}, oldest first):\n`);
+    for (const ws of weekStatsCapped) {
+      const solveStr = ws.total > 0 && (ws.passed > 0 || ws.failed > 0) ? `  solve: ${ws.solveRate.toFixed(1)}%` : "";
+      console.log(`  ${ws.week}  runs: ${ws.total} (${ws.passed} passed, ${ws.failed} failed)${solveStr}  cost: $${ws.totalCostUsd.toFixed(4)}`);
+    }
+    console.log(`\nNext: agr status --by-day  |  agr status --since 30d --trend`);
     return;
   }
 
