@@ -16,6 +16,7 @@ import { maybeAutoExportOnBench } from "./export";
 import { resolveSandbox } from "../lib/resolve-sandbox";
 import { expandMatrix, aggregateResults, paretoFront } from "@agentgrader/optimizer";
 import { resolveAdapters } from "../lib/resolve-adapters";
+import { parseSince } from "../lib/parse-since";
 import { countToolCalls, mergeToolCounts, printToolUsageBlock } from "../lib/tool-usage";
 import { Dashboard, type RunState } from "../ui/Dashboard";
 import {
@@ -66,6 +67,7 @@ export async function runBenchCommand(opts: {
   limit?: number;
   onlyFailed?: boolean;
   onlyUnrun?: boolean;
+  skipPassingSince?: string;
   shuffle?: boolean;
   sample?: number;
   printIds?: boolean;
@@ -287,6 +289,30 @@ export async function runBenchCommand(opts: {
     testCases = pairs.map(p => p.tc);
     yamlFiles = pairs.map(p => p.yaml);
     console.log(`--only-unrun: ${testCases.length} of ${beforeCount} test case(s) have no recorded runs: ${testCases.map(tc => tc.name).join(", ")}`);
+  }
+
+  if (opts.skipPassingSince) {
+    const sinceTs = parseSince(opts.skipPassingSince);
+    const earlyDb = initDb();
+    const allRuns = await listRuns(earlyDb);
+    const recentPassIds = new Set<string>();
+    for (const run of allRuns) {
+      if (run.passed === true && run.createdAt >= sinceTs) {
+        recentPassIds.add(run.testCaseId);
+      }
+    }
+    const beforeCount = testCases.length;
+    const pairs = testCases.map((tc, i) => ({ tc, yaml: yamlFiles[i]! })).filter(({ tc }) => !recentPassIds.has(tc.name));
+    const skipped = beforeCount - pairs.length;
+    if (pairs.length === 0) {
+      console.log(`--skip-passing-since ${opts.skipPassingSince}: all ${beforeCount} test case(s) have a passing run in the window. Nothing to run.`);
+      process.exit(0);
+    }
+    testCases = pairs.map(p => p.tc);
+    yamlFiles = pairs.map(p => p.yaml);
+    if (skipped > 0) {
+      console.log(`--skip-passing-since ${opts.skipPassingSince}: skipping ${skipped} test case(s) with recent passes, running ${testCases.length} of ${beforeCount}`);
+    }
   }
 
   if (agentConfigs.length === 0) {
