@@ -661,6 +661,7 @@ cli
   .option("--run-id <id>", "Run id for trace export")
   .option("--last", "Export traces for the most recent run (no --run-id needed)")
   .option("--all", "For `agr export traces`: export traces for all runs in the database without requiring any filter; use with --limit to cap the total")
+  .option("--deduplicate", "For `agr export runs`: keep only the most recent run per (test case, agent config) pair before exporting; mirrors `agr list --latest`")
   .option("--matrix-id <id>", "Filter runs by matrix id")
   .option("--last-matrix", "Export runs for the most recent matrix sweep (no --matrix-id needed)")
   .option("--limit <n>", "Maximum number of runs to export")
@@ -710,6 +711,7 @@ cli
         error: options.error,
         columns: options.columns ? (options.columns as string).split(",").map((c: string) => c.trim()) : undefined,
         all: options.all,
+        deduplicate: options.deduplicate,
       });
     } catch (err: any) {
       console.error(`Error executing export: ${err.message}`);

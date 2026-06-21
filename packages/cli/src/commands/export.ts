@@ -27,6 +27,7 @@ export async function exportCommand(
     error?: string;
     columns?: string[];
     all?: boolean;
+    deduplicate?: boolean;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -208,6 +209,16 @@ export async function exportCommand(
       runs = [...runs].sort((a, b) => ((b[key] as number | null) ?? 0) - ((a[key] as number | null) ?? 0));
     }
     if (opts.limit) runs = runs.slice(0, opts.limit);
+    if (opts.deduplicate) {
+      const seen = new Set<string>();
+      runs = runs.filter((r) => {
+        const key = `${r.testCaseId}::${r.agentConfigId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      console.log(`--deduplicate: kept ${runs.length} run(s) (most recent per test case + config pair)`);
+    }
     const allColumns = ["id", "testCaseId", "agentConfigId", "passed", "costUsd", "durationMs", "stepsCount", "tokensIn", "tokensOut", "matrixId", "metrics"] as const;
     const selectedColumns = opts.columns && opts.columns.length > 0
       ? allColumns.filter((c) => opts.columns!.includes(c))
