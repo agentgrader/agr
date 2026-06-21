@@ -79,12 +79,13 @@ export async function countCommand(opts: {
     }
     const byTestCase = [...tcMap.entries()]
       .sort((a, b) => b[1].total - a[1].total)
-      .map(([testCaseId, c]) => ({ testCaseId, ...c }));
+      .map(([testCaseId, c]) => ({ testCaseId, ...c, solveRate: c.total > 0 ? (c.passed / c.total) * 100 : 0 }));
     if (opts.json) {
       console.log(JSON.stringify({ total: runs.length, dbPath, byTestCase }));
     } else {
       for (const tc of byTestCase) {
-        console.log(`${tc.total}\t${tc.testCaseId}\t(${tc.passed} passed, ${tc.failed} failed)`);
+        const srNote = tc.total > 0 && (tc.passed > 0 || tc.failed > 0) ? `  ${tc.solveRate.toFixed(0)}%` : "";
+        console.log(`${tc.total}\t${tc.testCaseId}\t(${tc.passed} passed, ${tc.failed} failed)${srNote}`);
       }
     }
     return;
@@ -101,12 +102,13 @@ export async function countCommand(opts: {
     }
     const byConfig = [...cfgMap.entries()]
       .sort((a, b) => b[1].total - a[1].total)
-      .map(([agentConfigId, c]) => ({ agentConfigId, ...c }));
+      .map(([agentConfigId, c]) => ({ agentConfigId, ...c, solveRate: c.total > 0 ? (c.passed / c.total) * 100 : 0 }));
     if (opts.json) {
       console.log(JSON.stringify({ total: runs.length, dbPath, byConfig }));
     } else {
       for (const cfg of byConfig) {
-        console.log(`${cfg.total}\t${cfg.agentConfigId}\t(${cfg.passed} passed, ${cfg.failed} failed)`);
+        const srNote = cfg.total > 0 && (cfg.passed > 0 || cfg.failed > 0) ? `  ${cfg.solveRate.toFixed(0)}%` : "";
+        console.log(`${cfg.total}\t${cfg.agentConfigId}\t(${cfg.passed} passed, ${cfg.failed} failed)${srNote}`);
       }
     }
     return;
