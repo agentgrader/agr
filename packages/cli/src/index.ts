@@ -168,6 +168,7 @@ cli
   .option("--skip-tags <tags>", "Comma-separated list of tags; test cases with any of these tags are excluded (requires --suite; applied after --tags)")
   .option("--limit <n>", "Run only the first N test cases (useful for smoke tests on large suites)")
   .option("--only-failed", "Run only the test cases that failed on their most recent run in the DB")
+  .option("--only-unrun", "Run only the test cases with no recorded runs in the DB (no history); natural companion to agr list-tests --unrun; useful for initial coverage of a large suite")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
   .option("--print-ids", "Print all completed run IDs to stdout after the bench (one per line); enables shell pipelines like piping to agr trace")
@@ -253,6 +254,7 @@ cli
         skipTags: options.skipTags ? (options.skipTags as string).split(",").map((t: string) => t.trim()).filter(Boolean) : undefined,
         limit: options.limit !== undefined ? Number(options.limit) : undefined,
         onlyFailed: options.onlyFailed,
+        onlyUnrun: options.onlyUnrun,
         shuffle: options.shuffle,
         sample: options.sample !== undefined ? Number(options.sample) : undefined,
         printIds: options.printIds,
