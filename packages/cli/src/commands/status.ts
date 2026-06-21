@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -129,6 +129,58 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const lastSummary = `last: ${lastWhen}`;
     console.log(`${runsSummary}  |  ${costSummary}  |  ${lastSummary}${scopeSuffix}`);
     return;
+  }
+
+  if (opts.bestConfig || opts.bestModel) {
+    if (opts.bestConfig) {
+      const cfgMap = new Map<string, { total: number; passed: number; totalCostUsd: number }>();
+      for (const r of runs) {
+        const e = cfgMap.get(r.agentConfigId) ?? { total: 0, passed: 0, totalCostUsd: 0 };
+        e.total++;
+        if (r.passed === true) e.passed++;
+        e.totalCostUsd += r.costUsd ?? 0;
+        cfgMap.set(r.agentConfigId, e);
+      }
+      const best = [...cfgMap.entries()]
+        .map(([configId, e]) => ({ configId, total: e.total, passed: e.passed, solveRate: e.total > 0 ? (e.passed / e.total) * 100 : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0 }))
+        .sort((a, b) => b.solveRate - a.solveRate)[0];
+      if (!best) {
+        console.error("No runs found.");
+        process.exit(1);
+      }
+      if (opts.json) {
+        console.log(JSON.stringify({ configId: best.configId, solveRate: best.solveRate, total: best.total, passed: best.passed, avgCostUsd: best.avgCostUsd }));
+      } else {
+        console.log(best.configId);
+      }
+      return;
+    }
+    if (opts.bestModel) {
+      const cfgRows = await db.select().from(agentConfigs);
+      const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? ""]));
+      const modelMap = new Map<string, { total: number; passed: number; totalCostUsd: number }>();
+      for (const r of runs) {
+        const modelName = modelByConfigId.get(r.agentConfigId) ?? "unknown";
+        const e = modelMap.get(modelName) ?? { total: 0, passed: 0, totalCostUsd: 0 };
+        e.total++;
+        if (r.passed === true) e.passed++;
+        e.totalCostUsd += r.costUsd ?? 0;
+        modelMap.set(modelName, e);
+      }
+      const best = [...modelMap.entries()]
+        .map(([model, e]) => ({ model, total: e.total, passed: e.passed, solveRate: e.total > 0 ? (e.passed / e.total) * 100 : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0 }))
+        .sort((a, b) => b.solveRate - a.solveRate)[0];
+      if (!best) {
+        console.error("No runs found.");
+        process.exit(1);
+      }
+      if (opts.json) {
+        console.log(JSON.stringify({ model: best.model, solveRate: best.solveRate, total: best.total, passed: best.passed, avgCostUsd: best.avgCostUsd }));
+      } else {
+        console.log(best.model);
+      }
+      return;
+    }
   }
 
   if (opts.trend && opts.since && !opts.byConfig && !opts.byTestCase && !opts.byModel && !opts.bySandbox && !opts.byMatrix) {
