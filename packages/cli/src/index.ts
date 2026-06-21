@@ -453,11 +453,15 @@ cli
   .option("--matrix-id <id>", "Only include runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Only include runs from the most recent bench matrix sweep")
   .option("--json", "Output as JSON {totalCostUsd, avgCostUsd, total, dbPath} instead of a plain dollar amount")
+  .option("--by-test-case", "Print cost breakdown per test case (total cost, runs, avg cost/run), sorted most expensive first. Plain: tab-separated. JSON: {total, totalCostUsd, byTestCase: [{testCaseId, total, totalCostUsd, avgCostUsd}]}")
+  .option("--by-config", "Print cost breakdown per agent config (total cost, runs, avg cost/run), sorted most expensive first. Same format as --by-test-case")
   .example("agr cost")
   .example("agr cost --since 24h")
   .example("agr cost --last-matrix")
   .example("agr cost --test-case hello-world --since 7d")
   .example("agr cost --json | jq .avgCostUsd")
+  .example("agr cost --by-test-case")
+  .example("agr cost --by-config --since 7d --json | jq '.byConfig[0]'")
   .action(async (options) => {
     try {
       if (options.passed && options.failed) {
@@ -476,6 +480,8 @@ cli
         matrixId: options.matrixId,
         lastMatrix: options.lastMatrix,
         json: options.json,
+        byTestCase: options.byTestCase,
+        byConfig: options.byConfig,
       });
     } catch (err: any) {
       console.error(`Error executing cost: ${err.message}`);
