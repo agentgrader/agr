@@ -13,7 +13,7 @@ import { initDb, listRuns } from "@agentgrader/store";
  * The printed `name` values (and each test case's directory basename) are
  * what `agr run`/`agr bench` accept as a short form instead of a full path.
  */
-export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[]; count?: boolean; name?: string; unrun?: boolean; db?: string }) {
+export async function listTestsCommand(dir: string | undefined, opts?: { json?: boolean; tags?: string[]; count?: boolean; name?: string; unrun?: boolean; runCounts?: boolean; db?: string }) {
   const root = resolve(dir || ".");
   let testCases = findAllTestCases(root);
 
@@ -60,6 +60,51 @@ export async function listTestsCommand(dir: string | undefined, opts?: { json?: 
       console.log(`  ${tc.name}  ${relative(root, tc.path)}`);
     }
     console.log(`\nRun with \`agr bench --suite ${relative(process.cwd(), root) || root}\` or \`agr run <name>\`.`);
+    return;
+  }
+
+  if (opts?.runCounts) {
+    const dbPath = opts.db ?? ".agr/db.sqlite";
+    const tcRunMap = new Map<string, { total: number; passed: number; failed: number }>();
+    if (existsSync(resolve(dbPath))) {
+      const db = initDb(dbPath);
+      const runs = await listRuns(db);
+      for (const r of runs) {
+        const entry = tcRunMap.get(r.testCaseId) ?? { total: 0, passed: 0, failed: 0 };
+        entry.total++;
+        if (r.passed === true) entry.passed++;
+        if (r.passed === false) entry.failed++;
+        tcRunMap.set(r.testCaseId, entry);
+      }
+    }
+    if (opts?.json) {
+      const output = testCases.map(tc => ({
+        name: tc.name,
+        path: tc.path,
+        relativePath: relative(root, tc.path),
+        ...(tc.description ? { description: tc.description } : {}),
+        ...(tc.tags?.length ? { tags: tc.tags } : {}),
+        runs: tcRunMap.get(tc.name)?.total ?? 0,
+        passed: tcRunMap.get(tc.name)?.passed ?? 0,
+        failed: tcRunMap.get(tc.name)?.failed ?? 0,
+      }));
+      console.log(JSON.stringify(output, null, 2));
+      return;
+    }
+    const nameWidth = Math.min(Math.max(...testCases.map(tc => tc.name.length)), 36);
+    console.log(`Test cases with run counts (${testCases.length} found):\n`);
+    const sorted = [...testCases].sort((a, b) => {
+      const ra = tcRunMap.get(a.name)?.total ?? 0;
+      const rb = tcRunMap.get(b.name)?.total ?? 0;
+      return ra - rb;
+    });
+    for (const tc of sorted) {
+      const counts = tcRunMap.get(tc.name);
+      const runNote = counts
+        ? `${counts.total} runs  (${counts.passed} passed, ${counts.failed} failed)`
+        : "0 runs  [unrun]";
+      console.log(`  ${tc.name.padEnd(nameWidth)}  ${runNote}`);
+    }
     return;
   }
 
