@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -225,10 +225,12 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   if (opts.topCost) {
     stepsLabel = `top ${steps.length} most expensive step(s) of ${costFiltered.length} total (sorted by cost desc)`;
   }
+  const displaySteps = opts.reverse ? [...steps].reverse() : steps;
+  if (opts.reverse && stepsLabel && !opts.topCost) stepsLabel += " (reversed)";
   console.log(`\n${stepsLabel}:`);
   let totalCachedTokens = 0;
   let totalTokensIn = 0;
-  for (const step of steps) {
+  for (const step of displaySteps) {
     const label = step.tool ? `${step.kind}:${step.tool}` : step.kind;
     const cached = step.cachedTokens ? ` cached:${step.cachedTokens}` : "";
     console.log(
