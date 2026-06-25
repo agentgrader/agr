@@ -181,6 +181,8 @@ cli
   .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
   .option("--seed <n>", "Seed for --shuffle and --sample randomization; makes draws reproducible: the same seed always produces the same ordering")
   .option("--print-ids", "Print all completed run IDs to stdout after the bench (one per line); enables shell pipelines like piping to agr trace")
+  .option("--print-passed", "Print only the run IDs of passing runs to stdout (one per line); useful for re-running passing cases with a different config")
+  .option("--print-failed", "Print only the run IDs of failing/errored runs to stdout (one per line); useful for targeted trace investigation")
   .option("--output-run-ids <file>", "Write all completed run IDs to a file (one per line) after the bench; useful in CI where stdout capture is awkward; complements --print-ids")
   .option("--show-failures", "After bench completes, print a compact list of failing test cases with their run IDs and error messages; useful for quickly knowing which tasks to investigate")
   .option("--config-grid", "After multi-config bench completes, print a PASS/FAIL grid (test cases x configs) showing which test cases passed for which configs; requires at least 2 configs")
@@ -271,6 +273,8 @@ cli
         sample: options.sample !== undefined ? Number(options.sample) : undefined,
         seed: options.seed !== undefined ? Number(options.seed) : undefined,
         printIds: options.printIds,
+        printPassed: options.printPassed,
+        printFailed: options.printFailed,
         outputRunIds: options.outputRunIds,
         showFailures: options.showFailures,
         configGrid: options.configGrid,
