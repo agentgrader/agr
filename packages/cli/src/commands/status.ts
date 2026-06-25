@@ -12,7 +12,7 @@ import { parseSince } from "../lib/parse-since";
  * and as a complement to `agr list --plain` when you only need counts.
  * Pass `--json` for machine-readable output.
  */
-type StatusSortField = "solve-rate" | "cost" | "runs" | "duration";
+type StatusSortField = "solve-rate" | "cost" | "runs" | "duration" | "last-pass";
 
 function percentile(sorted: number[], p: number): number {
   if (sorted.length === 0) return 0;
@@ -541,7 +541,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         lastRunId: allTcRuns[0]?.id ?? null,
         lastPassAt: allTcRuns.find((r) => r.passed === true)?.createdAt ?? null,
       };
-    }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : opts.sortBy === "duration" ? b.avgDurationMs - a.avgDurationMs : a.solveRate - b.solveRate);
+    }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : opts.sortBy === "duration" ? b.avgDurationMs - a.avgDurationMs : opts.sortBy === "last-pass" ? (b.lastPassAt ?? 0) - (a.lastPassAt ?? 0) : a.solveRate - b.solveRate);
     const tcStatsFiltered = tcStats
       .filter((s) => opts.minRuns === undefined || s.total >= opts.minRuns)
       .filter((s) => opts.below === undefined || s.solveRate < opts.below!)
@@ -556,7 +556,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const cfgScope = opts.config ? `  [config: ${opts.config}]` : "";
     const topNote = opts.top && opts.top < tcStats.length ? ` (top ${opts.top} of ${tcStats.length})` : "";
     console.log(`Database: ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}${cfgScope}\n`);
-    const tcSortLabel = opts.sortBy === "cost" ? "most expensive first" : opts.sortBy === "runs" ? "most runs first" : opts.sortBy === "duration" ? "slowest first" : "solve rate asc";
+    const tcSortLabel = opts.sortBy === "cost" ? "most expensive first" : opts.sortBy === "runs" ? "most runs first" : opts.sortBy === "duration" ? "slowest first" : opts.sortBy === "last-pass" ? "most recently passed first" : "solve rate asc";
     console.log(`Per-test-case breakdown (${tcStatsCapped.length} test case(s)${topNote}, ${tcSortLabel}):\n`);
     for (const tc of tcStatsCapped) {
       console.log(`  ${tc.testCaseId}`);
