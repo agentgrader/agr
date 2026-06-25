@@ -128,7 +128,7 @@ jobs:
 
       - name: Bench summary
         if: always()
-        run: agr status --summary
+        run: agr status --summary --github-step-summary
 `;
 
 /**

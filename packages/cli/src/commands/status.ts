@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -693,6 +693,22 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     console.log(`\n${testCaseIds.length} test case(s) x ${configIds.length} config(s) -- latest run per pair`);
     console.log(`\nNext: agr status --by-test-case --below 100  |  agr status --by-config`);
     return;
+  }
+
+  if (opts.githubStepSummary) {
+    const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+    if (!summaryFile) {
+      console.warn("[warn] --github-step-summary: GITHUB_STEP_SUMMARY env var not set; skipping.");
+    } else {
+      const emoji = passedRuns === runs.length ? "✅" : failedRuns === 0 ? "⚠️" : "❌";
+      let md = `\n## ${emoji} Eval Status`;
+      if (opts.since) md += ` (last ${opts.since})`;
+      md += `\n\n**${passedRuns}/${runs.length} PASS (${solveRate.toFixed(0)}%)** | $${totalCostUsd.toFixed(4)} total | avg $${avgCostUsd.toFixed(4)}/run\n\n`;
+      const { appendFileSync } = await import("node:fs");
+      appendFileSync(summaryFile, md, "utf-8");
+      console.log(`Status summary written to $GITHUB_STEP_SUMMARY`);
+    }
+    // still print normal output
   }
 
   if (opts.json) {
