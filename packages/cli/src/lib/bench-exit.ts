@@ -6,6 +6,7 @@ export interface BenchExitOptions {
   failOnFailure?: boolean;
   minSolveRate?: number;
   minSolveRateScope?: MinSolveRateScope;
+  minPassCount?: number;
 }
 
 export function evaluateBenchExit(
@@ -36,6 +37,12 @@ export function evaluateBenchExit(
         }
       }
     }
+  }
+
+  if (opts.minPassCount !== undefined && summary.passedRuns < opts.minPassCount) {
+    reasons.push(
+      `only ${summary.passedRuns} run(s) passed; minimum required is ${opts.minPassCount}`,
+    );
   }
 
   return { exitCode: reasons.length > 0 ? 1 : 0, reasons };
