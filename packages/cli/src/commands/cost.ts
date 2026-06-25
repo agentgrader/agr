@@ -16,6 +16,7 @@ export async function costCommand(opts: {
   json?: boolean;
   byTestCase?: boolean;
   byConfig?: boolean;
+  byModel?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -102,6 +103,30 @@ export async function costCommand(opts: {
     } else {
       for (const cfg of byConfig) {
         console.log(`$${cfg.totalCostUsd.toFixed(4)}\t${cfg.agentConfigId}\t(${cfg.total} runs, avg $${cfg.avgCostUsd.toFixed(4)}/run)`);
+      }
+    }
+    return;
+  }
+
+  if (opts.byModel) {
+    const cfgRows = await db.select().from(agentConfigs);
+    const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? "unknown"]));
+    const modelMap = new Map<string, { total: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const model = modelByConfigId.get(r.agentConfigId) ?? "unknown";
+      const entry = modelMap.get(model) ?? { total: 0, totalCostUsd: 0 };
+      entry.total++;
+      entry.totalCostUsd += r.costUsd ?? 0;
+      modelMap.set(model, entry);
+    }
+    const byModel = [...modelMap.entries()]
+      .map(([model, e]) => ({ model, total: e.total, totalCostUsd: e.totalCostUsd, avgCostUsd: e.totalCostUsd / e.total }))
+      .sort((a, b) => b.totalCostUsd - a.totalCostUsd);
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, totalCostUsd: runs.reduce((s, r) => s + (r.costUsd ?? 0), 0), dbPath, byModel }));
+    } else {
+      for (const m of byModel) {
+        console.log(`$${m.totalCostUsd.toFixed(4)}\t${m.model}\t(${m.total} runs, avg $${m.avgCostUsd.toFixed(4)}/run)`);
       }
     }
     return;
