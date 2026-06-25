@@ -84,7 +84,7 @@ function printRunHeader(label: string, run: NonNullable<Awaited<ReturnType<typeo
 export async function compareCommand(
   runIdA: string | undefined,
   runIdB: string | undefined,
-  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; firstAndLast?: boolean; testCase?: string; config?: string; json?: boolean },
+  opts: { full?: boolean; onlyDiff?: boolean; lastTwo?: boolean; firstAndLast?: boolean; passingVsFailing?: boolean; testCase?: string; config?: string; json?: boolean },
 ) {
   const db = initDb();
 
@@ -138,6 +138,30 @@ export async function compareCommand(
     }
     runIdA = filtered[filtered.length - 1]!.id;
     runIdB = filtered[0]!.id;
+  }
+
+  if (opts.passingVsFailing) {
+    const allRuns = await listRuns(db);
+    let pool = opts.testCase
+      ? allRuns.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!))
+      : allRuns;
+    if (opts.config) {
+      pool = pool.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    }
+    const lastPassing = pool.find((r) => r.passed === true);
+    const lastFailing = pool.find((r) => r.passed === false);
+    if (!lastPassing) {
+      console.error(`No passing runs found${opts.testCase ? ` for "${opts.testCase}"` : ""}. Run \`agr bench\` first.`);
+      process.exit(1);
+    }
+    if (!lastFailing) {
+      console.error(`No failing runs found${opts.testCase ? ` for "${opts.testCase}"` : ""}. Need at least one failed run.`);
+      process.exit(1);
+    }
+    const scopeNote = opts.testCase ? ` for "${opts.testCase}"` : "";
+    console.log(`Comparing most recent failing vs passing run${scopeNote} (A=FAIL, B=PASS)`);
+    runIdA = lastFailing.id;
+    runIdB = lastPassing.id;
   }
 
   if (!runIdA || !runIdB) {
