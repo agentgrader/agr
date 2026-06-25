@@ -884,6 +884,7 @@ cli
   .option("--json", "Output each new run as a JSON line (NDJSON); useful for scripting or piping to jq")
   .option("--exit-on-pass", "Exit with code 0 as soon as any passing run appears; useful for waiting until something succeeds")
   .option("--exit-on-fail", "Exit with code 1 as soon as any failing run appears; useful for fail-fast CI patterns")
+  .option("--timeout <s>", "Exit with code 2 if no new run appears within N seconds; useful in CI to detect stalled bench runs")
   .example("agr watch")
   .example("agr watch --test-case hello-world")
   .example("agr watch --json | jq .passed")
@@ -897,6 +898,7 @@ cli
         json: options.json,
         exitOnPass: options.exitOnPass,
         exitOnFail: options.exitOnFail,
+        timeout: options.timeout !== undefined ? Number(options.timeout) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing watch: ${err.message}`);

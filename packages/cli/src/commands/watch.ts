@@ -3,10 +3,11 @@ import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
 import { formatDuration, formatCompactWhen } from "../lib/format-relative-time";
 
-export async function watchCommand(opts: { db?: string; testCase?: string; config?: string; interval?: number; json?: boolean; exitOnPass?: boolean; exitOnFail?: boolean }) {
+export async function watchCommand(opts: { db?: string; testCase?: string; config?: string; interval?: number; json?: boolean; exitOnPass?: boolean; exitOnFail?: boolean; timeout?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
   const intervalMs = (opts.interval ?? 3) * 1000;
+  const timeoutMs = opts.timeout !== undefined ? opts.timeout * 1000 : undefined;
 
   if (!existsSync(resolvedPath)) {
     console.error(`No database at ${dbPath}. Run \`agr run\` or \`agr bench\` first.`);
@@ -72,9 +73,23 @@ export async function watchCommand(opts: { db?: string; testCase?: string; confi
     process.exit(0);
   });
 
+  const startMs = Date.now();
+  let lastNewRunMs = Date.now();
+
+  const origPoll = poll;
+  const pollWithTracking = async () => {
+    const sizeBefore = seenIds.size;
+    await origPoll();
+    if (seenIds.size > sizeBefore) lastNewRunMs = Date.now();
+  };
+
   // Poll loop
   while (true) {
-    await poll();
+    await pollWithTracking();
+    if (timeoutMs !== undefined && Date.now() - lastNewRunMs > timeoutMs) {
+      if (!opts.json) console.log(`\n[timeout] No new runs in ${opts.timeout}s. Exiting with code 2.`);
+      process.exit(2);
+    }
     await new Promise((res) => setTimeout(res, intervalMs));
   }
 }
