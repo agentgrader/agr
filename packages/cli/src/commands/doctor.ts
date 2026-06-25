@@ -91,6 +91,31 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
     return { status: "pass", detail: `Node.js ${version}` };
   }));
 
+  // DB health checks (only when DB exists)
+  if (existsSync(resolve(dbPath))) {
+    try {
+      const { statSync } = await import("node:fs");
+      const sizeMb = statSync(resolve(dbPath)).size / 1024 / 1024;
+      results.push(check(`Database size (${dbPath})`, () => {
+        if (sizeMb > 100) return { status: "warn", detail: `${sizeMb.toFixed(1)} MB (consider: agr prune --before 30d --dry-run)` };
+        if (sizeMb > 500) return { status: "fail", detail: `${sizeMb.toFixed(1)} MB — very large, run: agr prune --before 30d --yes` };
+        return { status: "pass", detail: `${sizeMb.toFixed(1)} MB` };
+      }));
+
+      const { initDb, listRuns } = await import("@agentgrader/store");
+      const db = initDb(dbPath);
+      const allRuns = await listRuns(db);
+      const erroredRuns = allRuns.filter(r => r.status === "failed" && r.passed == null);
+      results.push(check("Errored runs", () => {
+        if (erroredRuns.length > 10) return { status: "warn", detail: `${erroredRuns.length} runs errored (crashed before scoring); check sandbox/API connectivity` };
+        if (erroredRuns.length > 0) return { status: "pass", detail: `${erroredRuns.length} errored run(s) (non-zero is normal)` };
+        return "pass";
+      }));
+    } catch {
+      // DB checks optional
+    }
+  }
+
   const failures = results.filter(r => r.status === "fail");
   const warnings = results.filter(r => r.status === "warn");
 
