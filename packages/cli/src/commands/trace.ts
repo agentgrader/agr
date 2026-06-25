@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -173,6 +173,30 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
       console.log(`  ${kind.padEnd(24)} ${String(count).padStart(4)}  ${bar}`);
     }
     console.log(`\nNext: agr trace ${resolvedRunId} --tools  |  agr trace ${resolvedRunId} --kind <kind>`);
+    return;
+  }
+
+  if (opts.costSummary) {
+    const costByKind = new Map<string, number>();
+    let totalCost = 0;
+    for (const s of allSteps) {
+      const label = s.tool ? `${s.kind}:${s.tool}` : s.kind;
+      costByKind.set(label, (costByKind.get(label) ?? 0) + s.costUsd);
+      totalCost += s.costUsd;
+    }
+    const sorted = [...costByKind.entries()].sort((a, b) => b[1] - a[1]);
+    if (opts.json) {
+      const byKind = sorted.map(([kind, costUsd]) => ({ kind, costUsd, pct: totalCost > 0 ? (costUsd / totalCost) * 100 : 0 }));
+      console.log(JSON.stringify({ run: runSummary, totalCostUsd: totalCost, byKind }));
+      return;
+    }
+    console.log(`\nCost by step kind (total: $${totalCost.toFixed(4)}):\n`);
+    for (const [kind, cost] of sorted) {
+      const pct = totalCost > 0 ? ((cost / totalCost) * 100).toFixed(0) : "0";
+      const bar = "█".repeat(Math.round((cost / totalCost) * 20));
+      console.log(`  ${kind.padEnd(24)} $${cost.toFixed(4)}  ${pct.padStart(3)}%  ${bar}`);
+    }
+    console.log(`\nNext: agr trace ${resolvedRunId} --top-cost 5  |  agr trace ${resolvedRunId} --kind-summary`);
     return;
   }
 
