@@ -185,6 +185,7 @@ cli
   .option("--print-passed", "Print only the run IDs of passing runs to stdout (one per line); useful for re-running passing cases with a different config")
   .option("--print-failed", "Print only the run IDs of failing/errored runs to stdout (one per line); useful for targeted trace investigation")
   .option("--output-run-ids <file>", "Write all completed run IDs to a file (one per line) after the bench; useful in CI where stdout capture is awkward; complements --print-ids")
+  .option("--output-json <file>", "Write the full bench result as JSON to a file; always produced regardless of --json flag; same structure as --json stdout output; useful when you want both human-readable stdout and machine-readable result file")
   .option("--show-failures", "After bench completes, print a compact list of failing test cases with their run IDs and error messages; useful for quickly knowing which tasks to investigate")
   .option("--config-grid", "After multi-config bench completes, print a PASS/FAIL grid (test cases x configs) showing which test cases passed for which configs; requires at least 2 configs")
   .option("--github-step-summary", "Append bench results as Markdown to $GITHUB_STEP_SUMMARY (GitHub Actions step summary); no-op with a warning if the env var is not set")
@@ -278,6 +279,7 @@ cli
         printPassed: options.printPassed,
         printFailed: options.printFailed,
         outputRunIds: options.outputRunIds,
+        outputJson: options.outputJson,
         showFailures: options.showFailures,
         configGrid: options.configGrid,
         githubStepSummary: options.githubStepSummary,

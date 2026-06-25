@@ -77,6 +77,7 @@ export async function runBenchCommand(opts: {
   printPassed?: boolean;
   printFailed?: boolean;
   outputRunIds?: string;
+  outputJson?: string;
   showFailures?: boolean;
   configGrid?: boolean;
   githubStepSummary?: boolean;
@@ -619,7 +620,7 @@ export async function runBenchCommand(opts: {
       solveRate: s.totalRuns > 0 ? s.passedRuns / s.totalRuns : 0,
       totalCostUsd: s.totalCostUsd,
     }));
-    console.log(JSON.stringify({
+    const benchJsonObj = {
       passed: summary.passedRuns === summary.totalRuns && summary.totalRuns > 0,
       passedRuns: summary.passedRuns,
       totalRuns: summary.totalRuns,
@@ -646,7 +647,8 @@ export async function runBenchCommand(opts: {
         stepsCount: r.stepsCount ?? 0,
         error: r.error ?? null,
       })),
-    }));
+    };
+    console.log(JSON.stringify(benchJsonObj));
     process.exit(exitCode);
   }
 
@@ -797,6 +799,45 @@ export async function runBenchCommand(opts: {
     const outPath = resolvePath(opts.outputRunIds);
     writeFileSync(outPath, runIdsForExport.join("\n") + "\n", "utf-8");
     console.log(`Run IDs written to ${outPath} (${runIdsForExport.length} run(s))`);
+  }
+
+  if (opts.outputJson) {
+    const { writeFileSync } = await import("node:fs");
+    const { resolve: resolvePath } = await import("node:path");
+    const allRuns2 = Object.values(runStates);
+    const summary2 = summaryFromRunStates(runStates, configIds);
+    const totalCostUsd2 = allRuns2.reduce((acc, r) => acc + (r.costUsd || 0), 0);
+    const elapsedMs2 = Date.now() - benchStartMs;
+    const { reasons: reasons2 } = evaluateBenchExit(summary2, { failOnFailure: opts.failOnFailure, minSolveRate: opts.minSolveRate, minSolveRateScope: opts.minSolveRateScope, minPassCount: opts.minPassCount });
+    const tcMap2 = new Map<string, { passedRuns: number; totalRuns: number; totalCostUsd: number }>();
+    for (const r of allRuns2) {
+      const entry = tcMap2.get(r.testCaseId) ?? { passedRuns: 0, totalRuns: 0, totalCostUsd: 0 };
+      entry.totalRuns++;
+      if (r.status === "completed" && r.passed) entry.passedRuns++;
+      entry.totalCostUsd += r.costUsd ?? 0;
+      tcMap2.set(r.testCaseId, entry);
+    }
+    const jsonObj = {
+      passed: summary2.passedRuns === summary2.totalRuns && summary2.totalRuns > 0,
+      passedRuns: summary2.passedRuns, totalRuns: summary2.totalRuns, solveRate: summary2.solveRate,
+      totalCostUsd: totalCostUsd2, elapsedMs: elapsedMs2, matrixId: matrixId ?? null, gateReasons: reasons2,
+      byConfig: Object.entries(summary2.byConfig).map(([configId, stats]) => ({
+        configId, passedRuns: stats.passedRuns, totalRuns: stats.totalRuns, solveRate: stats.solveRate,
+        totalCostUsd: allRuns2.filter(r => r.agentConfigId === configId).reduce((acc, r) => acc + (r.costUsd || 0), 0),
+      })),
+      byTestCase: [...tcMap2.entries()].map(([testCaseId, s]) => ({
+        testCaseId, passedRuns: s.passedRuns, totalRuns: s.totalRuns,
+        solveRate: s.totalRuns > 0 ? s.passedRuns / s.totalRuns : 0, totalCostUsd: s.totalCostUsd,
+      })),
+      runs: allRuns2.map(r => ({
+        runId: r.runId ?? null, testCaseId: r.testCaseId, agentConfigId: r.agentConfigId,
+        passed: r.status === "completed" ? r.passed : null, costUsd: r.costUsd ?? 0,
+        durationMs: r.durationMs ?? 0, stepsCount: r.stepsCount ?? 0, error: r.error ?? null,
+      })),
+    };
+    const outPath = resolvePath(opts.outputJson);
+    writeFileSync(outPath, JSON.stringify(jsonObj, null, 2), "utf-8");
+    console.log(`Bench JSON written to ${outPath}`);
   }
 
   if (opts.showFailures) {
