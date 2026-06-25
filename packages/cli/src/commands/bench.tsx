@@ -603,7 +603,22 @@ export async function runBenchCommand(opts: {
       failOnFailure: opts.failOnFailure,
       minSolveRate: opts.minSolveRate,
       minSolveRateScope: opts.minSolveRateScope,
+      minPassCount: opts.minPassCount,
     });
+    // Compute per-test-case aggregation for JSON output
+    const tcMap = new Map<string, { passedRuns: number; totalRuns: number; totalCostUsd: number }>();
+    for (const r of allRuns) {
+      const entry = tcMap.get(r.testCaseId) ?? { passedRuns: 0, totalRuns: 0, totalCostUsd: 0 };
+      entry.totalRuns++;
+      if (r.status === "completed" && r.passed) entry.passedRuns++;
+      entry.totalCostUsd += r.costUsd ?? 0;
+      tcMap.set(r.testCaseId, entry);
+    }
+    const byTestCase = [...tcMap.entries()].map(([testCaseId, s]) => ({
+      testCaseId, passedRuns: s.passedRuns, totalRuns: s.totalRuns,
+      solveRate: s.totalRuns > 0 ? s.passedRuns / s.totalRuns : 0,
+      totalCostUsd: s.totalCostUsd,
+    }));
     console.log(JSON.stringify({
       passed: summary.passedRuns === summary.totalRuns && summary.totalRuns > 0,
       passedRuns: summary.passedRuns,
@@ -620,6 +635,7 @@ export async function runBenchCommand(opts: {
         solveRate: stats.solveRate,
         totalCostUsd: allRuns.filter(r => r.agentConfigId === configId).reduce((acc, r) => acc + (r.costUsd || 0), 0),
       })),
+      byTestCase,
       runs: allRuns.map(r => ({
         runId: r.runId ?? null,
         testCaseId: r.testCaseId,
