@@ -55,6 +55,7 @@ export async function runSingleCommand(
     stepTimeout?: number;
     saveBaseline?: string;
     reportDir?: string;
+    showTrace?: boolean;
     dryRun?: boolean;
   },
 ) {
@@ -496,6 +497,23 @@ export async function runSingleCommand(
       const snapshot = await buildBaselineSnapshotFromRunIds(db, [runId], { configs: [agentConfig.id || agentConfig.name] });
       const savedPath = saveBaselineSnapshot(snapshot, opts.saveBaseline);
       console.log(formatSuccess(`baseline saved to ${savedPath}`, { colors: stdoutSupportsColor() }));
+    }
+
+    if (opts.showTrace) {
+      const { getTraces } = await import("@agentgrader/store");
+      const { formatDuration } = await import("../lib/format-relative-time");
+      const traceSteps = await getTraces(db, runId);
+      console.log(`\n================ TRACE (${traceSteps.length} steps) ================`);
+      for (const step of traceSteps) {
+        const label = step.tool ? `${step.kind}:${step.tool}` : step.kind;
+        const cached = step.cachedTokens ? ` cached:${step.cachedTokens}` : "";
+        console.log(`  [${step.stepIndex}] ${label} (in:${step.tokensIn} out:${step.tokensOut}${cached} $${step.costUsd.toFixed(4)})`);
+        if (step.content) {
+          const preview = step.content.length > 200 ? `${step.content.slice(0, 200)}...` : step.content;
+          console.log(`      ${preview.replace(/\n/g, "\n      ")}`);
+        }
+      }
+      console.log("===================================================");
     }
   } catch (err: any) {
     rerender(
