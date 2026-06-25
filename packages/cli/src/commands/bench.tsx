@@ -433,6 +433,28 @@ export async function runBenchCommand(opts: {
       console.log("");
     }
     console.log(`Total: ${totalRuns} job(s)  concurrency: ${concurrency}`);
+    // Estimate cost from historical data
+    try {
+      const earlyDb = initDb();
+      const allRuns = await listRuns(earlyDb);
+      const tcAvgCost = new Map<string, number>();
+      const tcRunMap = new Map<string, number[]>();
+      for (const r of allRuns) {
+        if (!tcRunMap.has(r.testCaseId)) tcRunMap.set(r.testCaseId, []);
+        tcRunMap.get(r.testCaseId)!.push(r.costUsd ?? 0);
+      }
+      for (const [tcId, costs] of tcRunMap) {
+        tcAvgCost.set(tcId, costs.reduce((s, c) => s + c, 0) / costs.length);
+      }
+      const knownTcs = testCases.filter(tc => tcAvgCost.has(tc.name));
+      if (knownTcs.length > 0) {
+        const avgPerRun = knownTcs.reduce((s, tc) => s + (tcAvgCost.get(tc.name) ?? 0), 0) / knownTcs.length;
+        const estimatedTotal = avgPerRun * totalRuns;
+        console.log(`Estimated cost: ~$${estimatedTotal.toFixed(4)} (avg $${avgPerRun.toFixed(4)}/run based on ${knownTcs.length} of ${testCases.length} test case(s) with history)`);
+      }
+    } catch {
+      // DB not available - skip cost estimate
+    }
     console.log("\nRe-run without --dry-run to execute.");
     return;
   }
