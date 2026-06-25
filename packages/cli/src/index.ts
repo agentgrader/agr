@@ -448,6 +448,7 @@ cli
   .option("--json", "Output as JSON {total, passed, failed, dbPath} instead of a plain number")
   .option("--by-test-case", "Print a count per test case (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byTestCase: [{testCaseId, total, passed, failed}]}")
   .option("--by-config", "Print a count per agent config (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byConfig: [{agentConfigId, total, passed, failed}]}")
+  .option("--by-model", "Print a count per model (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byModel: [{model, total, passed, failed, solveRate}]}")
   .example("agr count")
   .example("agr count --passed --since 24h")
   .example("agr count --failed --test-case hello-world")
@@ -476,6 +477,7 @@ cli
         json: options.json,
         byTestCase: options.byTestCase,
         byConfig: options.byConfig,
+        byModel: options.byModel,
         errored: options.errored,
       });
     } catch (err: any) {

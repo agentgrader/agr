@@ -16,6 +16,7 @@ export async function countCommand(opts: {
   json?: boolean;
   byTestCase?: boolean;
   byConfig?: boolean;
+  byModel?: boolean;
   errored?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
@@ -109,6 +110,32 @@ export async function countCommand(opts: {
       for (const cfg of byConfig) {
         const srNote = cfg.total > 0 && (cfg.passed > 0 || cfg.failed > 0) ? `  ${cfg.solveRate.toFixed(0)}%` : "";
         console.log(`${cfg.total}\t${cfg.agentConfigId}\t(${cfg.passed} passed, ${cfg.failed} failed)${srNote}`);
+      }
+    }
+    return;
+  }
+
+  if (opts.byModel) {
+    const cfgRows = await db.select().from(agentConfigs);
+    const modelByConfigId = new Map(cfgRows.map((r) => [r.id, r.model ?? "unknown"]));
+    const modelMap = new Map<string, { total: number; passed: number; failed: number }>();
+    for (const r of runs) {
+      const model = modelByConfigId.get(r.agentConfigId) ?? "unknown";
+      const entry = modelMap.get(model) ?? { total: 0, passed: 0, failed: 0 };
+      entry.total++;
+      if (r.passed === true) entry.passed++;
+      if (r.passed === false) entry.failed++;
+      modelMap.set(model, entry);
+    }
+    const byModel = [...modelMap.entries()]
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([model, c]) => ({ model, ...c, solveRate: c.total > 0 ? (c.passed / c.total) * 100 : 0 }));
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, dbPath, byModel }));
+    } else {
+      for (const m of byModel) {
+        const srNote = m.total > 0 && (m.passed > 0 || m.failed > 0) ? `  ${m.solveRate.toFixed(0)}%` : "";
+        console.log(`${m.total}\t${m.model}\t(${m.passed} passed, ${m.failed} failed)${srNote}`);
       }
     }
     return;
