@@ -561,6 +561,7 @@ cli
   .option("--sandbox <provider>", "Only show runs with this sandbox provider (substring match, e.g. docker, e2b)")
   .option("--error <substring>", "Only show runs whose error message contains this substring (case-insensitive); useful for finding all runs that failed with a specific error")
   .option("--latest", "Deduplicate to show only the most recent run per (test case, agent config) pair; gives a current-state snapshot rather than full history")
+  .option("--active", "Only show runs currently in progress (status = running); useful for checking if a bench is still running or if any runs are stuck")
   .option("--min-cost <amount>", "Only show runs costing at least this many USD (e.g. 0.05 to find expensive outliers)")
   .option("--min-duration <ms>", "Only show runs lasting at least this many milliseconds (e.g. 60000 to find slow runs)")
   .option("--max-duration <ms>", "Only show runs lasting at most this many milliseconds (e.g. 10000 to find fast/early-terminating runs)")
@@ -613,6 +614,7 @@ cli
         minDuration: options.minDuration !== undefined ? Number(options.minDuration) : undefined,
         maxDuration: options.maxDuration !== undefined ? Number(options.maxDuration) : undefined,
         latest: options.latest,
+        active: options.active,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);
