@@ -24,6 +24,7 @@ import { validateToolkitCommand } from "./commands/validate-toolkit";
 import { statusCommand } from "./commands/status";
 import { countCommand } from "./commands/count";
 import { costCommand } from "./commands/cost";
+import { watchCommand } from "./commands/watch";
 
 const cli = cac("agr");
 cli.version(_pkg.version);
@@ -849,6 +850,31 @@ cli
       await doctorCommand({ db: options.db, suite: options.suite, json: options.json });
     } catch (err: any) {
       console.error(`Error executing doctor: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("watch", "Live feed of new runs as they appear in .agr/db.sqlite; polls every --interval seconds (default 3); useful for monitoring a bench from a second terminal")
+  .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .option("--test-case <name>", "Only show runs for this specific test case (substring match)")
+  .option("--config <name>", "Only show runs for this specific agent config (substring match)")
+  .option("--interval <s>", "Poll interval in seconds (default: 3)")
+  .option("--json", "Output each new run as a JSON line (NDJSON); useful for scripting or piping to jq")
+  .example("agr watch")
+  .example("agr watch --test-case hello-world")
+  .example("agr watch --json | jq .passed")
+  .action(async (options) => {
+    try {
+      await watchCommand({
+        db: options.db,
+        testCase: options.testCase,
+        config: options.config,
+        interval: options.interval !== undefined ? Number(options.interval) : undefined,
+        json: options.json,
+      });
+    } catch (err: any) {
+      console.error(`Error executing watch: ${err.message}`);
       process.exit(1);
     }
   });
