@@ -25,6 +25,7 @@ import { statusCommand } from "./commands/status";
 import { countCommand } from "./commands/count";
 import { costCommand } from "./commands/cost";
 import { watchCommand } from "./commands/watch";
+import { pruneCommand } from "./commands/prune";
 
 const cli = cac("agr");
 cli.version(_pkg.version);
@@ -884,6 +885,31 @@ cli
       });
     } catch (err: any) {
       console.error(`Error executing watch: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("prune", "Delete runs (and their traces) older than a given cutoff to keep the database lean")
+  .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
+  .option("--before <duration|date>", "Delete runs created before this point (e.g. 30d, 7d, 2026-01-01); required")
+  .option("--dry-run", "Preview how many runs would be deleted without actually deleting")
+  .option("--yes", "Confirm deletion without prompting")
+  .option("--json", "Output result as JSON {deleted, cutoff, dbPath}")
+  .example("agr prune --before 30d --dry-run")
+  .example("agr prune --before 30d --yes")
+  .example("agr prune --before 2026-01-01 --yes --json")
+  .action(async (options) => {
+    try {
+      await pruneCommand({
+        db: options.db,
+        before: options.before,
+        dryRun: options.dryRun,
+        yes: options.yes,
+        json: options.json,
+      });
+    } catch (err: any) {
+      console.error(`Error executing prune: ${err.message}`);
       process.exit(1);
     }
   });
