@@ -82,6 +82,7 @@ export async function runBenchCommand(opts: {
   showFailures?: boolean;
   configGrid?: boolean;
   githubStepSummary?: boolean;
+  ci?: boolean;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -93,6 +94,11 @@ export async function runBenchCommand(opts: {
   stepTimeout?: number;
   configFilter?: string;
 }) {
+  // --ci enables the most common CI-appropriate settings
+  if (opts.ci) {
+    opts = { ...opts, failOnFailure: opts.failOnFailure ?? true, showFailures: opts.showFailures ?? true, githubStepSummary: opts.githubStepSummary ?? true };
+  }
+
   let suiteDir: string | undefined;
   let concurrency = opts.concurrency ?? 2;
   let agentConfigs: AgentConfig[] = [];

@@ -120,11 +120,7 @@ jobs:
       - name: Run eval bench
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          agr bench --suite tasks/ \\
-            --fail-on-failure \\
-            --github-step-summary \\
-            --show-failures
+        run: agr bench --suite tasks/ --ci
 
       - name: Bench summary
         if: always()
