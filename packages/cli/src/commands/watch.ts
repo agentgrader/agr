@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
 import { formatDuration, formatCompactWhen } from "../lib/format-relative-time";
 
-export async function watchCommand(opts: { db?: string; testCase?: string; config?: string; interval?: number; json?: boolean }) {
+export async function watchCommand(opts: { db?: string; testCase?: string; config?: string; interval?: number; json?: boolean; exitOnPass?: boolean; exitOnFail?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
   const intervalMs = (opts.interval ?? 3) * 1000;
@@ -55,6 +55,14 @@ export async function watchCommand(opts: { db?: string; testCase?: string; confi
         const dur = formatDuration(r.durationMs);
         const id = r.id.slice(0, 8);
         console.log(`  ${status}  ${r.testCaseId.padEnd(32)} ${r.agentConfigId.padEnd(20)} ${cost}  ${dur}  ${id}  (${when})`);
+      }
+      if (opts.exitOnPass && r.passed === true) {
+        if (!opts.json) console.log(`\n[exit-on-pass] Passing run detected (${r.id.slice(0, 8)}). Exiting.`);
+        process.exit(0);
+      }
+      if (opts.exitOnFail && r.passed === false) {
+        if (!opts.json) console.log(`\n[exit-on-fail] Failing run detected (${r.id.slice(0, 8)}). Exiting with code 1.`);
+        process.exit(1);
       }
     }
   };

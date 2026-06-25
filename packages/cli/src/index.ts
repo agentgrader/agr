@@ -864,6 +864,8 @@ cli
   .option("--config <name>", "Only show runs for this specific agent config (substring match)")
   .option("--interval <s>", "Poll interval in seconds (default: 3)")
   .option("--json", "Output each new run as a JSON line (NDJSON); useful for scripting or piping to jq")
+  .option("--exit-on-pass", "Exit with code 0 as soon as any passing run appears; useful for waiting until something succeeds")
+  .option("--exit-on-fail", "Exit with code 1 as soon as any failing run appears; useful for fail-fast CI patterns")
   .example("agr watch")
   .example("agr watch --test-case hello-world")
   .example("agr watch --json | jq .passed")
@@ -875,6 +877,8 @@ cli
         config: options.config,
         interval: options.interval !== undefined ? Number(options.interval) : undefined,
         json: options.json,
+        exitOnPass: options.exitOnPass,
+        exitOnFail: options.exitOnFail,
       });
     } catch (err: any) {
       console.error(`Error executing watch: ${err.message}`);
