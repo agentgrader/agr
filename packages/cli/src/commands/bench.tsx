@@ -50,6 +50,7 @@ export async function runBenchCommand(opts: {
   failOnFailure?: boolean;
   minSolveRate?: number;
   minSolveRateScope?: "global" | "per-config";
+  minPassCount?: number;
   report?: ReportFormat;
   output?: string;
   reportDir?: string;

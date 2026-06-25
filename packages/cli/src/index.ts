@@ -153,6 +153,7 @@ cli
   )
   .option("--fail-on-failure", "Exit with code 1 if any run in the comparison sweep fails")
   .option("--min-solve-rate <rate>", "Exit with code 1 if solve rate is below this threshold (0-1)")
+  .option("--min-pass-count <n>", "Exit with code 1 if fewer than N runs passed in total; complementary to --min-solve-rate (which is rate-based); useful when you need at least N absolute successes regardless of total run count")
   .option(
     "--min-solve-rate-scope <scope>",
     "Apply --min-solve-rate globally or per agent config (global, per-config)",
@@ -248,6 +249,7 @@ cli
         adapters: options.adapters,
         failOnFailure: options.failOnFailure,
         minSolveRate: options.minSolveRate !== undefined ? Number(options.minSolveRate) : undefined,
+        minPassCount: options.minPassCount !== undefined ? Number(options.minPassCount) : undefined,
         minSolveRateScope: options.minSolveRateScope,
         report: options.report,
         output: options.output,
