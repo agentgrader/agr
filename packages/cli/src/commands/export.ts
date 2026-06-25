@@ -219,7 +219,7 @@ export async function exportCommand(
       });
       console.log(`--deduplicate: kept ${runs.length} run(s) (most recent per test case + config pair)`);
     }
-    const allColumns = ["id", "testCaseId", "agentConfigId", "passed", "costUsd", "durationMs", "stepsCount", "tokensIn", "tokensOut", "matrixId", "metrics"] as const;
+    const allColumns = ["id", "testCaseId", "agentConfigId", "status", "passed", "costUsd", "durationMs", "stepsCount", "tokensIn", "tokensOut", "error", "sandboxProvider", "createdAt", "matrixId", "metrics"] as const;
     const selectedColumns = opts.columns && opts.columns.length > 0
       ? allColumns.filter((c) => opts.columns!.includes(c))
       : allColumns;
@@ -231,12 +231,16 @@ export async function exportCommand(
       id: r.id,
       testCaseId: r.testCaseId,
       agentConfigId: r.agentConfigId,
+      status: r.status,
       passed: r.passed,
       costUsd: r.costUsd,
       durationMs: r.durationMs,
       stepsCount: r.stepsCount,
       tokensIn: r.tokensIn,
       tokensOut: r.tokensOut,
+      error: r.error ?? null,
+      sandboxProvider: r.sandboxProvider,
+      createdAt: r.createdAt,
       matrixId: r.matrixId,
       metrics: r.metrics ? JSON.parse(r.metrics) : null,
     }));
@@ -270,12 +274,16 @@ function runsToCSV(
     id: string;
     testCaseId: string;
     agentConfigId: string;
+    status?: string;
     passed: boolean | null;
     costUsd: number | null;
     durationMs: number | null;
     stepsCount: number | null;
     tokensIn: number | null;
     tokensOut: number | null;
+    error?: string | null;
+    sandboxProvider?: string;
+    createdAt?: number;
     matrixId: string | null | undefined;
     metrics: unknown;
   }>,
@@ -289,12 +297,16 @@ function runsToCSV(
       id: row.id,
       testCaseId: row.testCaseId,
       agentConfigId: row.agentConfigId,
+      status: row.status ?? null,
       passed: row.passed,
       costUsd: row.costUsd,
       durationMs: row.durationMs,
       stepsCount: row.stepsCount,
       tokensIn: row.tokensIn,
       tokensOut: row.tokensOut,
+      error: row.error ?? null,
+      sandboxProvider: row.sandboxProvider ?? null,
+      createdAt: row.createdAt ?? null,
       matrixId: row.matrixId ?? null,
       metrics: row.metrics,
     };
