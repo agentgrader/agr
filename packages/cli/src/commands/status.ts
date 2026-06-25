@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -30,6 +30,29 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     } else {
       console.log(`No database at ${dbPath}.`);
       console.log("Run `agr run` or `agr bench` first to start recording runs.");
+    }
+    return;
+  }
+
+  if (opts.dbInfo) {
+    const { statSync } = await import("node:fs");
+    const sizeMb = (statSync(resolvedPath).size / 1024 / 1024).toFixed(2);
+    const db2 = initDb(dbPath);
+    const allRuns = await listRuns(db2);
+    const uniqueTcs = new Set(allRuns.map((r) => r.testCaseId)).size;
+    const uniqueCfgs = new Set(allRuns.map((r) => r.agentConfigId)).size;
+    const oldest = allRuns.length > 0 ? new Date((allRuns[allRuns.length - 1]!.createdAt) * 1000).toISOString().slice(0, 10) : null;
+    const newest = allRuns.length > 0 ? new Date(allRuns[0]!.createdAt * 1000).toISOString().slice(0, 10) : null;
+    if (opts.json) {
+      console.log(JSON.stringify({ dbPath, sizeMb: Number(sizeMb), totalRuns: allRuns.length, uniqueTestCases: uniqueTcs, uniqueConfigs: uniqueCfgs, oldestRun: oldest, newestRun: newest }));
+    } else {
+      console.log(`Database: ${dbPath}`);
+      console.log(`  Size:          ${sizeMb} MB`);
+      console.log(`  Total runs:    ${allRuns.length}`);
+      console.log(`  Test cases:    ${uniqueTcs} unique`);
+      console.log(`  Configs:       ${uniqueCfgs} unique`);
+      if (oldest && newest) console.log(`  Date range:    ${oldest} to ${newest}`);
+      if (Number(sizeMb) > 50) console.log(`\n[tip] Database is ${sizeMb}MB. Consider: agr prune --before 30d --dry-run`);
     }
     return;
   }
