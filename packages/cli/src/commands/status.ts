@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -539,6 +539,7 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
         avgCostUsd: tcRuns.length > 0 ? cost / tcRuns.length : 0,
         avgDurationMs: tcRuns.length > 0 ? dur / tcRuns.length : 0,
         lastRunId: allTcRuns[0]?.id ?? null,
+        lastPassAt: allTcRuns.find((r) => r.passed === true)?.createdAt ?? null,
       };
     }).sort((a, b) => opts.sortBy === "cost" ? b.avgCostUsd - a.avgCostUsd : opts.sortBy === "runs" ? b.total - a.total : opts.sortBy === "duration" ? b.avgDurationMs - a.avgDurationMs : a.solveRate - b.solveRate);
     const tcStatsFiltered = tcStats
@@ -562,6 +563,13 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`    runs: ${tc.total}  (${tc.passed} passed, ${tc.failed} failed)  solve rate: ${tc.solveRate.toFixed(1)}%`);
       console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run  avg duration: ${formatDuration(tc.avgDurationMs)}`);
       if (opts.showIds && tc.lastRunId) console.log(`    last run: agr trace ${tc.lastRunId}`);
+      if (opts.showLastPass) {
+        if (tc.lastPassAt) {
+          console.log(`    last pass: ${formatCompactWhen(tc.lastPassAt)}`);
+        } else {
+          console.log(`    last pass: never`);
+        }
+      }
     }
     console.log(`\nNext: agr status --test-case <name>  |  agr bench --only-failed --suite tasks/`);
     return;
