@@ -73,6 +73,8 @@ export async function runBenchCommand(opts: {
   sample?: number;
   seed?: number;
   printIds?: boolean;
+  printPassed?: boolean;
+  printFailed?: boolean;
   outputRunIds?: string;
   showFailures?: boolean;
   configGrid?: boolean;
@@ -753,6 +755,22 @@ export async function runBenchCommand(opts: {
     console.log("\nRun IDs:");
     for (const id of runIdsForExport) {
       console.log(id);
+    }
+  }
+
+  if (opts.printPassed) {
+    const passedIds = Object.values(runStates).filter(r => r.status === "completed" && r.passed).map(r => r.runId);
+    if (passedIds.length > 0) {
+      if (!opts.json) console.log(`\nPassing run IDs (${passedIds.length}):`);
+      for (const id of passedIds) console.log(id);
+    }
+  }
+
+  if (opts.printFailed) {
+    const failedIds = Object.values(runStates).filter(r => r.status === "failed" || (r.status === "completed" && !r.passed)).map(r => r.runId);
+    if (failedIds.length > 0) {
+      if (!opts.json) console.log(`\nFailing run IDs (${failedIds.length}):`);
+      for (const id of failedIds) console.log(id);
     }
   }
 
