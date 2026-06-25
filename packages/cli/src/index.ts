@@ -177,6 +177,7 @@ cli
   .option("--skip-passing-since <window>", "Skip test cases that have a passing run within the given time window (e.g. 24h, 7d); enables incremental bench runs for large suites where you only want to re-run what hasn't passed recently")
   .option("--shuffle", "Randomize the order of test cases before running (reduces order-dependent bias in large suites)")
   .option("--sample <n>", "Randomly sample N test cases from the suite (useful for quick sanity checks on large suites without running everything)")
+  .option("--seed <n>", "Seed for --shuffle and --sample randomization; makes draws reproducible: the same seed always produces the same ordering")
   .option("--print-ids", "Print all completed run IDs to stdout after the bench (one per line); enables shell pipelines like piping to agr trace")
   .option("--output-run-ids <file>", "Write all completed run IDs to a file (one per line) after the bench; useful in CI where stdout capture is awkward; complements --print-ids")
   .option("--show-failures", "After bench completes, print a compact list of failing test cases with their run IDs and error messages; useful for quickly knowing which tasks to investigate")
@@ -266,6 +267,7 @@ cli
         skipPassingSince: options.skipPassingSince,
         shuffle: options.shuffle,
         sample: options.sample !== undefined ? Number(options.sample) : undefined,
+        seed: options.seed !== undefined ? Number(options.seed) : undefined,
         printIds: options.printIds,
         outputRunIds: options.outputRunIds,
         showFailures: options.showFailures,

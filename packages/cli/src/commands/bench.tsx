@@ -71,6 +71,7 @@ export async function runBenchCommand(opts: {
   skipPassingSince?: string;
   shuffle?: boolean;
   sample?: number;
+  seed?: number;
   printIds?: boolean;
   outputRunIds?: string;
   showFailures?: boolean;
@@ -231,10 +232,20 @@ export async function runBenchCommand(opts: {
     yamlFiles = yamlFiles.slice(0, opts.limit);
   }
 
+  // seeded PRNG (mulberry32) — returns a deterministic sequence if seed is set
+  let prngState = opts.seed ?? Math.floor(Math.random() * 2 ** 32);
+  const prng = (): number => {
+    prngState = (prngState + 0x6d2b79f5) >>> 0;
+    let t = Math.imul(prngState ^ (prngState >>> 15), 1 | prngState);
+    t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+    return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32;
+  };
+
   if (opts.shuffle && testCases.length > 1) {
+    if (opts.seed !== undefined) console.log(`--seed ${opts.seed}: using deterministic shuffle`);
     const indices = testCases.map((_, i) => i);
     for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(prng() * (i + 1));
       [indices[i], indices[j]] = [indices[j]!, indices[i]!];
     }
     testCases = indices.map((i) => testCases[i]!);
@@ -244,9 +255,10 @@ export async function runBenchCommand(opts: {
 
   if (opts.sample && opts.sample < testCases.length) {
     const n = opts.sample;
+    if (opts.seed !== undefined) console.log(`--seed ${opts.seed}: using deterministic sample`);
     const indices = testCases.map((_, i) => i);
     for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(prng() * (i + 1));
       [indices[i], indices[j]] = [indices[j]!, indices[i]!];
     }
     const picked = indices.slice(0, n);
