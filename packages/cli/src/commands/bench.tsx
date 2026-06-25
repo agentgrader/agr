@@ -5,7 +5,7 @@ import { render } from "ink";
 import React from "react";
 import { initDb, saveTestCase, saveAgentConfig, getRunsByMatrixId, getRun, getTraces, listRuns, type AgrDb } from "@agentgrader/store";
 import { runBenchmark, summaryFromRunStates, auditToolkitDirectory, hasAuditErrors, type TestCase, type AgentConfig } from "@agentgrader/core";
-import { evaluateBenchExit } from "../lib/bench-exit";
+import { evaluateBenchExit, checkBenchCost } from "../lib/bench-exit";
 import { buildExtraScorers } from "../lib/extra-scorers";
 import { buildReportFromRunIds } from "../lib/report/build-report";
 import { buildTimestampedReportPath, writeReport, type ReportFormat } from "../lib/report/write-report";
@@ -51,6 +51,7 @@ export async function runBenchCommand(opts: {
   minSolveRate?: number;
   minSolveRateScope?: "global" | "per-config";
   minPassCount?: number;
+  maxCost?: number;
   report?: ReportFormat;
   output?: string;
   reportDir?: string;
@@ -902,21 +903,26 @@ export async function runBenchCommand(opts: {
     }
   }
 
+  const totalCostForGate = Object.values(runStates).reduce((acc, r) => acc + (r.costUsd || 0), 0);
   const { exitCode, reasons } = evaluateBenchExit(summary, {
     failOnFailure: opts.failOnFailure,
     minSolveRate: opts.minSolveRate,
     minSolveRateScope: opts.minSolveRateScope,
+    minPassCount: opts.minPassCount,
   });
+  const costReasons = checkBenchCost(totalCostForGate, opts.maxCost);
+  const allReasons = [...reasons, ...costReasons];
+  const allExitCode = allReasons.length > 0 ? 1 : exitCode;
 
-  if (reasons.length > 0) {
+  if (allReasons.length > 0) {
     console.error("\n[FAIL] Comparison sweep gate failed:");
-    for (const reason of reasons) {
+    for (const reason of allReasons) {
       console.error(`  - ${reason}`);
     }
   }
 
   let nextHint: string;
-  const gateTriggered = reasons.length > 0;
+  const gateTriggered = allReasons.length > 0;
   const needsDebug = gateTriggered || (summary.totalRuns > 0 && summary.passedRuns === 0);
   if (opts.saveBaseline) {
     nextHint = `Baseline saved to ${opts.saveBaseline}. On a PR branch: agr bench ... && agr compare-baseline --current ${opts.saveBaseline} --format md --output comment.md --fail-on-regression`;
@@ -935,7 +941,7 @@ export async function runBenchCommand(opts: {
   }
   console.log(`\n${nextHint}`);
 
-  process.exit(exitCode);
+  process.exit(allExitCode);
 }
 
 /**

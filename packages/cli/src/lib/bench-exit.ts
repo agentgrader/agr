@@ -7,6 +7,7 @@ export interface BenchExitOptions {
   minSolveRate?: number;
   minSolveRateScope?: MinSolveRateScope;
   minPassCount?: number;
+  maxCost?: number;
 }
 
 export function evaluateBenchExit(
@@ -46,4 +47,11 @@ export function evaluateBenchExit(
   }
 
   return { exitCode: reasons.length > 0 ? 1 : 0, reasons };
+}
+
+export function checkBenchCost(totalCostUsd: number, maxCost?: number): string[] {
+  if (maxCost !== undefined && totalCostUsd > maxCost) {
+    return [`total cost $${totalCostUsd.toFixed(4)} exceeds budget $${maxCost.toFixed(4)}`];
+  }
+  return [];
 }
