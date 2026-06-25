@@ -499,6 +499,7 @@ cli
   .option("--json", "Output as JSON {totalCostUsd, avgCostUsd, total, dbPath} instead of a plain dollar amount")
   .option("--by-test-case", "Print cost breakdown per test case (total cost, runs, avg cost/run), sorted most expensive first. Plain: tab-separated. JSON: {total, totalCostUsd, byTestCase: [{testCaseId, total, totalCostUsd, avgCostUsd}]}")
   .option("--by-config", "Print cost breakdown per agent config (total cost, runs, avg cost/run), sorted most expensive first. Same format as --by-test-case")
+  .option("--by-model", "Print cost breakdown per model (total cost, runs, avg cost/run), sorted most expensive first. JSON: {total, totalCostUsd, byModel: [{model, total, totalCostUsd, avgCostUsd}]}")
   .example("agr cost")
   .example("agr cost --since 24h")
   .example("agr cost --last-matrix")
@@ -526,6 +527,7 @@ cli
         json: options.json,
         byTestCase: options.byTestCase,
         byConfig: options.byConfig,
+        byModel: options.byModel,
       });
     } catch (err: any) {
       console.error(`Error executing cost: ${err.message}`);
