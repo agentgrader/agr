@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
 import { formatDuration, formatCompactWhen } from "../lib/format-relative-time";
 
-export async function watchCommand(opts: { db?: string; testCase?: string; config?: string; interval?: number; json?: boolean; exitOnPass?: boolean; exitOnFail?: boolean; timeout?: number }) {
+export async function watchCommand(opts: { db?: string; testCase?: string; config?: string; interval?: number; json?: boolean; exitOnPass?: boolean; exitOnFail?: boolean; timeout?: number; minPassRate?: number; minPassCount?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
   const intervalMs = (opts.interval ?? 3) * 1000;
@@ -64,6 +64,25 @@ export async function watchCommand(opts: { db?: string; testCase?: string; confi
       if (opts.exitOnFail && r.passed === false) {
         if (!opts.json) console.log(`\n[exit-on-fail] Failing run detected (${r.id.slice(0, 8)}). Exiting with code 1.`);
         process.exit(1);
+      }
+    }
+    // Check pass rate gates across all seen runs
+    if ((opts.minPassRate !== undefined || opts.minPassCount !== undefined) && newRuns.length > 0) {
+      const allSeen = [...seenIds];
+      const allRuns2 = await listRuns(db);
+      const seenRuns = allRuns2.filter((r) => allSeen.includes(r.id));
+      const seenPassed = seenRuns.filter((r) => r.passed === true).length;
+      const seenTotal = seenRuns.length;
+      if (opts.minPassRate !== undefined && seenTotal > 0) {
+        const rate = seenPassed / seenTotal;
+        if (rate >= opts.minPassRate) {
+          if (!opts.json) console.log(`\n[min-pass-rate] ${(rate * 100).toFixed(1)}% >= ${(opts.minPassRate * 100).toFixed(1)}% target (${seenPassed}/${seenTotal}). Exiting.`);
+          process.exit(0);
+        }
+      }
+      if (opts.minPassCount !== undefined && seenPassed >= opts.minPassCount) {
+        if (!opts.json) console.log(`\n[min-pass-count] ${seenPassed} passes reached target of ${opts.minPassCount}. Exiting.`);
+        process.exit(0);
       }
     }
   };
