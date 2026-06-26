@@ -70,6 +70,7 @@ export async function runBenchCommand(opts: {
   tags?: string[];
   limit?: number;
   onlyFailed?: boolean;
+  minTestCases?: number;
   onlyUnrun?: boolean;
   skipPassingSince?: string;
   shuffle?: boolean;
@@ -237,6 +238,11 @@ export async function runBenchCommand(opts: {
     testCases = yamlFiles.map(f => loadTestCase(f));
     const tcLabel = testCases.length === 1 ? "test case" : "test cases";
     console.log(`Loaded ${testCases.length} ${tcLabel}: ${testCases.map(tc => tc.name).join(", ")}`);
+  }
+
+  if (opts.minTestCases !== undefined && testCases.length < opts.minTestCases) {
+    console.error(`Error: suite has ${testCases.length} test case(s) but --min-test-cases requires at least ${opts.minTestCases}. Check your --suite directory or filter flags.`);
+    process.exit(1);
   }
 
   if (opts.limit && opts.limit < testCases.length) {
