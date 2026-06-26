@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean; outputJson?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; findTool?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean; outputJson?: string }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -135,7 +135,10 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   const kindFiltered = opts.kind
     ? grepFiltered.filter((s) => s.kind === opts.kind || (s.tool && `${s.kind}:${s.tool}` === opts.kind))
     : grepFiltered;
-  const costFiltered = kindFiltered.filter((s) => {
+  const toolFiltered = opts.findTool
+    ? kindFiltered.filter((s) => s.tool && s.tool.toLowerCase().includes(opts.findTool!.toLowerCase()))
+    : kindFiltered;
+  const costFiltered = toolFiltered.filter((s) => {
     if (opts.minCost !== undefined && s.costUsd < opts.minCost) return false;
     if (opts.maxCost !== undefined && s.costUsd > opts.maxCost) return false;
     return true;
