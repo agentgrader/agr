@@ -17,6 +17,8 @@ export async function costCommand(opts: {
   byTestCase?: boolean;
   byConfig?: boolean;
   byModel?: boolean;
+  total?: boolean;
+  avg?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -136,6 +138,14 @@ export async function costCommand(opts: {
   const totalCostUsd = runs.reduce((acc, r) => acc + (r.costUsd ?? 0), 0);
   const avgCostUsd = total > 0 ? totalCostUsd / total : 0;
 
+  if (opts.total) {
+    console.log(totalCostUsd.toFixed(4));
+    return;
+  }
+  if (opts.avg) {
+    console.log(avgCostUsd.toFixed(4));
+    return;
+  }
   if (opts.json) {
     console.log(JSON.stringify({ totalCostUsd, avgCostUsd, total, dbPath }));
   } else {

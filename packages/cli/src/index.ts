@@ -525,6 +525,8 @@ cli
   .option("--by-test-case", "Print cost breakdown per test case (total cost, runs, avg cost/run), sorted most expensive first. Plain: tab-separated. JSON: {total, totalCostUsd, byTestCase: [{testCaseId, total, totalCostUsd, avgCostUsd}]}")
   .option("--by-config", "Print cost breakdown per agent config (total cost, runs, avg cost/run), sorted most expensive first. Same format as --by-test-case")
   .option("--by-model", "Print cost breakdown per model (total cost, runs, avg cost/run), sorted most expensive first. JSON: {total, totalCostUsd, byModel: [{model, total, totalCostUsd, avgCostUsd}]}")
+  .option("--total", "Print total cost as a plain decimal number (e.g. 1.2345); useful in shell scripts: COST=$(agr cost --total)")
+  .option("--avg", "Print average cost per run as a plain decimal number; complement to --total; useful in shell scripts: AVG=$(agr cost --avg)")
   .example("agr cost")
   .example("agr cost --since 24h")
   .example("agr cost --last-matrix")
@@ -553,6 +555,8 @@ cli
         byTestCase: options.byTestCase,
         byConfig: options.byConfig,
         byModel: options.byModel,
+        total: options.total,
+        avg: options.avg,
       });
     } catch (err: any) {
       console.error(`Error executing cost: ${err.message}`);
