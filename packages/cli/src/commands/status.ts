@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -686,6 +686,10 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       if (tc.lastRunId) console.log(`    last run: agr trace ${tc.lastRunId}`);
     }
     console.log(`\nNext: agr bench --only-failed --suite tasks/  |  agr status --flaky`);
+    if (opts.failOnRegression && regressions.length > 0) {
+      console.error(`\n[FAIL] ${regressions.length} regression(s) detected. Exiting with code 1.`);
+      process.exit(1);
+    }
     return;
   }
 
