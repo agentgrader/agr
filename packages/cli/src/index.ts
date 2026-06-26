@@ -687,7 +687,7 @@ cli
   });
 
 cli
-  .command("export <subcommand>", "Export runs or traces (runs, traces)")
+  .command("export <subcommand>", "Export runs, traces, or a summary snapshot (runs, traces, summary)")
   .option("--format <format>", "Export format (json, jsonl, otlp, csv)", { default: "json" })
   .option("--output <path>", "Output file path")
   .option("--db <path>", "SQLite database path", { default: ".agr/db.sqlite" })
@@ -718,6 +718,8 @@ cli
   .example("agr export traces --last --format otlp --output last-trace.json")
   .example("agr export traces --test-case hello-world --format jsonl --output hello-traces.jsonl")
   .example("agr export traces --last --test-case hello-world --format otlp --output last-hello.json")
+  .example("agr export summary --output summary.json")
+  .example("agr export summary --since 7d --output week-summary.json")
   .action(async (subcommand, options) => {
     try {
       if (options.passed && options.failed) {
