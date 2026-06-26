@@ -666,6 +666,7 @@ cli
   .option("--kind <type>", "Show only steps whose kind exactly matches this value (e.g. llm_response, tool_call, tool_result); combinable with --steps, --grep, --full, and all run-selection flags")
   .option("--step-count", "Print the total number of steps as a plain number (ignores all view/filter flags except run selection); --json emits {stepCount, filteredCount, runId}")
   .option("--reverse", "Print steps in reverse order (latest step first); useful for quickly seeing how a long trace ended without scrolling")
+  .option("--output-json <path>", "Save the full trace as a pretty-printed JSON file to the given path (creates parent directories); also prints the text trace to stdout unless --json is also set")
   .option("--min-cost <amount>", "Only show steps costing at least this many USD (e.g. 0.001); useful for finding expensive individual LLM calls")
   .option("--max-cost <amount>", "Only show steps costing at most this many USD; useful for showing only cheap steps")
   .example("agr trace <runId>")
@@ -692,7 +693,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, kindSummary: options.kindSummary, costSummary: options.costSummary, stats: options.stats, stepCount: options.stepCount, minCost: options.minCost !== undefined ? Number(options.minCost) : undefined, maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined, reverse: options.reverse });
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, kindSummary: options.kindSummary, costSummary: options.costSummary, stats: options.stats, stepCount: options.stepCount, minCost: options.minCost !== undefined ? Number(options.minCost) : undefined, maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined, reverse: options.reverse, outputJson: options.outputJson });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);

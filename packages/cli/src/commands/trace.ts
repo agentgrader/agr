@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean; outputJson?: string }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -241,7 +241,7 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     return;
   }
 
-  if (opts.json) {
+  if (opts.json || opts.outputJson) {
     const stepsOut = steps.map((s) => ({
       stepIndex: s.stepIndex,
       kind: s.kind,
@@ -255,8 +255,20 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
     const out: Record<string, unknown> = { run: runSummary, steps: stepsOut };
     if (stepsRange) out.stepsRange = stepsRange;
     if (grepPattern) out.grep = opts.grep;
-    console.log(JSON.stringify(out));
-    return;
+    const jsonStr = JSON.stringify(out, null, 2);
+    if (opts.outputJson) {
+      const { writeFileSync, mkdirSync } = await import("node:fs");
+      const { resolve: resolvePath, dirname } = await import("node:path");
+      const p = resolvePath(opts.outputJson);
+      mkdirSync(dirname(p), { recursive: true });
+      writeFileSync(p, jsonStr, "utf-8");
+      console.log(`Trace written to ${p}`);
+      if (!opts.json) return;
+    }
+    if (opts.json) {
+      console.log(jsonStr);
+      return;
+    }
   }
 
   let stepsLabel = stepsRange
