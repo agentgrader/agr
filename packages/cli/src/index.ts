@@ -166,6 +166,7 @@ cli
   .option("--report-dir <dir>", "Directory for auto-named report files (e.g. reports/); generates bench-<timestamp>.<ext> when --output is not given")
   .option("--report-include-traces", "Include full step traces in --report output")
   .option("--save-baseline <path>", "Write a baseline snapshot JSON after the bench completes")
+  .option("--compare-baseline <path>", "After the bench completes, automatically compare the result against the given baseline snapshot and print a Markdown report; equivalent to running agr compare-baseline --current <path> after the bench")
   .option("--sandbox <provider>", "Sandbox provider (docker, e2b)", { default: "docker" })
   .option("--strict-toolkits", "Exit with code 1 if any referenced toolkit fails security audit")
   .option("--llm-judge", "Run LlmJudgeScorer on each completed run")
@@ -260,6 +261,7 @@ cli
         reportDir: options.reportDir,
         reportIncludeTraces: options.reportIncludeTraces,
         saveBaseline: options.saveBaseline,
+        compareBaseline: options.compareBaseline,
         sandbox: options.sandbox,
         strictToolkits: options.strictToolkits,
         llmJudge: options.llmJudge,

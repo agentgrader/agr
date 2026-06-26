@@ -57,6 +57,7 @@ export async function runBenchCommand(opts: {
   reportDir?: string;
   reportIncludeTraces?: boolean;
   saveBaseline?: string;
+  compareBaseline?: string;
   sandbox?: string;
   strictToolkits?: boolean;
   llmJudge?: boolean;
@@ -925,6 +926,17 @@ export async function runBenchCommand(opts: {
     for (const reason of allReasons) {
       console.error(`  - ${reason}`);
     }
+  }
+
+  if (opts.compareBaseline) {
+    const { compareBaselineCommand } = await import("./compare-baseline");
+    console.log(`\nComparing against baseline: ${opts.compareBaseline}\n`);
+    await compareBaselineCommand({
+      current: opts.compareBaseline,
+      format: "md",
+      db: ".agr/db.sqlite",
+      failOnRegression: opts.failOnFailure,
+    });
   }
 
   let nextHint: string;
