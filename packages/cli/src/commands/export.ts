@@ -28,6 +28,7 @@ export async function exportCommand(
     columns?: string[];
     all?: boolean;
     deduplicate?: boolean;
+    runIdsFile?: string;
   },
 ) {
   const db = initDb(opts.db ?? ".agr/db.sqlite");
@@ -139,6 +140,17 @@ export async function exportCommand(
       console.log(`Using most recent matrix: ${resolvedMatrixId}`);
     }
     if (resolvedMatrixId) runs = runs.filter((r) => r.matrixId === resolvedMatrixId);
+    if (opts.runIdsFile) {
+      const { readFileSync } = await import("node:fs");
+      const { resolve: resolvePath } = await import("node:path");
+      const idSet = new Set(readFileSync(resolvePath(opts.runIdsFile), "utf-8").split("\n").map(l => l.trim()).filter(Boolean));
+      runs = runs.filter((r) => idSet.has(r.id));
+      if (runs.length === 0) {
+        console.error(`No runs found matching IDs in "${opts.runIdsFile}". Check the file contains valid run IDs.`);
+        process.exit(1);
+      }
+      console.log(`Filtering to ${runs.length} run(s) from ${opts.runIdsFile}`);
+    }
     if (opts.since) {
       const sinceTs = parseSince(opts.since);
       runs = runs.filter((r) => r.createdAt >= sinceTs);
