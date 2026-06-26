@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -125,6 +125,59 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
   const p95CostUsd = percentile(sortedCosts, 95);
   const p50DurationMs = percentile(sortedDurations, 50);
   const p95DurationMs = percentile(sortedDurations, 95);
+
+  if (opts.reportCard) {
+    if (!opts.json) {
+      console.log(`\n${"═".repeat(60)}`);
+      console.log(`EVAL REPORT CARD  ${dbPath}${sinceLabel ? `  [since ${sinceLabel}]` : ""}`);
+      console.log(`${"═".repeat(60)}\n`);
+    }
+    // 1. Summary
+    await statusCommand({ ...opts, reportCard: false, summary: true });
+    // 2. Regressions
+    const regrWindow = opts.regressionWindow ?? 3;
+    const allRcRuns = await listRuns(db);
+    const tcAllMap2 = new Map<string, typeof allRcRuns>();
+    for (const r of allRcRuns) {
+      if (!tcAllMap2.has(r.testCaseId)) tcAllMap2.set(r.testCaseId, []);
+      tcAllMap2.get(r.testCaseId)!.push(r);
+    }
+    let regrCount = 0;
+    for (const tcRuns of tcAllMap2.values()) {
+      const recent = tcRuns.slice(0, regrWindow);
+      if (recent.length >= regrWindow && recent.every((r) => r.passed === false) && tcRuns.some((r) => r.passed === true)) regrCount++;
+    }
+    if (!opts.json) {
+      const regrEmoji = regrCount > 0 ? "⚠️" : "✅";
+      console.log(`\n${regrEmoji} Regressions: ${regrCount} test case(s) with ${regrWindow}+ consecutive failures after prior pass`);
+      if (regrCount > 0) console.log(`   → agr status --regression for details`);
+    }
+    // 3. Flaky tests
+    const flakyTcs = [...(await listRuns(db).then((allRuns) => {
+      const m = new Map<string, { passed: number; failed: number }>();
+      for (const r of allRuns) {
+        const e = m.get(r.testCaseId) ?? { passed: 0, failed: 0 };
+        if (r.passed === true) e.passed++;
+        if (r.passed === false) e.failed++;
+        m.set(r.testCaseId, e);
+      }
+      return m.entries();
+    }))].filter(([, e]) => e.passed > 0 && e.failed > 0);
+    if (!opts.json) {
+      const flakyEmoji = flakyTcs.length > 5 ? "⚠️" : flakyTcs.length > 0 ? "🔶" : "✅";
+      console.log(`${flakyEmoji} Flaky: ${flakyTcs.length} test case(s) with both passing and failing runs`);
+      if (flakyTcs.length > 0) console.log(`   → agr status --flaky for details`);
+      console.log(`\n${"═".repeat(60)}\n`);
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({
+        dbPath, since: opts.since ?? null,
+        summary: { totalRuns: runs.length, passedRuns, failedRuns, solveRate, totalCostUsd, avgCostUsd },
+        regressions: regrCount, flaky: flakyTcs.length,
+      }));
+    }
+    return;
+  }
 
   if (opts.solveRate) {
     if (opts.json) {
