@@ -781,6 +781,7 @@ cli
   .option("--output <path>", "Write comparison to a file instead of stdout")
   .option("--db <path>", "Path to SQLite database for --current", { default: ".agr/db.sqlite" })
   .option("--fail-on-regression", "Exit with code 1 if solve rate dropped or any case regressed")
+  .option("--github-step-summary", "Append the Markdown comparison to $GITHUB_STEP_SUMMARY (GitHub Actions step summary); no-op if the env var is not set")
   .example("agr compare-baseline baselines/main.json baselines/pr.json")
   .example("agr compare-baseline --current baselines/main.json --format md --output comment.md")
   .action(async (snapshotA, snapshotB, options) => {
@@ -793,6 +794,7 @@ cli
         output: options.output,
         db: options.db,
         failOnRegression: options.failOnRegression,
+        githubStepSummary: options.githubStepSummary,
       });
     } catch (err: any) {
       console.error(`Error executing compare-baseline: ${err.message}`);
