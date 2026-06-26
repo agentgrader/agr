@@ -257,7 +257,54 @@ export async function exportCommand(
     return;
   }
 
-  throw new Error(`Unknown export subcommand "${subcommand}". Use "runs" or "traces".`);
+  if (subcommand === "summary") {
+    const allRuns = await listRuns(db);
+    let runs = allRuns;
+    if (opts.since) {
+      const sinceTs = parseSince(opts.since);
+      runs = runs.filter((r) => r.createdAt >= sinceTs);
+    }
+    const output = opts.output ?? "export-summary.json";
+    const totalRuns = runs.length;
+    const passedRuns = runs.filter((r) => r.passed === true).length;
+    const failedRuns = runs.filter((r) => r.passed === false).length;
+    const totalCostUsd = runs.reduce((s, r) => s + (r.costUsd ?? 0), 0);
+    // byTestCase
+    const tcMap = new Map<string, { total: number; passed: number; failed: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const e = tcMap.get(r.testCaseId) ?? { total: 0, passed: 0, failed: 0, totalCostUsd: 0 };
+      e.total++; if (r.passed === true) e.passed++; if (r.passed === false) e.failed++;
+      e.totalCostUsd += r.costUsd ?? 0; tcMap.set(r.testCaseId, e);
+    }
+    const byTestCase = [...tcMap.entries()].map(([testCaseId, e]) => ({
+      testCaseId, total: e.total, passed: e.passed, failed: e.failed,
+      solveRate: e.total > 0 ? e.passed / e.total : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0,
+    })).sort((a, b) => a.solveRate - b.solveRate);
+    // byConfig
+    const cfgMap = new Map<string, { total: number; passed: number; failed: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const e = cfgMap.get(r.agentConfigId) ?? { total: 0, passed: 0, failed: 0, totalCostUsd: 0 };
+      e.total++; if (r.passed === true) e.passed++; if (r.passed === false) e.failed++;
+      e.totalCostUsd += r.costUsd ?? 0; cfgMap.set(r.agentConfigId, e);
+    }
+    const byConfig = [...cfgMap.entries()].map(([agentConfigId, e]) => ({
+      agentConfigId, total: e.total, passed: e.passed, failed: e.failed,
+      solveRate: e.total > 0 ? e.passed / e.total : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0,
+    })).sort((a, b) => b.solveRate - a.solveRate);
+    const summary = {
+      generatedAt: new Date().toISOString(),
+      since: opts.since ?? null,
+      totalRuns, passedRuns, failedRuns,
+      solveRate: totalRuns > 0 ? passedRuns / totalRuns : 0,
+      totalCostUsd, avgCostUsd: totalRuns > 0 ? totalCostUsd / totalRuns : 0,
+      uniqueTestCases: tcMap.size, uniqueConfigs: cfgMap.size,
+      byTestCase, byConfig,
+    };
+    writeExport(output, JSON.stringify(summary, null, 2));
+    return;
+  }
+
+  throw new Error(`Unknown export subcommand "${subcommand}". Use "runs", "traces", or "summary".`);
 }
 
 function csvCell(value: unknown): string {
