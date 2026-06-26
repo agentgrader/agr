@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -225,6 +225,25 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     const costSummary = `$${totalCostUsd.toFixed(4)} total  avg: $${avgCostUsd.toFixed(4)}/run`;
     const lastSummary = `last: ${lastWhen}`;
     console.log(`${runsSummary}  |  ${costSummary}  |  ${lastSummary}${scopeSuffix}`);
+    return;
+  }
+
+  if (opts.bestTestCase) {
+    const tcMapBest = new Map<string, { total: number; passed: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const e = tcMapBest.get(r.testCaseId) ?? { total: 0, passed: 0, totalCostUsd: 0 };
+      e.total++; if (r.passed === true) e.passed++; e.totalCostUsd += r.costUsd ?? 0;
+      tcMapBest.set(r.testCaseId, e);
+    }
+    const best = [...tcMapBest.entries()]
+      .map(([testCaseId, e]) => ({ testCaseId, total: e.total, passed: e.passed, solveRate: e.total > 0 ? (e.passed / e.total) * 100 : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0 }))
+      .sort((a, b) => b.solveRate - a.solveRate)[0];
+    if (!best) { console.error("No runs found."); process.exit(1); }
+    if (opts.json) {
+      console.log(JSON.stringify({ testCaseId: best.testCaseId, solveRate: best.solveRate, total: best.total, passed: best.passed, avgCostUsd: best.avgCostUsd }));
+    } else {
+      console.log(best.testCaseId);
+    }
     return;
   }
 
