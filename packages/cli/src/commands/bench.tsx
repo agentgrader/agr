@@ -84,6 +84,7 @@ export async function runBenchCommand(opts: {
   configGrid?: boolean;
   githubStepSummary?: boolean;
   ci?: boolean;
+  emitMetrics?: boolean;
   model?: string;
   provider?: string;
   temperature?: number;
@@ -857,6 +858,29 @@ export async function runBenchCommand(opts: {
         const errNote = r.error ? `  -- ${r.error.slice(0, 80)}` : "";
         console.log(`  ${r.testCaseId}${idNote}${errNote}`);
       }
+    }
+  }
+
+  if (opts.emitMetrics) {
+    const outputFile = process.env.GITHUB_OUTPUT;
+    if (!outputFile) {
+      if (!opts.json) console.warn("[warn] --emit-metrics: GITHUB_OUTPUT env var not set; skipping.");
+    } else {
+      const allRunsForMetrics = Object.values(runStates);
+      const summaryForMetrics = summaryFromRunStates(runStates, configIds);
+      const totalCostForMetrics = allRunsForMetrics.reduce((acc, r) => acc + (r.costUsd || 0), 0);
+      const solveRatePct = (summaryForMetrics.solveRate * 100).toFixed(1);
+      const metrics = [
+        `SOLVE_RATE=${solveRatePct}`,
+        `PASSED_RUNS=${summaryForMetrics.passedRuns}`,
+        `FAILED_RUNS=${summaryForMetrics.failedRuns}`,
+        `TOTAL_RUNS=${summaryForMetrics.totalRuns}`,
+        `TOTAL_COST_USD=${totalCostForMetrics.toFixed(4)}`,
+        `AVG_COST_USD=${summaryForMetrics.totalRuns > 0 ? (totalCostForMetrics / summaryForMetrics.totalRuns).toFixed(4) : "0.0000"}`,
+      ].join("\n");
+      const { appendFileSync } = await import("node:fs");
+      appendFileSync(outputFile, metrics + "\n", "utf-8");
+      if (!opts.json) console.log(`Metrics written to $GITHUB_OUTPUT (solve_rate=${solveRatePct}%)`);
     }
   }
 

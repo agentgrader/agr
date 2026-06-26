@@ -156,6 +156,7 @@ cli
   .option("--min-pass-count <n>", "Exit with code 1 if fewer than N runs passed in total; complementary to --min-solve-rate (which is rate-based); useful when you need at least N absolute successes regardless of total run count")
   .option("--max-cost <amount>", "Exit with code 1 if total bench cost (USD) exceeds this threshold; useful as a budget gate in CI to prevent runaway spend")
   .option("--ci", "Shorthand for the most common CI settings: enables --fail-on-failure, --show-failures, and --github-step-summary; individual flags still override when specified explicitly")
+  .option("--emit-metrics", "Write key bench metrics to $GITHUB_OUTPUT (SOLVE_RATE, PASSED_RUNS, FAILED_RUNS, TOTAL_RUNS, TOTAL_COST_USD, AVG_COST_USD); enables downstream GitHub Actions steps to access metrics via steps.<id>.outputs.SOLVE_RATE")
   .option(
     "--min-solve-rate-scope <scope>",
     "Apply --min-solve-rate globally or per agent config (global, per-config)",
@@ -289,6 +290,7 @@ cli
         configGrid: options.configGrid,
         githubStepSummary: options.githubStepSummary,
         ci: options.ci,
+        emitMetrics: options.emitMetrics,
         model: options.model,
         provider: options.provider,
         temperature: options.temperature !== undefined ? Number(options.temperature) : undefined,
