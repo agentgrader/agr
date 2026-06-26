@@ -950,20 +950,28 @@ cli
   });
 
 cli
-  .command("prune", "Delete runs (and their traces) older than a given cutoff to keep the database lean")
+  .command("prune", "Delete runs (and their traces) matching the given filters to keep the database lean")
   .option("--db <path>", "Path to the SQLite database", { default: ".agr/db.sqlite" })
-  .option("--before <duration|date>", "Delete runs created before this point (e.g. 30d, 7d, 2026-01-01); required")
+  .option("--before <duration|date>", "Delete runs created before this point (e.g. 30d, 7d, 2026-01-01)")
+  .option("--test-case <name>", "Delete all runs for this test case (substring match); useful for resetting a specific test case and starting fresh")
+  .option("--config <name>", "Delete all runs for this agent config (substring match)")
+  .option("--errored", "Delete all errored runs (status=failed, no pass/fail score); useful for clearing crashed sandbox artifacts")
   .option("--dry-run", "Preview how many runs would be deleted without actually deleting")
   .option("--yes", "Confirm deletion without prompting")
-  .option("--json", "Output result as JSON {deleted, cutoff, dbPath}")
+  .option("--json", "Output result as JSON {deleted, dbPath}")
   .example("agr prune --before 30d --dry-run")
   .example("agr prune --before 30d --yes")
+  .example("agr prune --test-case astropy-12907 --yes")
+  .example("agr prune --errored --yes")
   .example("agr prune --before 2026-01-01 --yes --json")
   .action(async (options) => {
     try {
       await pruneCommand({
         db: options.db,
         before: options.before,
+        testCase: options.testCase,
+        config: options.config,
+        errored: options.errored,
         dryRun: options.dryRun,
         yes: options.yes,
         json: options.json,

@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
 import { parseSince } from "../lib/parse-since";
 
-export async function pruneCommand(opts: { db?: string; before?: string; dryRun?: boolean; json?: boolean; yes?: boolean }) {
+export async function pruneCommand(opts: { db?: string; before?: string; testCase?: string; config?: string; errored?: boolean; dryRun?: boolean; json?: boolean; yes?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -12,32 +12,53 @@ export async function pruneCommand(opts: { db?: string; before?: string; dryRun?
     process.exit(1);
   }
 
-  if (!opts.before) {
-    console.error("--before <duration|date> is required (e.g. --before 30d, --before 7d, --before 2026-01-01)");
+  if (!opts.before && !opts.testCase && !opts.config && !opts.errored) {
+    console.error("Provide at least one of: --before <duration|date>, --test-case <name>, --config <name>, --errored");
     process.exit(1);
   }
 
   const db = initDb(dbPath);
-  const cutoffTs = parseSince(opts.before);
   const allRuns = await listRuns(db);
-  const toDelete = allRuns.filter((r) => r.createdAt < cutoffTs);
+
+  let toDelete = allRuns;
+
+  if (opts.before) {
+    const cutoffTs = parseSince(opts.before);
+    toDelete = toDelete.filter((r) => r.createdAt < cutoffTs);
+  }
+  if (opts.testCase) {
+    const tc = opts.testCase;
+    toDelete = toDelete.filter((r) => r.testCaseId === tc || r.testCaseId.includes(tc));
+  }
+  if (opts.config) {
+    const cfg = opts.config;
+    toDelete = toDelete.filter((r) => r.agentConfigId === cfg || r.agentConfigId.includes(cfg));
+  }
+  if (opts.errored) {
+    toDelete = toDelete.filter((r) => r.status === "failed" && r.passed == null);
+  }
+
+  const cutoffLabel = opts.before ? ` before ${opts.before}` : "";
+  const tcLabel = opts.testCase ? ` for test case "${opts.testCase}"` : "";
+  const cfgLabel = opts.config ? ` for config "${opts.config}"` : "";
+  const erroredLabel = opts.errored ? " (errored)" : "";
 
   if (toDelete.length === 0) {
     if (opts.json) {
-      console.log(JSON.stringify({ deleted: 0, cutoff: new Date(cutoffTs * 1000).toISOString(), dbPath }));
+      console.log(JSON.stringify({ deleted: 0, dbPath }));
     } else {
-      console.log(`No runs before ${new Date(cutoffTs * 1000).toISOString()} (${opts.before}). Nothing to prune.`);
+      console.log(`No matching runs${cutoffLabel}${tcLabel}${cfgLabel}${erroredLabel}. Nothing to prune.`);
     }
     return;
   }
 
   if (opts.json && opts.dryRun) {
-    console.log(JSON.stringify({ dryRun: true, wouldDelete: toDelete.length, cutoff: new Date(cutoffTs * 1000).toISOString(), dbPath }));
+    console.log(JSON.stringify({ dryRun: true, wouldDelete: toDelete.length, dbPath }));
     return;
   }
 
   if (!opts.json) {
-    console.log(`Found ${toDelete.length} run(s) before ${new Date(cutoffTs * 1000).toISOString()} (${opts.before}).`);
+    console.log(`Found ${toDelete.length} run(s)${cutoffLabel}${tcLabel}${cfgLabel}${erroredLabel}.`);
     if (opts.dryRun) {
       console.log("Dry run - no changes made. Remove --dry-run to delete.");
       return;
@@ -49,17 +70,15 @@ export async function pruneCommand(opts: { db?: string; before?: string; dryRun?
   }
 
   const ids = toDelete.map((r) => r.id);
-  // Delete traces first (foreign key), then runs using bun:sqlite prepared statements
   const inPlaceholders = ids.map(() => "?").join(",");
-  // Access the underlying bun:sqlite db through the drizzle instance
   const rawDb = (db as unknown as { _: { client: { prepare: (sql: string) => { run: (...args: string[]) => void } } } })._.client;
   rawDb.prepare(`DELETE FROM traces WHERE run_id IN (${inPlaceholders})`).run(...ids);
-  rawDb.prepare(`DELETE FROM runs WHERE id IN (${inPlaceholders})`).run(...ids);;
+  rawDb.prepare(`DELETE FROM runs WHERE id IN (${inPlaceholders})`).run(...ids);
 
   if (opts.json) {
-    console.log(JSON.stringify({ deleted: ids.length, cutoff: new Date(cutoffTs * 1000).toISOString(), dbPath }));
+    console.log(JSON.stringify({ deleted: ids.length, dbPath }));
   } else {
-    console.log(`Deleted ${ids.length} run(s) and their traces (cutoff: ${new Date(cutoffTs * 1000).toISOString()}).`);
+    console.log(`Deleted ${ids.length} run(s) and their traces.`);
     console.log(`Next: agr status  |  agr count`);
   }
 }
