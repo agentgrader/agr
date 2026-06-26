@@ -896,6 +896,8 @@ cli
   .option("--exit-on-pass", "Exit with code 0 as soon as any passing run appears; useful for waiting until something succeeds")
   .option("--exit-on-fail", "Exit with code 1 as soon as any failing run appears; useful for fail-fast CI patterns")
   .option("--timeout <s>", "Exit with code 2 if no new run appears within N seconds; useful in CI to detect stalled bench runs")
+  .option("--min-pass-rate <rate>", "Exit with code 0 as soon as the rolling solve rate across all seen runs meets the threshold (0-1); useful for waiting until a bench reaches a target pass rate")
+  .option("--min-pass-count <n>", "Exit with code 0 as soon as at least N passing runs have been seen; useful for waiting until enough passing runs accumulate")
   .example("agr watch")
   .example("agr watch --test-case hello-world")
   .example("agr watch --json | jq .passed")
@@ -910,6 +912,8 @@ cli
         exitOnPass: options.exitOnPass,
         exitOnFail: options.exitOnFail,
         timeout: options.timeout !== undefined ? Number(options.timeout) : undefined,
+        minPassRate: options.minPassRate !== undefined ? Number(options.minPassRate) : undefined,
+        minPassCount: options.minPassCount !== undefined ? Number(options.minPassCount) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing watch: ${err.message}`);
