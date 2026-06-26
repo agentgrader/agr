@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -264,6 +264,46 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(worst.testCaseId);
     }
     return;
+  }
+
+  if (opts.worstConfig || opts.worstModel) {
+    if (opts.worstConfig) {
+      const cfgMapW = new Map<string, { total: number; passed: number; totalCostUsd: number }>();
+      for (const r of runs) {
+        const e = cfgMapW.get(r.agentConfigId) ?? { total: 0, passed: 0, totalCostUsd: 0 };
+        e.total++; if (r.passed === true) e.passed++; e.totalCostUsd += r.costUsd ?? 0;
+        cfgMapW.set(r.agentConfigId, e);
+      }
+      const worst = [...cfgMapW.entries()]
+        .map(([configId, e]) => ({ configId, total: e.total, passed: e.passed, solveRate: e.total > 0 ? (e.passed / e.total) * 100 : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0 }))
+        .sort((a, b) => a.solveRate - b.solveRate)[0];
+      if (!worst) { console.error("No runs found."); process.exit(1); }
+      if (opts.json) {
+        console.log(JSON.stringify({ configId: worst.configId, solveRate: worst.solveRate, total: worst.total, passed: worst.passed, avgCostUsd: worst.avgCostUsd }));
+      } else {
+        console.log(worst.configId);
+      }
+      return;
+    }
+    if (opts.worstModel) {
+      const modelMapW = new Map<string, { total: number; passed: number; totalCostUsd: number }>();
+      for (const r of runs) {
+        const key = r.model ?? "unknown";
+        const e = modelMapW.get(key) ?? { total: 0, passed: 0, totalCostUsd: 0 };
+        e.total++; if (r.passed === true) e.passed++; e.totalCostUsd += r.costUsd ?? 0;
+        modelMapW.set(key, e);
+      }
+      const worst = [...modelMapW.entries()]
+        .map(([model, e]) => ({ model, total: e.total, passed: e.passed, solveRate: e.total > 0 ? (e.passed / e.total) * 100 : 0, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0 }))
+        .sort((a, b) => a.solveRate - b.solveRate)[0];
+      if (!worst) { console.error("No runs found."); process.exit(1); }
+      if (opts.json) {
+        console.log(JSON.stringify({ model: worst.model, solveRate: worst.solveRate, total: worst.total, passed: worst.passed, avgCostUsd: worst.avgCostUsd }));
+      } else {
+        console.log(worst.model);
+      }
+      return;
+    }
   }
 
   if (opts.bestConfig || opts.bestModel) {
