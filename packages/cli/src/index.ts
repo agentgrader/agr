@@ -634,6 +634,7 @@ cli
   )
   .option("--kind-summary", "Show a compact table counting all steps by kind (llm_response, tool_call, tool_result, etc.) with a mini bar chart; --json emits {total, kinds: [{kind, count}]}")
   .option("--cost-summary", "Show total cost broken down by step kind with percentage and bar chart; --json emits {totalCostUsd, byKind: [{kind, costUsd, pct}]}")
+  .option("--stats", "Show a compact token and cost statistics summary: total/avg/max tokens per step, cache hit rate, and total cost; --json emits {totalSteps, totalIn, totalOut, totalCached, avgIn, avgOut, maxIn, maxOut, cacheHitPct, totalCostUsd}")
   .option("--last", "Trace the most recent run in .agr/db.sqlite (no runId needed)")
   .option("--test-case <name>", "With --last, trace the most recent run for this specific test case (substring match)")
   .option("--config <name>", "With --last, trace the most recent run for this specific agent config (substring match)")
@@ -674,7 +675,7 @@ cli
         process.exit(1);
       }
       const passed = options.passed ? true : options.failed ? false : undefined;
-      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, kindSummary: options.kindSummary, costSummary: options.costSummary, stepCount: options.stepCount, minCost: options.minCost !== undefined ? Number(options.minCost) : undefined, maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined, reverse: options.reverse });
+      await traceCommand(runId, { ...options, testCase: options.testCase, config: options.config, model: options.model, passed, json: options.json, steps: options.steps, grep: options.grep, full: options.full, topCost: options.topCost !== undefined ? Number(options.topCost) : undefined, kind: options.kind, kindSummary: options.kindSummary, costSummary: options.costSummary, stats: options.stats, stepCount: options.stepCount, minCost: options.minCost !== undefined ? Number(options.minCost) : undefined, maxCost: options.maxCost !== undefined ? Number(options.maxCost) : undefined, reverse: options.reverse });
     } catch (err: any) {
       console.error(`Error executing trace: ${err.message}`);
       process.exit(1);
