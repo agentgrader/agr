@@ -118,9 +118,10 @@ jobs:
         run: npm install -g agentgrader
 
       - name: Run eval bench
+        id: bench
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-        run: agr bench --suite tasks/ --ci --output-json bench-result.json
+        run: agr bench --suite tasks/ --ci --output-json bench-result.json --emit-metrics
 
       - name: Check for regressions
         if: always()
@@ -128,7 +129,7 @@ jobs:
 
       - name: Bench summary
         if: always()
-        run: agr status --summary --github-step-summary
+        run: agr status --summary --github-step-summary --emit-metrics
 
       - name: Upload bench result
         if: always()
