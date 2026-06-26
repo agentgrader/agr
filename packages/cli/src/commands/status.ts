@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -177,6 +177,27 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       }));
     }
     return;
+  }
+
+  if (opts.emitMetrics) {
+    const outputFile = process.env.GITHUB_OUTPUT;
+    if (!outputFile) {
+      console.warn("[warn] --emit-metrics: GITHUB_OUTPUT env var not set; skipping.");
+    } else {
+      const { appendFileSync } = await import("node:fs");
+      const metrics = [
+        `SOLVE_RATE=${solveRate.toFixed(1)}`,
+        `PASSED_RUNS=${passedRuns}`,
+        `FAILED_RUNS=${failedRuns}`,
+        `TOTAL_RUNS=${runs.length}`,
+        `TOTAL_COST_USD=${totalCostUsd.toFixed(4)}`,
+        `AVG_COST_USD=${avgCostUsd.toFixed(4)}`,
+        `ERRORED_RUNS=${erroredRuns}`,
+      ].join("\n");
+      appendFileSync(outputFile, metrics + "\n", "utf-8");
+      console.log(`Status metrics written to $GITHUB_OUTPUT (solve_rate=${solveRate.toFixed(1)}%)`);
+    }
+    // still continue to show normal output unless --json/summary
   }
 
   if (opts.solveRate) {
