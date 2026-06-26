@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -642,6 +642,50 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(`    avg cost: $${tc.avgCostUsd.toFixed(4)}/run`);
     }
     console.log(`\nNext: agr status --test-case <name>  |  agr trace --last --test-case <name>`);
+    return;
+  }
+
+  if (opts.regression) {
+    const window = opts.regressionWindow ?? 3;
+    // Group all runs by test case (uses full history, not just `runs` which may be filtered by `since`)
+    const allRunsForRegression = await listRuns(db);
+    const tcAllMap = new Map<string, typeof allRunsForRegression>();
+    for (const r of allRunsForRegression) {
+      if (!tcAllMap.has(r.testCaseId)) tcAllMap.set(r.testCaseId, []);
+      tcAllMap.get(r.testCaseId)!.push(r);
+    }
+    const regressions: Array<{ testCaseId: string; recentFails: number; lastPassAt: number | null; lastRunId: string | null }> = [];
+    for (const [tcId, tcRuns] of tcAllMap) {
+      const recent = tcRuns.slice(0, window);
+      const allRecentFail = recent.length >= window && recent.every((r) => r.passed === false);
+      const hasHistoricalPass = tcRuns.some((r) => r.passed === true);
+      if (allRecentFail && hasHistoricalPass) {
+        const lastPass = tcRuns.find((r) => r.passed === true);
+        regressions.push({
+          testCaseId: tcId,
+          recentFails: recent.length,
+          lastPassAt: lastPass?.createdAt ?? null,
+          lastRunId: tcRuns[0]?.id ?? null,
+        });
+      }
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, regressionWindow: window, regressions }, null, 2));
+      return;
+    }
+    console.log(`Database: ${dbPath}\n`);
+    if (regressions.length === 0) {
+      console.log(`No regressions detected (no test cases with ${window} consecutive failures after a prior pass).`);
+      console.log(`\nNext: agr status --flaky  |  agr status --by-test-case --below 100`);
+      return;
+    }
+    console.log(`Regressions (${regressions.length} test case(s) with ${window}+ consecutive failures after a prior pass):\n`);
+    for (const tc of regressions) {
+      const lastPassNote = tc.lastPassAt ? `  last pass: ${formatCompactWhen(tc.lastPassAt)}` : "";
+      console.log(`  ${tc.testCaseId}${lastPassNote}`);
+      if (tc.lastRunId) console.log(`    last run: agr trace ${tc.lastRunId}`);
+    }
+    console.log(`\nNext: agr bench --only-failed --suite tasks/  |  agr status --flaky`);
     return;
   }
 
