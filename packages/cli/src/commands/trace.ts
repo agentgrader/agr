@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -197,6 +197,35 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
       console.log(`  ${kind.padEnd(24)} $${cost.toFixed(4)}  ${pct.padStart(3)}%  ${bar}`);
     }
     console.log(`\nNext: agr trace ${resolvedRunId} --top-cost 5  |  agr trace ${resolvedRunId} --kind-summary`);
+    return;
+  }
+
+  if (opts.stats) {
+    const steps = allSteps;
+    const totalIn = steps.reduce((s, r) => s + r.tokensIn, 0);
+    const totalOut = steps.reduce((s, r) => s + r.tokensOut, 0);
+    const totalCached = steps.reduce((s, r) => s + (r.cachedTokens ?? 0), 0);
+    const totalCost = steps.reduce((s, r) => s + r.costUsd, 0);
+    const maxIn = Math.max(...steps.map((r) => r.tokensIn));
+    const maxOut = Math.max(...steps.map((r) => r.tokensOut));
+    const avgIn = steps.length > 0 ? totalIn / steps.length : 0;
+    const avgOut = steps.length > 0 ? totalOut / steps.length : 0;
+    const cacheHitRate = totalIn > 0 ? ((totalCached / totalIn) * 100).toFixed(1) : "0.0";
+    if (opts.json) {
+      console.log(JSON.stringify({
+        run: runSummary, totalSteps: steps.length, totalIn, totalOut, totalCached,
+        avgIn: Math.round(avgIn), avgOut: Math.round(avgOut), maxIn, maxOut,
+        cacheHitPct: Number(cacheHitRate), totalCostUsd: totalCost,
+      }));
+      return;
+    }
+    console.log(`\nToken & cost stats (${steps.length} steps):\n`);
+    console.log(`  Total tokens:   ${totalIn.toLocaleString()} in / ${totalOut.toLocaleString()} out`);
+    console.log(`  Avg per step:   ${Math.round(avgIn).toLocaleString()} in / ${Math.round(avgOut).toLocaleString()} out`);
+    console.log(`  Max per step:   ${maxIn.toLocaleString()} in / ${maxOut.toLocaleString()} out`);
+    console.log(`  Cache hit rate: ${cacheHitRate}% (${totalCached.toLocaleString()}/${totalIn.toLocaleString()} input tokens)`);
+    console.log(`  Total cost:     $${totalCost.toFixed(4)}`);
+    console.log(`\nNext: agr trace ${resolvedRunId} --cost-summary  |  agr trace ${resolvedRunId} --kind-summary`);
     return;
   }
 
