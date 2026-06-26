@@ -111,6 +111,32 @@ export async function doctorCommand(opts: { db?: string; suite?: string; json?: 
         if (erroredRuns.length > 0) return { status: "pass", detail: `${erroredRuns.length} errored run(s) (non-zero is normal)` };
         return "pass";
       }));
+
+      // Stuck runs (status === "running" for > 2 hours)
+      const nowTs = Math.floor(Date.now() / 1000);
+      const stuckRuns = allRuns.filter(r => r.status === "running" && (nowTs - r.createdAt) > 7200);
+      results.push(check("Stuck runs", () => {
+        if (stuckRuns.length > 0) return { status: "warn", detail: `${stuckRuns.length} run(s) stuck in "running" state for >2h; sandbox may have crashed: agr list --active` };
+        return "pass";
+      }));
+
+      // Regressions
+      const regrWindow = 3;
+      const tcMapDoc = new Map<string, typeof allRuns>();
+      for (const r of allRuns) {
+        if (!tcMapDoc.has(r.testCaseId)) tcMapDoc.set(r.testCaseId, []);
+        tcMapDoc.get(r.testCaseId)!.push(r);
+      }
+      let regrCount = 0;
+      for (const tcRuns of tcMapDoc.values()) {
+        const recent = tcRuns.slice(0, regrWindow);
+        if (recent.length >= regrWindow && recent.every((r) => r.passed === false) && tcRuns.some((r) => r.passed === true)) regrCount++;
+      }
+      results.push(check("Regressions", () => {
+        if (regrCount > 5) return { status: "warn", detail: `${regrCount} test case(s) regressed; run: agr status --regression` };
+        if (regrCount > 0) return { status: "warn", detail: `${regrCount} regression(s) detected; run: agr status --regression` };
+        return "pass";
+      }));
     } catch {
       // DB checks optional
     }
