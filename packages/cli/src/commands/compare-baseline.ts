@@ -22,6 +22,7 @@ export async function compareBaselineCommand(opts: {
   output?: string;
   db?: string;
   failOnRegression?: boolean;
+  githubStepSummary?: boolean;
 }) {
   const format = opts.format ?? "md";
 
@@ -34,7 +35,7 @@ export async function compareBaselineCommand(opts: {
       suite: baseline.suite,
       configs: baseline.configs,
     });
-    return printDiff(baseline, current, format, opts.output, opts.failOnRegression);
+    return printDiff(baseline, current, format, opts.output, opts.failOnRegression, undefined, opts.githubStepSummary);
   }
 
   if (!opts.snapshotA || !opts.snapshotB) {
@@ -46,7 +47,7 @@ export async function compareBaselineCommand(opts: {
   return printDiff(baseline, current, format, opts.output, opts.failOnRegression, {
     baseline: opts.snapshotA,
     current: opts.snapshotB,
-  });
+  }, opts.githubStepSummary);
 }
 
 function printDiff(
@@ -56,6 +57,7 @@ function printDiff(
   output?: string,
   failOnRegression?: boolean,
   labels?: { baseline?: string; current?: string },
+  githubStepSummary?: boolean,
 ) {
   const diff = diffSnapshots(baseline, current);
   const content =
@@ -71,6 +73,17 @@ function printDiff(
     console.log(`Next: gh pr comment --body-file ${path}  |  agr trace --last --quality`);
   } else {
     console.log(content);
+  }
+
+  if (githubStepSummary && format === "md") {
+    const summaryFile = process.env.GITHUB_STEP_SUMMARY;
+    if (!summaryFile) {
+      console.warn("[warn] --github-step-summary: GITHUB_STEP_SUMMARY not set; skipping.");
+    } else {
+      const { appendFileSync } = require("node:fs");
+      appendFileSync(summaryFile, `\n${content}\n`, "utf-8");
+      console.log("Comparison written to $GITHUB_STEP_SUMMARY");
+    }
   }
 
   if (failOnRegression) {
