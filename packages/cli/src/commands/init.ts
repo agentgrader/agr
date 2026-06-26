@@ -120,11 +120,22 @@ jobs:
       - name: Run eval bench
         env:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-        run: agr bench --suite tasks/ --ci
+        run: agr bench --suite tasks/ --ci --output-json bench-result.json
+
+      - name: Check for regressions
+        if: always()
+        run: agr status --regression --fail-on-regression
 
       - name: Bench summary
         if: always()
         run: agr status --summary --github-step-summary
+
+      - name: Upload bench result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-result
+          path: bench-result.json
 `;
 
 /**
