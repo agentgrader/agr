@@ -453,6 +453,8 @@ cli
   .option("--passed", "Only count runs that passed")
   .option("--failed", "Only count runs that failed (passed === false)")
   .option("--errored", "Only count runs that errored (run crashed before scoring, distinct from a scored failure)")
+  .option("--regression", "Count test cases that have regressed (have historical passing runs but most recent N are all failures); prints a plain integer; --json emits {regressions, regressionWindow}")
+  .option("--regression-window <n>", "Number of consecutive failures to consider a regression (default: 3); used with --regression")
   .option("--matrix-id <id>", "Only count runs belonging to a specific bench matrix sweep")
   .option("--last-matrix", "Only count runs from the most recent bench matrix sweep")
   .option("--json", "Output as JSON {total, passed, failed, dbPath} instead of a plain number")
@@ -489,6 +491,8 @@ cli
         byConfig: options.byConfig,
         byModel: options.byModel,
         errored: options.errored,
+        regression: options.regression,
+        regressionWindow: options.regressionWindow !== undefined ? Number(options.regressionWindow) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing count: ${err.message}`);

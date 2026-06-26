@@ -18,6 +18,8 @@ export async function countCommand(opts: {
   byConfig?: boolean;
   byModel?: boolean;
   errored?: boolean;
+  regression?: boolean;
+  regressionWindow?: number;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -137,6 +139,29 @@ export async function countCommand(opts: {
         const srNote = m.total > 0 && (m.passed > 0 || m.failed > 0) ? `  ${m.solveRate.toFixed(0)}%` : "";
         console.log(`${m.total}\t${m.model}\t(${m.passed} passed, ${m.failed} failed)${srNote}`);
       }
+    }
+    return;
+  }
+
+  if (opts.regression) {
+    const window = opts.regressionWindow ?? 3;
+    const allRuns = await listRuns(db);
+    const tcMap = new Map<string, typeof allRuns>();
+    for (const r of allRuns) {
+      if (!tcMap.has(r.testCaseId)) tcMap.set(r.testCaseId, []);
+      tcMap.get(r.testCaseId)!.push(r);
+    }
+    let regressionCount = 0;
+    for (const tcRuns of tcMap.values()) {
+      const recent = tcRuns.slice(0, window);
+      if (recent.length >= window && recent.every((r) => r.passed === false) && tcRuns.some((r) => r.passed === true)) {
+        regressionCount++;
+      }
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({ regressions: regressionCount, regressionWindow: window, dbPath }));
+    } else {
+      console.log(String(regressionCount));
     }
     return;
   }
