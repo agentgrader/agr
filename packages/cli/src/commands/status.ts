@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; costDelta?: boolean; errorRate?: boolean; lastRunId?: boolean; lastPassId?: boolean; costPerPass?: boolean; runRate?: boolean; p95Duration?: boolean; budgetRemaining?: number; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; topErrors?: number; flaky?: boolean; flakyCount?: boolean; hoursSincePass?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean; passStreak?: boolean; failBelow?: number; avgDuration?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; costDelta?: boolean; errorRate?: boolean; lastRunId?: boolean; lastPassId?: boolean; costPerPass?: boolean; runRate?: boolean; p95Duration?: boolean; budgetRemaining?: number; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; topErrors?: number; flaky?: boolean; flakyCount?: boolean; hoursSincePass?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean; passStreak?: boolean; failBelow?: number; avgDuration?: boolean; firstRunAt?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -571,6 +571,17 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(JSON.stringify({ budgetRemainingUsd: remaining, totalCostUsd, budgetUsd: opts.budgetRemaining, dbPath }));
     } else {
       console.log(remaining.toFixed(4));
+    }
+    return;
+  }
+
+  if (opts.firstRunAt) {
+    const oldest = runs.length > 0 ? runs[runs.length - 1] : null;
+    const ts = oldest ? (oldest.createdAt instanceof Date ? oldest.createdAt : new Date(Number(oldest.createdAt) * 1000)) : null;
+    if (opts.json) {
+      console.log(JSON.stringify({ firstRunAt: ts?.toISOString() ?? null, runId: oldest?.id ?? null, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(ts?.toISOString() ?? "");
     }
     return;
   }

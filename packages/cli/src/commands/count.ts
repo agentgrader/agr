@@ -30,6 +30,7 @@ export async function countCommand(opts: {
   sinceLastPass?: boolean;
   today?: boolean;
   thisWeek?: boolean;
+  noPasses?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -271,6 +272,18 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ thisWeek: weekRuns.length, passed, failed, errored, weekStart, dbPath }));
     } else {
       console.log(String(weekRuns.length));
+    }
+    return;
+  }
+
+  if (opts.noPasses) {
+    const passedTcs = new Set(runs.filter((r) => r.passed === true).map((r) => r.testCaseId));
+    const allTcs = new Set(runs.map((r) => r.testCaseId));
+    const noPassCount = [...allTcs].filter((tc) => !passedTcs.has(tc)).length;
+    if (opts.json) {
+      console.log(JSON.stringify({ noPasses: noPassCount, totalTestCases: allTcs.size, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(String(noPassCount));
     }
     return;
   }
