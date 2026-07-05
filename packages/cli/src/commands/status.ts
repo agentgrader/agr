@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; flakyCount?: boolean; hoursSincePass?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; costDelta?: boolean; errorRate?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; flakyCount?: boolean; hoursSincePass?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -532,6 +532,35 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       const pick = cfgCostList.sort((a, b) => b.avgCostUsd - a.avgCostUsd)[0]!;
       if (opts.json) { console.log(JSON.stringify({ configId: pick.configId, avgCostUsd: pick.avgCostUsd, total: pick.total, totalCostUsd: pick.totalCostUsd })); }
       else { console.log(pick.configId); }
+    }
+    return;
+  }
+
+  if (opts.errorRate) {
+    const errored = runs.filter((r) => r.status === "failed" && r.passed == null).length;
+    const rate = runs.length > 0 ? errored / runs.length : 0;
+    if (opts.json) {
+      console.log(JSON.stringify({ errorRate: rate, erroredRuns: errored, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(rate.toFixed(4));
+    }
+    return;
+  }
+
+  if (opts.costDelta && opts.since) {
+    const sinceTs = parseSince(opts.since);
+    const nowTs = Math.floor(Date.now() / 1000);
+    const windowSec = nowTs - sinceTs;
+    const prevStart = sinceTs - windowSec;
+    let prevRuns = (await listRuns(db)).filter((r) => r.createdAt >= prevStart && r.createdAt < sinceTs);
+    if (opts.testCase) prevRuns = prevRuns.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!));
+    if (opts.config) prevRuns = prevRuns.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    const prevAvgCost = prevRuns.length > 0 ? prevRuns.reduce((s, r) => s + (r.costUsd ?? 0), 0) / prevRuns.length : 0;
+    const delta = avgCostUsd - prevAvgCost;
+    if (opts.json) {
+      console.log(JSON.stringify({ costDeltaUsd: delta, currentAvgCostUsd: avgCostUsd, previousAvgCostUsd: prevAvgCost, window: opts.since, totalRuns: runs.length, prevTotalRuns: prevRuns.length, dbPath }));
+    } else {
+      console.log((delta >= 0 ? "+" : "") + delta.toFixed(4));
     }
     return;
   }
