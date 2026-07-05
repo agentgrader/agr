@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -365,6 +365,29 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       }
       return;
     }
+  }
+
+  if (opts.cheapestConfig || opts.mostExpensiveConfig) {
+    const cfgCostMap = new Map<string, { total: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const e = cfgCostMap.get(r.agentConfigId) ?? { total: 0, totalCostUsd: 0 };
+      e.total++; e.totalCostUsd += r.costUsd ?? 0;
+      cfgCostMap.set(r.agentConfigId, e);
+    }
+    const cfgCostList = [...cfgCostMap.entries()]
+      .map(([configId, e]) => ({ configId, total: e.total, totalCostUsd: e.totalCostUsd, avgCostUsd: e.total > 0 ? e.totalCostUsd / e.total : 0 }));
+    if (cfgCostList.length === 0) { console.error("No runs found."); process.exit(1); }
+    if (opts.cheapestConfig) {
+      const pick = cfgCostList.sort((a, b) => a.avgCostUsd - b.avgCostUsd)[0]!;
+      if (opts.json) { console.log(JSON.stringify({ configId: pick.configId, avgCostUsd: pick.avgCostUsd, total: pick.total, totalCostUsd: pick.totalCostUsd })); }
+      else { console.log(pick.configId); }
+    }
+    if (opts.mostExpensiveConfig) {
+      const pick = cfgCostList.sort((a, b) => b.avgCostUsd - a.avgCostUsd)[0]!;
+      if (opts.json) { console.log(JSON.stringify({ configId: pick.configId, avgCostUsd: pick.avgCostUsd, total: pick.total, totalCostUsd: pick.totalCostUsd })); }
+      else { console.log(pick.configId); }
+    }
+    return;
   }
 
   if (opts.trend && opts.since && !opts.byConfig && !opts.byTestCase && !opts.byModel && !opts.bySandbox && !opts.byMatrix) {

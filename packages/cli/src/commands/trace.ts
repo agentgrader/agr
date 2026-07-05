@@ -24,7 +24,7 @@ function parseStepsRange(range: string | undefined): { from: number; to: number 
   return { from, to };
 }
 
-export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; findTool?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean; outputJson?: string }) {
+export async function traceCommand(runId: string | undefined, opts: { quality?: boolean; tools?: boolean; kindSummary?: boolean; costSummary?: boolean; stats?: boolean; last?: boolean; testCase?: string; config?: string; model?: string; passed?: boolean; json?: boolean; steps?: string; grep?: string; full?: boolean; topCost?: number; kind?: string; findTool?: string; stepCount?: boolean; minCost?: number; maxCost?: number; reverse?: boolean; outputJson?: string; summary?: boolean }) {
   const db = initDb();
 
   let resolvedRunId = runId;
@@ -109,6 +109,20 @@ export async function traceCommand(runId: string | undefined, opts: { quality?: 
   const tcSuffix = opts.testCase ? ` --test-case ${opts.testCase}` : "";
   const cfgSuffix = opts.config ? ` --config ${opts.config}` : "";
   const compareSuffix = `${tcSuffix}${cfgSuffix}`;
+
+  if (opts.summary) {
+    if (opts.json) {
+      console.log(JSON.stringify(runSummary));
+    } else {
+      const status = run.passed === true ? "PASS" : run.passed === false ? "FAIL" : run.status.toUpperCase();
+      const cost = `$${run.costUsd.toFixed(4)}`;
+      const dur = formatDuration(run.durationMs);
+      const toks = run.tokensIn || run.tokensOut ? `  tokens:${run.tokensIn}in/${run.tokensOut}out` : "";
+      console.log(`${status}  ${run.testCaseId}  ${run.agentConfigId}  steps:${run.stepsCount}  ${cost}  ${dur}${toks}`);
+      console.log(`  id: ${run.id}`);
+    }
+    return;
+  }
 
   if (opts.quality) {
     if (opts.json) {
