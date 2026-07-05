@@ -29,6 +29,7 @@ export async function countCommand(opts: {
   byHour?: number;
   sinceLastPass?: boolean;
   today?: boolean;
+  thisWeek?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -249,6 +250,27 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ today: todayRuns.length, passed, failed, errored, date: now.toISOString().slice(0, 10), dbPath }));
     } else {
       console.log(String(todayRuns.length));
+    }
+    return;
+  }
+
+  if (opts.thisWeek) {
+    const now = new Date();
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon...
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    const mondayMs = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysSinceMonday).getTime();
+    const weekRuns = runs.filter((r) => {
+      const ts = r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt);
+      return ts >= mondayMs;
+    });
+    const passed = weekRuns.filter((r) => r.passed === true).length;
+    const failed = weekRuns.filter((r) => r.passed === false).length;
+    const errored = weekRuns.filter((r) => r.passed == null).length;
+    const weekStart = new Date(mondayMs).toISOString().slice(0, 10);
+    if (opts.json) {
+      console.log(JSON.stringify({ thisWeek: weekRuns.length, passed, failed, errored, weekStart, dbPath }));
+    } else {
+      console.log(String(weekRuns.length));
     }
     return;
   }
