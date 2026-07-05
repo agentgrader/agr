@@ -22,6 +22,7 @@ export async function costCommand(opts: {
   avg?: boolean;
   percentiles?: boolean;
   lastRun?: boolean;
+  byDay?: number;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -192,6 +193,31 @@ export async function costCommand(opts: {
       console.log(JSON.stringify({ costUsd: cost, runId: lastRun?.id ?? null, testCaseId: lastRun?.testCaseId ?? null, agentConfigId: lastRun?.agentConfigId ?? null, dbPath }));
     } else {
       console.log(cost.toFixed(4));
+    }
+    return;
+  }
+
+  if (opts.byDay !== undefined) {
+    const windowMs = (opts.byDay > 0 ? opts.byDay : 1) * 24 * 60 * 60 * 1000;
+    const dayMap = new Map<string, { totalCostUsd: number; runs: number }>();
+    for (const r of runs) {
+      const ts = r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt);
+      const bucketStart = Math.floor(ts / windowMs) * windowMs;
+      const key = new Date(bucketStart).toISOString().slice(0, 10);
+      const entry = dayMap.get(key) ?? { totalCostUsd: 0, runs: 0 };
+      entry.totalCostUsd += r.costUsd ?? 0;
+      entry.runs++;
+      dayMap.set(key, entry);
+    }
+    const byDay = [...dayMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, e]) => ({ date, totalCostUsd: e.totalCostUsd, avgCostUsd: e.runs > 0 ? e.totalCostUsd / e.runs : 0, runs: e.runs }));
+    if (opts.json) {
+      console.log(JSON.stringify({ days: byDay.length, totalCostUsd: runs.reduce((s, r) => s + (r.costUsd ?? 0), 0), byDay, dbPath }));
+    } else {
+      for (const d of byDay) {
+        console.log(`${d.date}\t$${d.totalCostUsd.toFixed(4)}\tavg $${d.avgCostUsd.toFixed(4)}/run\t${d.runs} runs`);
+      }
     }
     return;
   }
