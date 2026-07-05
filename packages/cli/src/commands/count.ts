@@ -23,6 +23,7 @@ export async function countCommand(opts: {
   active?: boolean;
   bySandbox?: boolean;
   byDay?: number;
+  byWeek?: number;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -175,6 +176,25 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ active: activeRuns.length, dbPath }));
     } else {
       console.log(activeRuns.length);
+    }
+    return;
+  }
+
+  if (opts.byWeek !== undefined) {
+    const weeks = opts.byWeek > 0 ? opts.byWeek : 4;
+    const now = Math.floor(Date.now() / 1000);
+    const result: Array<{ week: string; count: number; passed: number; failed: number }> = [];
+    for (let i = weeks - 1; i >= 0; i--) {
+      const weekStart = now - (i + 1) * 7 * 86400;
+      const weekEnd = now - i * 7 * 86400;
+      const weekRuns = runs.filter((r) => r.createdAt >= weekStart && r.createdAt < weekEnd);
+      const weekLabel = new Date(weekStart * 1000).toISOString().slice(0, 10);
+      result.push({ week: weekLabel, count: weekRuns.length, passed: weekRuns.filter((r) => r.passed === true).length, failed: weekRuns.filter((r) => r.passed === false).length });
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({ weeks, dbPath, byWeek: result }));
+    } else {
+      for (const w of result) console.log(`${w.week}\t${w.count}\t(${w.passed} passed, ${w.failed} failed)`);
     }
     return;
   }
