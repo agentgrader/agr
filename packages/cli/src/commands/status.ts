@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -365,6 +365,39 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       }
       return;
     }
+  }
+
+  if (opts.zeroPass) {
+    const allRuns = await listRuns(db);
+    const tcMap = new Map<string, { total: number; passed: number; lastRunAt: number; lastRunId: string }>();
+    for (const r of allRuns) {
+      const e = tcMap.get(r.testCaseId);
+      if (!e) {
+        tcMap.set(r.testCaseId, { total: 1, passed: r.passed === true ? 1 : 0, lastRunAt: r.createdAt, lastRunId: r.id });
+      } else {
+        e.total++;
+        if (r.passed === true) e.passed++;
+      }
+    }
+    const unsolved = [...tcMap.entries()]
+      .filter(([, e]) => e.passed === 0)
+      .map(([testCaseId, e]) => ({ testCaseId, total: e.total, lastRunAt: e.lastRunAt, lastRunId: e.lastRunId }))
+      .sort((a, b) => b.total - a.total);
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, zeroPass: unsolved, count: unsolved.length }));
+      return;
+    }
+    if (unsolved.length === 0) {
+      console.log("All test cases have at least one passing run.");
+      return;
+    }
+    console.log(`Test cases with 0 passing runs (${unsolved.length} total):\n`);
+    for (const tc of unsolved) {
+      console.log(`  ${tc.total} run(s)  ${tc.testCaseId}`);
+      console.log(`    agr trace ${tc.lastRunId}`);
+    }
+    console.log(`\nNext: agr status --regression  |  agr bench --only-failed`);
+    return;
   }
 
   if (opts.cheapestConfig || opts.mostExpensiveConfig) {

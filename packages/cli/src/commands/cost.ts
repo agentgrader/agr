@@ -20,6 +20,7 @@ export async function costCommand(opts: {
   bySandbox?: boolean;
   total?: boolean;
   avg?: boolean;
+  percentiles?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -160,6 +161,28 @@ export async function costCommand(opts: {
   const total = runs.length;
   const totalCostUsd = runs.reduce((acc, r) => acc + (r.costUsd ?? 0), 0);
   const avgCostUsd = total > 0 ? totalCostUsd / total : 0;
+
+  if (opts.percentiles) {
+    const costs = runs.map((r) => r.costUsd ?? 0).sort((a, b) => a - b);
+    const pct = (p: number) => {
+      if (costs.length === 0) return 0;
+      const idx = Math.ceil((p / 100) * costs.length) - 1;
+      return costs[Math.max(0, Math.min(idx, costs.length - 1))]!;
+    };
+    const p50 = pct(50); const p90 = pct(90); const p95 = pct(95); const p99 = pct(99);
+    const totalCostUsd2 = costs.reduce((s, c) => s + c, 0);
+    if (opts.json) {
+      console.log(JSON.stringify({ total: costs.length, totalCostUsd: totalCostUsd2, p50, p90, p95, p99, min: costs[0] ?? 0, max: costs[costs.length - 1] ?? 0, dbPath }));
+    } else {
+      console.log(`Cost percentiles (${costs.length} runs):`);
+      console.log(`  p50: $${p50.toFixed(4)}`);
+      console.log(`  p90: $${p90.toFixed(4)}`);
+      console.log(`  p95: $${p95.toFixed(4)}`);
+      console.log(`  p99: $${p99.toFixed(4)}`);
+      console.log(`  min: $${(costs[0] ?? 0).toFixed(4)}  max: $${(costs[costs.length - 1] ?? 0).toFixed(4)}`);
+    }
+    return;
+  }
 
   if (opts.total) {
     console.log(totalCostUsd.toFixed(4));
