@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; flakyCount?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; flakyCount?: boolean; hoursSincePass?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -433,6 +433,26 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.log(JSON.stringify({ flakyCount: count, totalTestCases: tcMap.size, dbPath }));
     } else {
       console.log(String(count));
+    }
+    return;
+  }
+
+  if (opts.hoursSincePass) {
+    const allRuns = await listRuns(db);
+    let filtered = allRuns.filter((r) => r.passed === true);
+    if (opts.testCase) filtered = filtered.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!));
+    if (opts.config) filtered = filtered.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    if (filtered.length === 0) {
+      if (opts.json) { console.log(JSON.stringify({ hoursSincePass: null, lastPassAt: null, dbPath })); }
+      else { console.log("-1"); }
+      return;
+    }
+    const lastPass = Math.max(...filtered.map((r) => r.createdAt));
+    const hours = Math.floor((Math.floor(Date.now() / 1000) - lastPass) / 3600);
+    if (opts.json) {
+      console.log(JSON.stringify({ hoursSincePass: hours, lastPassAt: lastPass, dbPath }));
+    } else {
+      console.log(String(hours));
     }
     return;
   }

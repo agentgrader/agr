@@ -25,6 +25,7 @@ export async function countCommand(opts: {
   byDay?: number;
   byWeek?: number;
   uniqueTestCases?: boolean;
+  uniqueConfigs?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -225,6 +226,16 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ uniqueTestCases: tcs, totalRuns: runs.length, dbPath }));
     } else {
       console.log(String(tcs));
+    }
+    return;
+  }
+
+  if (opts.uniqueConfigs) {
+    const cfgs = new Set(runs.map((r) => r.agentConfigId)).size;
+    if (opts.json) {
+      console.log(JSON.stringify({ uniqueConfigs: cfgs, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(String(cfgs));
     }
     return;
   }
