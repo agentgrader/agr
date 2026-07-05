@@ -28,6 +28,7 @@ export async function countCommand(opts: {
   uniqueConfigs?: boolean;
   byHour?: number;
   sinceLastPass?: boolean;
+  today?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -230,6 +231,24 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ runsSinceLastPass: count, lastPassRunId: lastPass?.id ?? null, lastPassAt: lastPass?.createdAt ?? null, totalRuns: runs.length, dbPath }));
     } else {
       console.log(String(count));
+    }
+    return;
+  }
+
+  if (opts.today) {
+    const now = new Date();
+    const midnightMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayRuns = runs.filter((r) => {
+      const ts = r.createdAt instanceof Date ? r.createdAt.getTime() : Number(r.createdAt);
+      return ts >= midnightMs;
+    });
+    const passed = todayRuns.filter((r) => r.passed === true).length;
+    const failed = todayRuns.filter((r) => r.passed === false).length;
+    const errored = todayRuns.filter((r) => r.passed == null).length;
+    if (opts.json) {
+      console.log(JSON.stringify({ today: todayRuns.length, passed, failed, errored, date: now.toISOString().slice(0, 10), dbPath }));
+    } else {
+      console.log(String(todayRuns.length));
     }
     return;
   }
