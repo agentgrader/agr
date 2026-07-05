@@ -27,6 +27,7 @@ export async function countCommand(opts: {
   uniqueTestCases?: boolean;
   uniqueConfigs?: boolean;
   byHour?: number;
+  sinceLastPass?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -217,6 +218,18 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ days, dbPath, byDay: result }));
     } else {
       for (const d of result) console.log(`${d.date}\t${d.count}\t(${d.passed} passed, ${d.failed} failed)`);
+    }
+    return;
+  }
+
+  if (opts.sinceLastPass) {
+    const lastPassIdx = runs.findIndex((r) => r.passed === true);
+    const count = lastPassIdx === -1 ? runs.length : lastPassIdx;
+    if (opts.json) {
+      const lastPass = lastPassIdx === -1 ? null : runs[lastPassIdx];
+      console.log(JSON.stringify({ runsSinceLastPass: count, lastPassRunId: lastPass?.id ?? null, lastPassAt: lastPass?.createdAt ?? null, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(String(count));
     }
     return;
   }
