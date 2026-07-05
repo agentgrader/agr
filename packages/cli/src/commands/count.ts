@@ -26,6 +26,7 @@ export async function countCommand(opts: {
   byWeek?: number;
   uniqueTestCases?: boolean;
   uniqueConfigs?: boolean;
+  byHour?: number;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -236,6 +237,25 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ uniqueConfigs: cfgs, totalRuns: runs.length, dbPath }));
     } else {
       console.log(String(cfgs));
+    }
+    return;
+  }
+
+  if (opts.byHour !== undefined) {
+    const hours = opts.byHour > 0 ? opts.byHour : 24;
+    const now = Math.floor(Date.now() / 1000);
+    const result: Array<{ hour: string; count: number; passed: number; failed: number }> = [];
+    for (let i = hours - 1; i >= 0; i--) {
+      const hourStart = now - (i + 1) * 3600;
+      const hourEnd = now - i * 3600;
+      const hourRuns = runs.filter((r) => r.createdAt >= hourStart && r.createdAt < hourEnd);
+      const label = new Date(hourStart * 1000).toISOString().slice(0, 13) + ":00";
+      result.push({ hour: label, count: hourRuns.length, passed: hourRuns.filter((r) => r.passed === true).length, failed: hourRuns.filter((r) => r.passed === false).length });
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({ hours, dbPath, byHour: result }));
+    } else {
+      for (const h of result) console.log(`${h.hour}\t${h.count}\t(${h.passed} passed, ${h.failed} failed)`);
     }
     return;
   }
