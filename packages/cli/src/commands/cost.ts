@@ -21,6 +21,7 @@ export async function costCommand(opts: {
   total?: boolean;
   avg?: boolean;
   percentiles?: boolean;
+  lastRun?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -180,6 +181,17 @@ export async function costCommand(opts: {
       console.log(`  p95: $${p95.toFixed(4)}`);
       console.log(`  p99: $${p99.toFixed(4)}`);
       console.log(`  min: $${(costs[0] ?? 0).toFixed(4)}  max: $${(costs[costs.length - 1] ?? 0).toFixed(4)}`);
+    }
+    return;
+  }
+
+  if (opts.lastRun) {
+    const lastRun = runs[0] ?? null;
+    const cost = lastRun?.costUsd ?? 0;
+    if (opts.json) {
+      console.log(JSON.stringify({ costUsd: cost, runId: lastRun?.id ?? null, testCaseId: lastRun?.testCaseId ?? null, agentConfigId: lastRun?.agentConfigId ?? null, dbPath }));
+    } else {
+      console.log(cost.toFixed(4));
     }
     return;
   }
