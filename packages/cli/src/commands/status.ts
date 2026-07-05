@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; flakyCount?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; passDelta?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; flakyCount?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; medianSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean; p50Cost?: boolean; p90Cost?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -512,6 +512,25 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       const pick = cfgCostList.sort((a, b) => b.avgCostUsd - a.avgCostUsd)[0]!;
       if (opts.json) { console.log(JSON.stringify({ configId: pick.configId, avgCostUsd: pick.avgCostUsd, total: pick.total, totalCostUsd: pick.totalCostUsd })); }
       else { console.log(pick.configId); }
+    }
+    return;
+  }
+
+  if (opts.passDelta && opts.since) {
+    const sinceTs = parseSince(opts.since);
+    const nowTs = Math.floor(Date.now() / 1000);
+    const windowSec = nowTs - sinceTs;
+    const prevStart = sinceTs - windowSec;
+    let prevRuns = (await listRuns(db)).filter((r) => r.createdAt >= prevStart && r.createdAt < sinceTs);
+    if (opts.testCase) prevRuns = prevRuns.filter((r) => r.testCaseId === opts.testCase || r.testCaseId.includes(opts.testCase!));
+    if (opts.config) prevRuns = prevRuns.filter((r) => r.agentConfigId === opts.config || r.agentConfigId.includes(opts.config!));
+    const prevPassed = prevRuns.filter((r) => r.passed === true).length;
+    const prevSolveRate = prevRuns.length > 0 ? (prevPassed / prevRuns.length) * 100 : 0;
+    const delta = solveRate - prevSolveRate;
+    if (opts.json) {
+      console.log(JSON.stringify({ passDeltaPp: delta, currentSolveRate: solveRate, previousSolveRate: prevSolveRate, window: opts.since, totalRuns: runs.length, prevTotalRuns: prevRuns.length, dbPath }));
+    } else {
+      console.log((delta >= 0 ? "+" : "") + delta.toFixed(1));
     }
     return;
   }

@@ -24,6 +24,7 @@ export async function countCommand(opts: {
   bySandbox?: boolean;
   byDay?: number;
   byWeek?: number;
+  uniqueTestCases?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -214,6 +215,16 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ days, dbPath, byDay: result }));
     } else {
       for (const d of result) console.log(`${d.date}\t${d.count}\t(${d.passed} passed, ${d.failed} failed)`);
+    }
+    return;
+  }
+
+  if (opts.uniqueTestCases) {
+    const tcs = new Set(runs.map((r) => r.testCaseId)).size;
+    if (opts.json) {
+      console.log(JSON.stringify({ uniqueTestCases: tcs, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(String(tcs));
     }
     return;
   }
