@@ -31,6 +31,7 @@ export interface ListCommandOptions {
   latest?: boolean;
   active?: boolean;
   errored?: boolean;
+  minPasses?: number;
 }
 
 function printPlainList(
@@ -94,6 +95,12 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   if (options.maxDuration !== undefined) filteredRuns = filteredRuns.filter((r) => r.durationMs <= options.maxDuration!);
   if (options.active) filteredRuns = filteredRuns.filter((r) => r.status === "running");
   if (options.errored) filteredRuns = filteredRuns.filter((r) => r.error != null && r.error !== "");
+  if (options.minPasses !== undefined) {
+    const allRuns = await loadEnrichedRuns(db, 100000, undefined, undefined, undefined, true);
+    const passCounts = new Map<string, number>();
+    for (const r of allRuns) passCounts.set(r.testCaseId, (passCounts.get(r.testCaseId) ?? 0) + 1);
+    filteredRuns = filteredRuns.filter((r) => (passCounts.get(r.testCaseId) ?? 0) >= options.minPasses!);
+  }
   if (options.latest) {
     const seen = new Set<string>();
     filteredRuns = filteredRuns.filter((r) => {
