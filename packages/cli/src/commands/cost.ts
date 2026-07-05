@@ -24,6 +24,8 @@ export async function costCommand(opts: {
   percentile?: number;
   lastRun?: boolean;
   byDay?: number;
+  min?: boolean;
+  max?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -183,6 +185,26 @@ export async function costCommand(opts: {
       console.log(`  p95: $${p95.toFixed(4)}`);
       console.log(`  p99: $${p99.toFixed(4)}`);
       console.log(`  min: $${(costs[0] ?? 0).toFixed(4)}  max: $${(costs[costs.length - 1] ?? 0).toFixed(4)}`);
+    }
+    return;
+  }
+
+  if (opts.min || opts.max) {
+    const costs = runs.map((r) => r.costUsd ?? 0);
+    const minVal = costs.length > 0 ? Math.min(...costs) : 0;
+    const maxVal = costs.length > 0 ? Math.max(...costs) : 0;
+    if (opts.min && opts.max) {
+      if (opts.json) {
+        console.log(JSON.stringify({ minCostUsd: minVal, maxCostUsd: maxVal, totalRuns: costs.length, dbPath }));
+      } else {
+        console.log(`min: ${minVal.toFixed(4)}  max: ${maxVal.toFixed(4)}`);
+      }
+    } else if (opts.min) {
+      if (opts.json) { console.log(JSON.stringify({ minCostUsd: minVal, totalRuns: costs.length, dbPath })); }
+      else { console.log(minVal.toFixed(4)); }
+    } else {
+      if (opts.json) { console.log(JSON.stringify({ maxCostUsd: maxVal, totalRuns: costs.length, dbPath })); }
+      else { console.log(maxVal.toFixed(4)); }
     }
     return;
   }
