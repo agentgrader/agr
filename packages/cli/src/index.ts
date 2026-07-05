@@ -473,6 +473,8 @@ cli
   .option("--by-test-case", "Print a count per test case (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byTestCase: [{testCaseId, total, passed, failed}]}")
   .option("--by-config", "Print a count per agent config (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byConfig: [{agentConfigId, total, passed, failed}]}")
   .option("--by-model", "Print a count per model (sorted by total runs, most first). Plain: tab-separated. JSON: {total, byModel: [{model, total, passed, failed, solveRate}]}")
+  .option("--active", "Count runs currently in progress (status=running); prints a plain integer; --json emits {active, dbPath}; useful in scripts: ACTIVE=$(agr count --active)")
+  .option("--by-sandbox", "Print a count per sandbox provider (sorted by total runs, most first). Plain: tab-separated. JSON: {total, bySandbox: [{sandbox, count}]}")
   .example("agr count")
   .example("agr count --passed --since 24h")
   .example("agr count --failed --test-case hello-world")
@@ -505,6 +507,8 @@ cli
         errored: options.errored,
         regression: options.regression,
         regressionWindow: options.regressionWindow !== undefined ? Number(options.regressionWindow) : undefined,
+        active: options.active,
+        bySandbox: options.bySandbox,
       });
     } catch (err: any) {
       console.error(`Error executing count: ${err.message}`);

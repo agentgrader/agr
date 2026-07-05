@@ -20,6 +20,8 @@ export async function countCommand(opts: {
   errored?: boolean;
   regression?: boolean;
   regressionWindow?: number;
+  active?: boolean;
+  bySandbox?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -162,6 +164,31 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ regressions: regressionCount, regressionWindow: window, dbPath }));
     } else {
       console.log(String(regressionCount));
+    }
+    return;
+  }
+
+  if (opts.active) {
+    const activeRuns = runs.filter((r) => r.status === "running");
+    if (opts.json) {
+      console.log(JSON.stringify({ active: activeRuns.length, dbPath }));
+    } else {
+      console.log(activeRuns.length);
+    }
+    return;
+  }
+
+  if (opts.bySandbox) {
+    const sbMap = new Map<string, number>();
+    for (const r of runs) {
+      const key = r.sandboxProvider ?? "unknown";
+      sbMap.set(key, (sbMap.get(key) ?? 0) + 1);
+    }
+    const bySandbox = [...sbMap.entries()].map(([sandbox, count]) => ({ sandbox, count })).sort((a, b) => b.count - a.count);
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, bySandbox, dbPath }));
+    } else {
+      for (const e of bySandbox) console.log(`${e.count}\t${e.sandbox}`);
     }
     return;
   }
