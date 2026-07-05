@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -850,6 +850,39 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
     if (opts.failOnRegression && regressions.length > 0) {
       console.error(`\n[FAIL] ${regressions.length} regression(s) detected. Exiting with code 1.`);
       process.exit(1);
+    }
+    return;
+  }
+
+  if (opts.streak) {
+    const tcFilter = opts.streak;
+    const allRuns = await listRuns(db);
+    const tcRuns = allRuns.filter((r) => r.testCaseId === tcFilter || r.testCaseId.includes(tcFilter));
+    if (tcRuns.length === 0) {
+      if (opts.json) {
+        console.log(JSON.stringify({ testCaseId: tcFilter, streak: 0, streakKind: null, totalRuns: 0, dbPath }));
+      } else {
+        console.log(`No runs found for test case matching "${tcFilter}".`);
+      }
+      return;
+    }
+    let streakLen = 0;
+    let streakKind: "pass" | "fail" | "error" | null = null;
+    const firstKind = tcRuns[0]!.passed === true ? "pass" : tcRuns[0]!.passed === false ? "fail" : "error";
+    for (const r of tcRuns) {
+      const kind = r.passed === true ? "pass" : r.passed === false ? "fail" : "error";
+      if (kind === firstKind) { streakLen++; streakKind = firstKind; }
+      else break;
+    }
+    const totalRuns = tcRuns.length;
+    const passRate = totalRuns > 0 ? (tcRuns.filter((r) => r.passed === true).length / totalRuns) * 100 : 0;
+    if (opts.json) {
+      console.log(JSON.stringify({ testCaseId: tcFilter, streak: streakLen, streakKind, totalRuns, passRate, dbPath }));
+    } else {
+      const icon = streakKind === "pass" ? "PASS" : streakKind === "fail" ? "FAIL" : "ERR ";
+      console.log(`Test case: ${tcFilter}`);
+      console.log(`  Current streak: ${streakLen}x ${icon}  (${totalRuns} total runs, ${passRate.toFixed(0)}% solve rate)`);
+      if (tcRuns[0]?.id) console.log(`  Last run: agr trace ${tcRuns[0].id}`);
     }
     return;
   }
