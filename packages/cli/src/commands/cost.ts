@@ -26,6 +26,7 @@ export async function costCommand(opts: {
   byDay?: number;
   min?: boolean;
   max?: boolean;
+  stddev?: boolean;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -185,6 +186,19 @@ export async function costCommand(opts: {
       console.log(`  p95: $${p95.toFixed(4)}`);
       console.log(`  p99: $${p99.toFixed(4)}`);
       console.log(`  min: $${(costs[0] ?? 0).toFixed(4)}  max: $${(costs[costs.length - 1] ?? 0).toFixed(4)}`);
+    }
+    return;
+  }
+
+  if (opts.stddev) {
+    const costs = runs.map((r) => r.costUsd ?? 0);
+    const avg = costs.length > 0 ? costs.reduce((s, c) => s + c, 0) / costs.length : 0;
+    const variance = costs.length > 1 ? costs.reduce((s, c) => s + (c - avg) ** 2, 0) / costs.length : 0;
+    const sd = Math.sqrt(variance);
+    if (opts.json) {
+      console.log(JSON.stringify({ stddevCostUsd: sd, avgCostUsd: avg, totalRuns: costs.length, dbPath }));
+    } else {
+      console.log(sd.toFixed(4));
     }
     return;
   }
