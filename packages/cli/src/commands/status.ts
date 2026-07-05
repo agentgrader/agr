@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number; streak?: string; cheapestConfig?: boolean; mostExpensiveConfig?: boolean; zeroPass?: boolean; avgSteps?: boolean; fastestConfig?: boolean; slowestConfig?: boolean; totalTokens?: boolean }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -365,6 +365,17 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       }
       return;
     }
+  }
+
+  if (opts.totalTokens) {
+    const tokIn = runs.reduce((s, r) => s + (r.tokensIn ?? 0), 0);
+    const tokOut = runs.reduce((s, r) => s + (r.tokensOut ?? 0), 0);
+    if (opts.json) {
+      console.log(JSON.stringify({ tokensIn: tokIn, tokensOut: tokOut, totalTokens: tokIn + tokOut, totalRuns: runs.length, dbPath }));
+    } else {
+      console.log(`${tokIn + tokOut}`);
+    }
+    return;
   }
 
   if (opts.avgSteps) {

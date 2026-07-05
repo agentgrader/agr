@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { initDb, listRuns } from "@agentgrader/store";
 import { parseSince } from "../lib/parse-since";
 
-export async function pruneCommand(opts: { db?: string; before?: string; testCase?: string; config?: string; errored?: boolean; dryRun?: boolean; json?: boolean; yes?: boolean }) {
+export async function pruneCommand(opts: { db?: string; before?: string; testCase?: string; config?: string; errored?: boolean; dryRun?: boolean; json?: boolean; yes?: boolean; keepLast?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -12,8 +12,8 @@ export async function pruneCommand(opts: { db?: string; before?: string; testCas
     process.exit(1);
   }
 
-  if (!opts.before && !opts.testCase && !opts.config && !opts.errored) {
-    console.error("Provide at least one of: --before <duration|date>, --test-case <name>, --config <name>, --errored");
+  if (!opts.before && !opts.testCase && !opts.config && !opts.errored && opts.keepLast === undefined) {
+    console.error("Provide at least one of: --before <duration|date>, --test-case <name>, --config <name>, --errored, --keep-last <n>");
     process.exit(1);
   }
 
@@ -21,6 +21,22 @@ export async function pruneCommand(opts: { db?: string; before?: string; testCas
   const allRuns = await listRuns(db);
 
   let toDelete = allRuns;
+
+  if (opts.keepLast !== undefined) {
+    const n = Math.max(0, opts.keepLast);
+    // Group by testCaseId, keep N most recent per group, mark the rest for deletion
+    const tcGroups = new Map<string, typeof allRuns>();
+    for (const r of allRuns) {
+      if (!tcGroups.has(r.testCaseId)) tcGroups.set(r.testCaseId, []);
+      tcGroups.get(r.testCaseId)!.push(r);
+    }
+    const keepIds = new Set<string>();
+    for (const tcRuns of tcGroups.values()) {
+      // allRuns is sorted newest-first by default from listRuns
+      for (const r of tcRuns.slice(0, n)) keepIds.add(r.id);
+    }
+    toDelete = toDelete.filter((r) => !keepIds.has(r.id));
+  }
 
   if (opts.before) {
     const cutoffTs = parseSince(opts.before);
