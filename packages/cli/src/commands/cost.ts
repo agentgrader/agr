@@ -17,6 +17,7 @@ export async function costCommand(opts: {
   byTestCase?: boolean;
   byConfig?: boolean;
   byModel?: boolean;
+  bySandbox?: boolean;
   total?: boolean;
   avg?: boolean;
 }) {
@@ -105,6 +106,28 @@ export async function costCommand(opts: {
     } else {
       for (const cfg of byConfig) {
         console.log(`$${cfg.totalCostUsd.toFixed(4)}\t${cfg.agentConfigId}\t(${cfg.total} runs, avg $${cfg.avgCostUsd.toFixed(4)}/run)`);
+      }
+    }
+    return;
+  }
+
+  if (opts.bySandbox) {
+    const sbMap = new Map<string, { total: number; totalCostUsd: number }>();
+    for (const r of runs) {
+      const key = r.sandboxProvider ?? "unknown";
+      const entry = sbMap.get(key) ?? { total: 0, totalCostUsd: 0 };
+      entry.total++;
+      entry.totalCostUsd += r.costUsd ?? 0;
+      sbMap.set(key, entry);
+    }
+    const bySandbox = [...sbMap.entries()]
+      .map(([sandbox, e]) => ({ sandbox, total: e.total, totalCostUsd: e.totalCostUsd, avgCostUsd: e.totalCostUsd / e.total }))
+      .sort((a, b) => b.totalCostUsd - a.totalCostUsd);
+    if (opts.json) {
+      console.log(JSON.stringify({ total: runs.length, totalCostUsd: runs.reduce((s, r) => s + (r.costUsd ?? 0), 0), dbPath, bySandbox }));
+    } else {
+      for (const sb of bySandbox) {
+        console.log(`$${sb.totalCostUsd.toFixed(4)}\t${sb.sandbox}\t(${sb.total} runs, avg $${sb.avgCostUsd.toFixed(4)}/run)`);
       }
     }
     return;
