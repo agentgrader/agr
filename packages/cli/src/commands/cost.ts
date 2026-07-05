@@ -21,6 +21,7 @@ export async function costCommand(opts: {
   total?: boolean;
   avg?: boolean;
   percentiles?: boolean;
+  percentile?: number;
   lastRun?: boolean;
   byDay?: number;
 }) {
@@ -182,6 +183,18 @@ export async function costCommand(opts: {
       console.log(`  p95: $${p95.toFixed(4)}`);
       console.log(`  p99: $${p99.toFixed(4)}`);
       console.log(`  min: $${(costs[0] ?? 0).toFixed(4)}  max: $${(costs[costs.length - 1] ?? 0).toFixed(4)}`);
+    }
+    return;
+  }
+
+  if (opts.percentile !== undefined) {
+    const p = Math.max(0, Math.min(100, opts.percentile));
+    const costs = runs.map((r) => r.costUsd ?? 0).sort((a, b) => a - b);
+    const val = costs.length === 0 ? 0 : costs[Math.max(0, Math.ceil((p / 100) * costs.length) - 1)]!;
+    if (opts.json) {
+      console.log(JSON.stringify({ percentile: p, costUsd: val, totalRuns: costs.length, dbPath }));
+    } else {
+      console.log(val.toFixed(4));
     }
     return;
   }
