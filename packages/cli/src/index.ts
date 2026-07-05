@@ -412,6 +412,7 @@ cli
   .option("--worst-model", "Print the model name with the lowest solve rate as a plain string; --json emits {model, solveRate, total, passed, avgCostUsd}; complement to --best-model")
   .option("--github-step-summary", "Append a Markdown status summary to $GITHUB_STEP_SUMMARY (GitHub Actions step summary); no-op with a warning if the env var is not set; also prints to stdout")
   .option("--db-info", "Print a quick database overview: file size, total runs, unique test cases, unique configs, and date range; suggests agr prune if the DB is over 50 MB; --json emits {dbPath, sizeMb, totalRuns, uniqueTestCases, uniqueConfigs, oldestRun, newestRun}")
+  .option("--by-day <n>", "Print run counts for the last N days (default 7), one row per day with passed/failed breakdown; --json emits {days, byDay:[{date,count,passed,failed}]}; useful for spotting activity spikes or gaps: agr count --by-day 14")
   .option("--top-regressions <n>", "Print the N test cases with the longest consecutive-failure streak (regressions sorted worst-first); defaults to 10 if N is 0 or omitted; --json emits {topRegressions:[{testCaseId,streak,lastPassAt,lastRunId}]}; combine with --regression-window to set the minimum streak")
   .option("--count", "Print total run count as a plain integer; --json emits {totalRuns, passedRuns, failedRuns, erroredRuns}; combinable with --since, --test-case, --config, and all filter flags: RUNS=$(agr status --count --since 7d)")
   .option("--report-card", "Print a comprehensive health check summary combining: overall stats, regression count, and flaky test count; --json emits {summary, regressions, flaky}")
@@ -510,6 +511,7 @@ cli
         regressionWindow: options.regressionWindow !== undefined ? Number(options.regressionWindow) : undefined,
         active: options.active,
         bySandbox: options.bySandbox,
+        byDay: options.byDay !== undefined ? Number(options.byDay) : undefined,
       });
     } catch (err: any) {
       console.error(`Error executing count: ${err.message}`);
@@ -593,6 +595,7 @@ cli
   .option("--error <substring>", "Only show runs whose error message contains this substring (case-insensitive); useful for finding all runs that failed with a specific error")
   .option("--latest", "Deduplicate to show only the most recent run per (test case, agent config) pair; gives a current-state snapshot rather than full history")
   .option("--active", "Only show runs currently in progress (status = running); useful for checking if a bench is still running or if any runs are stuck")
+  .option("--errored", "Only show runs that errored (sandbox crash, tool failure, or network error — runs with an error field set but no pass/fail score); shorthand for --error '' combined with status filtering")
   .option("--min-cost <amount>", "Only show runs costing at least this many USD (e.g. 0.05 to find expensive outliers)")
   .option("--min-duration <ms>", "Only show runs lasting at least this many milliseconds (e.g. 60000 to find slow runs)")
   .option("--max-duration <ms>", "Only show runs lasting at most this many milliseconds (e.g. 10000 to find fast/early-terminating runs)")
@@ -646,6 +649,7 @@ cli
         maxDuration: options.maxDuration !== undefined ? Number(options.maxDuration) : undefined,
         latest: options.latest,
         active: options.active,
+        errored: options.errored,
       });
     } catch (err: any) {
       console.error(`Error executing list: ${err.message}`);

@@ -22,6 +22,7 @@ export async function countCommand(opts: {
   regressionWindow?: number;
   active?: boolean;
   bySandbox?: boolean;
+  byDay?: number;
 }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
@@ -174,6 +175,25 @@ export async function countCommand(opts: {
       console.log(JSON.stringify({ active: activeRuns.length, dbPath }));
     } else {
       console.log(activeRuns.length);
+    }
+    return;
+  }
+
+  if (opts.byDay !== undefined) {
+    const days = opts.byDay > 0 ? opts.byDay : 7;
+    const now = Math.floor(Date.now() / 1000);
+    const result: Array<{ date: string; count: number; passed: number; failed: number }> = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const dayStart = now - (i + 1) * 86400;
+      const dayEnd = now - i * 86400;
+      const dayRuns = runs.filter((r) => r.createdAt >= dayStart && r.createdAt < dayEnd);
+      const date = new Date(dayStart * 1000).toISOString().slice(0, 10);
+      result.push({ date, count: dayRuns.length, passed: dayRuns.filter((r) => r.passed === true).length, failed: dayRuns.filter((r) => r.passed === false).length });
+    }
+    if (opts.json) {
+      console.log(JSON.stringify({ days, dbPath, byDay: result }));
+    } else {
+      for (const d of result) console.log(`${d.date}\t${d.count}\t(${d.passed} passed, ${d.failed} failed)`);
     }
     return;
   }

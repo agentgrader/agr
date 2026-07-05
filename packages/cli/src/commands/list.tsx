@@ -30,6 +30,7 @@ export interface ListCommandOptions {
   maxDuration?: number;
   latest?: boolean;
   active?: boolean;
+  errored?: boolean;
 }
 
 function printPlainList(
@@ -92,6 +93,7 @@ export async function listCommand(options: ListCommandOptions = {}): Promise<voi
   if (options.minDuration !== undefined) filteredRuns = filteredRuns.filter((r) => r.durationMs >= options.minDuration!);
   if (options.maxDuration !== undefined) filteredRuns = filteredRuns.filter((r) => r.durationMs <= options.maxDuration!);
   if (options.active) filteredRuns = filteredRuns.filter((r) => r.status === "running");
+  if (options.errored) filteredRuns = filteredRuns.filter((r) => r.error != null && r.error !== "");
   if (options.latest) {
     const seen = new Set<string>();
     filteredRuns = filteredRuns.filter((r) => {
