@@ -20,7 +20,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, Math.min(idx, sorted.length - 1))]!;
 }
 
-export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean }) {
+export async function statusCommand(opts: { db?: string; json?: boolean; since?: string; testCase?: string; config?: string; model?: string; sandbox?: string; passed?: boolean; byConfig?: boolean; byTestCase?: boolean; byModel?: boolean; bySandbox?: boolean; byMatrix?: boolean; top?: number; matrixId?: string; lastMatrix?: boolean; trend?: boolean; byDay?: boolean; byWeek?: boolean; sortBy?: StatusSortField; errors?: boolean; flaky?: boolean; regression?: boolean; regressionWindow?: number; failOnRegression?: boolean; reportCard?: boolean; emitMetrics?: boolean; percentiles?: boolean; below?: number; above?: number; grid?: boolean; minRuns?: number; rolling?: number; showIds?: boolean; solveRate?: boolean; summary?: boolean; bestConfig?: boolean; bestModel?: boolean; worstTestCase?: boolean; bestTestCase?: boolean; worstConfig?: boolean; worstModel?: boolean; count?: boolean; githubStepSummary?: boolean; showLastPass?: boolean; dbInfo?: boolean; topRegressions?: number }) {
   const dbPath = opts.db ?? ".agr/db.sqlite";
   const resolvedPath = resolve(dbPath);
 
@@ -851,6 +851,48 @@ export async function statusCommand(opts: { db?: string; json?: boolean; since?:
       console.error(`\n[FAIL] ${regressions.length} regression(s) detected. Exiting with code 1.`);
       process.exit(1);
     }
+    return;
+  }
+
+  if (opts.topRegressions !== undefined) {
+    const window = opts.regressionWindow ?? 3;
+    const n = opts.topRegressions > 0 ? opts.topRegressions : 10;
+    const allRunsForReg = await listRuns(db);
+    const tcAllMap = new Map<string, typeof allRunsForReg>();
+    for (const r of allRunsForReg) {
+      if (!tcAllMap.has(r.testCaseId)) tcAllMap.set(r.testCaseId, []);
+      tcAllMap.get(r.testCaseId)!.push(r);
+    }
+    const candidates: Array<{ testCaseId: string; streak: number; lastPassAt: number | null; lastRunId: string | null }> = [];
+    for (const [tcId, tcRuns] of tcAllMap) {
+      let streak = 0;
+      for (const r of tcRuns) {
+        if (r.passed === false) streak++;
+        else break;
+      }
+      const hasHistoricalPass = tcRuns.some((r) => r.passed === true);
+      if (streak >= window && hasHistoricalPass) {
+        const lastPass = tcRuns.find((r) => r.passed === true);
+        candidates.push({ testCaseId: tcId, streak, lastPassAt: lastPass?.createdAt ?? null, lastRunId: tcRuns[0]?.id ?? null });
+      }
+    }
+    candidates.sort((a, b) => b.streak - a.streak);
+    const top = candidates.slice(0, n);
+    if (opts.json) {
+      console.log(JSON.stringify({ exists: true, dbPath, regressionWindow: window, topRegressions: top }, null, 2));
+      return;
+    }
+    if (top.length === 0) {
+      console.log(`No regressions detected (no test cases with ${window}+ consecutive failures after a prior pass).`);
+      return;
+    }
+    console.log(`Top ${top.length} regression(s) by consecutive-failure streak:\n`);
+    for (const tc of top) {
+      const lastPassNote = tc.lastPassAt ? `  last pass: ${formatCompactWhen(tc.lastPassAt)}` : "  never passed";
+      console.log(`  [streak:${tc.streak}]  ${tc.testCaseId}${lastPassNote}`);
+      if (tc.lastRunId) console.log(`    agr trace ${tc.lastRunId}`);
+    }
+    console.log(`\nNext: agr bench --only-failed --suite tasks/  |  agr status --regression`);
     return;
   }
 
